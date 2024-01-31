@@ -121,7 +121,7 @@ if __name__ == '__main__':
 
     # If you want to use local files (else it uses network drive)
     if args.dev_dataset:
-        params.data_path = "/home/jhj/phd/GitProjects/SentinelSemanticSegmentation/data/processed/dev_dataset/"
+        params.data_path = "/home/mxh/RS-Net/data/processed/dev_dataset/"
 
     # Check to see if a new data set should be processed from the raw data
     if args.make_dataset:
