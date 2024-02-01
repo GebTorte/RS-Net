@@ -21,10 +21,10 @@ import os
 import random
 import numpy as np
 import tensorflow as tf
-from src.data.make_dataset import make_numpy_dataset
-from src.models.params import get_params
-from src.models.Unet import Unet
-from src.models.evaluate_model import evaluate_test_set, write_csv_files
+from srcv2_2.data.make_dataset import make_numpy_dataset
+from srcv2_2.models.params import get_params
+from srcv2_2.models.Unet import Unet
+from srcv2_2.models.evaluate_model import evaluate_test_set, write_csv_files
 
 # Don't allow tensorflow to reserve all memory available
 #from keras.backend.tensorflow_backend import set_session
@@ -117,6 +117,7 @@ if __name__ == '__main__':
 
     # If any hyperparameters were overwritten in the commandline, parse them into params
     if args.params:
+        print(args.params)
         params.parse(args.params)
 
     # If you want to use local files (else it uses network drive)
@@ -148,7 +149,7 @@ if __name__ == '__main__':
                 k_folds = 5  # SPARCS contains 80 scenes, so split it nicely
 
                 # Create a list of names for the splitting
-                sparcs_products = sorted(os.listdir(params.project_path + "data/raw/SPARCS_dataset/l8cloudmasks/sending/"))
+                sparcs_products = sorted(os.listdir(params.project_path + "data/raw/SPARCS_dataset/"))
                 sparcs_products = [f for f in sparcs_products if 'data.tif' in f]
                 sparcs_products = [f for f in sparcs_products if 'aux' not in f]
 
