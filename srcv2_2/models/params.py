@@ -17,15 +17,13 @@ class HParams:
             try:
                 value = int(value)
             except ValueError:
-                pass
-            try:
-                value = float(value)
-            except ValueError:
-                pass
-            try:
-                value = list(value)
-            except ValueError:
-                pass
+                try:
+                    value = float(value)
+                except ValueError:
+                    try:
+                        value = list(value)
+                    except ValueError:
+                        pass
             # default cast:
             if value == 'True':
                 value = True
