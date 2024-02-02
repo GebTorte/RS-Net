@@ -11,6 +11,7 @@ import os.path
 import random
 import threading
 import numpy as np
+import tensorflow.keras as keras
 from tensorflow.keras import backend as K
 from tensorflow.keras.backend import binary_crossentropy
 from tensorflow.keras.callbacks import ModelCheckpoint, TensorBoard, ReduceLROnPlateau, CSVLogger, EarlyStopping
@@ -22,7 +23,7 @@ from srcv2_2.utils import extract_collapsed_cls, extract_cls_mask, image_normali
 def swish(x):
     return (K.sigmoid(x) * x)
 
-
+@keras.saving.register_keras_serializable()
 def jaccard_coef(y_true, y_pred):
     """
     Calculates the Jaccard index
@@ -37,7 +38,7 @@ def jaccard_coef(y_true, y_pred):
 
     return K.mean(jac)
 
-
+@keras.saving.register_keras_serializable()
 def jaccard_coef_thresholded(y_true, y_pred):
     """
     Calculates the binarized Jaccard index
@@ -55,7 +56,7 @@ def jaccard_coef_thresholded(y_true, y_pred):
 
     return K.mean(jac)
 
-
+@keras.saving.register_keras_serializable()
 def jaccard_coef_loss(y_true, y_pred):
     """
     Calculates the loss as a function of the Jaccard index and binary crossentropy
@@ -63,7 +64,7 @@ def jaccard_coef_loss(y_true, y_pred):
     # From https://github.com/ternaus/kaggle_dstl_submission/blob/master/src/unet_crops.py
     return -K.log(jaccard_coef(y_true, y_pred)) + binary_crossentropy(y_pred, y_true)
 
-
+@keras.saving.register_keras_serializable()
 def get_callbacks(params):
     # Must use save_weights_only=True in model_checkpoint (BUG: https://github.com/fchollet/keras/issues/8123)
     model_checkpoint = ModelCheckpoint(params.project_path + 'models/Unet/unet_tmp.hdf5',

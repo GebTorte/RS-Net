@@ -183,8 +183,10 @@ if __name__ == '__main__':
                 print("Training on fold " + str(k + 1) + " of " + str(k_folds))
                 model.train(params)
 
+                # leave for --test flag
                 # Run model on test data set and save output
-                evaluate_test_set(model, params.test_dataset, params.num_gpus, params)
+                # evaluate_test_set(model, params.test_dataset, params.num_gpus, params)
+
 
     if args.test:
         # If a model has been trained, use that one. If not, load a new one.

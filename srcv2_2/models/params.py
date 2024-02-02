@@ -1,14 +1,19 @@
 #!/usr/bin/env python
 from typing import Any
 import tensorflow as tf
+import tensorflow.keras as keras
 import os
 import inspect
 import copy
 
 # Create a Namespace class for hyperparameters
+@keras.saving.register_keras_serializable() # is this even needed if no keras funcs are called here?
 class HParams:
     def __init__(self, **kwargs):
         self.__dict__.update(kwargs)
+
+    def get_config(self):
+        return {'__dict__', self.__dict__}
 
     def parse(self, params):
         param_list = params.strip().split(",")
@@ -48,7 +53,7 @@ class HParams:
     
 
 
-
+@keras.saving.register_keras_serializable()
 def get_params(model, satellite):
     if model == 'U-net' and satellite == 'Sentinel-2':
         hparams = {
