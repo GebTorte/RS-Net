@@ -177,17 +177,19 @@ class Unet(object):
         # Do the training
         print('------------------------------------------')
         print('Start training:')
-        self.model.fit_generator(image_generator,
-                                 epochs=params.epochs,
-                                 steps_per_epoch=params.steps_per_epoch,
-                                 verbose=1,
-                                 workers=4,
-                                 max_queue_size=16,
-                                 use_multiprocessing=True,
-                                 shuffle=False,
-                                 callbacks=used_callbacks,
-                                 validation_data=val_generator,
-                                 validation_steps=None)
+        # deprecated method
+        #self.model.fit_generator(
+        self.model.fit(image_generator,
+                        epochs=params.epochs,
+                        steps_per_epoch=params.steps_per_epoch,
+                        verbose=1,
+                        workers=4,
+                        max_queue_size=16,
+                        use_multiprocessing=True,
+                        shuffle=False,
+                        callbacks=used_callbacks,
+                        validation_data=val_generator,
+                        validation_steps=None)
 
         # Save the weights (append the val score in the name)
         # There is a bug with multi_gpu_model (https://github.com/kuza55/keras-extras/issues/3), hence model.layers[-2]

@@ -24,7 +24,6 @@ class HParams:
                         value = list(value)
                     except ValueError:
                         pass
-            # default cast:
             if value == 'True':
                 value = True
             elif value == 'False':

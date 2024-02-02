@@ -28,6 +28,11 @@ data/raw/test_threading/*
 models/Unet/*
 !models/Unet/.gitkeep
 
+reports/Unet/csvlogger/*
+!reports/Unet/csvlogger/.gitkeep
+reports/Unet/tensorboard/*
+!reports/Unet/tensorboard/.gitkeep
+
 notebooks/*.img
 notebooks/tar/*
 !notebooks/tar/.gitkeep
