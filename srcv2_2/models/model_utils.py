@@ -11,10 +11,10 @@ import os.path
 import random
 import threading
 import numpy as np
-from keras import backend as K
-from keras.backend import binary_crossentropy
-from keras.callbacks import ModelCheckpoint, TensorBoard, ReduceLROnPlateau, CSVLogger, EarlyStopping
-from keras.utils import Sequence
+from tensorflow.keras import backend as K
+from tensorflow.keras.backend import binary_crossentropy
+from tensorflow.keras.callbacks import ModelCheckpoint, TensorBoard, ReduceLROnPlateau, CSVLogger, EarlyStopping
+from tensorflow.keras.utils import Sequence
 
 from srcv2_2.utils import extract_collapsed_cls, extract_cls_mask, image_normalizer, get_cls
 

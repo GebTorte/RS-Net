@@ -181,7 +181,7 @@ class Unet(object):
         print('Start training:')
         # deprecated method
         #self.model.fit_generator(
-        self.model.fit(image_generator,
+        self.model.fit_generator(image_generator,
                         epochs=params.epochs,
                         steps_per_epoch=params.steps_per_epoch,
                         verbose=1,
@@ -202,6 +202,7 @@ class Unet(object):
             self.model = multi_gpu_model(self.model, gpus=params.num_gpus)  # Make it run on multiple GPUs
         else:
             self.model.save_weights(params.project_path + 'models/Unet/' + model_name)
+            self.model.save(params.project_path + 'models/Unet/' + model_name +'_'+ params.modelID+'.keras')
 
     def predict(self, img, n_bands, n_cls, num_gpus, params):
         # Predict batches of patches
