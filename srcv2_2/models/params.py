@@ -11,7 +11,7 @@ class HParams:
         self.__dict__.update(kwargs)
 
     def parse(self, params):
-        param_list = params.split(",")
+        param_list = params.strip().split(",")
         for param in param_list:
             key, value = param.split("=")
             try:
@@ -20,8 +20,12 @@ class HParams:
                 try:
                     value = float(value)
                 except ValueError:
+                    #assuming input is supposed to be list format
+                    # make list of value, only account for list of ints
                     try:
-                        value = list(value)
+                        value = [int(i) for i in value.strip('][').split(',')]
+                        self.__dict__[key] = value
+                        return
                     except ValueError:
                         pass
             if value == 'True':
@@ -219,5 +223,10 @@ def __data_split__(dataset):
 
         #test_tiles = ['LC82290572014141LGN00',
         #              'LC81080162013171LGN00']
+        return [train_tiles, test_tiles]
+    elif "SPARCS" in dataset:
+        # TODO: split SPARCS by hand
+        train_tiles = []
+        test_tiles = []
 
         return [train_tiles, test_tiles]
