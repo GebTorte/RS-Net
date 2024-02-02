@@ -7,6 +7,7 @@ set_seed(1)
 
 import numpy as np
 import tensorflow as tf
+import tensorflow.distribute
 from tensorflow.keras.models import Model
 from tensorflow.keras import regularizers
 from tensorflow.keras.layers import Input, Conv2D, MaxPooling2D, UpSampling2D, Concatenate, Dropout, Cropping2D, Activation, BatchNormalization
@@ -49,7 +50,8 @@ class Unet(object):
                     print('Weights loaded from model: ' + model_name)
                 except:
                     print('No weights found')
-            self.model = multi_gpu_model(self.model, gpus=params.num_gpus)  # Make it run on multiple GPUs
+            # deprecated -> use tf.distribute.MirroredStrategy().scope() for compiling and training on mulitple gpus instead
+            # self.model = multi_gpu_model(self.model, gpus=params.num_gpus)  # Make it run on multiple GPUs
 
     def __create_inference__(self, n_bands, n_cls, params):
         # Note about BN and dropout: https://stackoverflow.com/questions/46316687/how-to-include-batch-normalization-in-non-sequential-keras-model

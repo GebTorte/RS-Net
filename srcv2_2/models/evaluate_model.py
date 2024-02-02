@@ -23,7 +23,7 @@ def __evaluate_sparcs_dataset__(model, num_gpus, params, save_output=False, writ
     n_bands = np.size(params.bands)
 
     # Get the name of all the products (scenes)
-    data_path = params.project_path + "data/raw/SPARCS_dataset/"
+    data_path = params.project_path + "data/raw/SPARCS_dataset/l8cloudmasks/sending/"
     toa_path = params.project_path + "data/processed/SPARCS_TOA/"
     products = sorted(os.listdir(data_path))
     products = [p for p in products if 'data.tif' in p]
@@ -364,7 +364,8 @@ def calculate_evaluation_criteria(valid_pixels_mask, predicted_binary_mask, true
         precision = recall = f_one_score = pixel_jaccard = 0
 
     # Metrics from Foga 2017 paper
-    if fp != 0:
+    # if fp!=0: # accunting for runtime division by 0 (tn was 0)
+    if fp != 0 and tn != 0:
         omission = fp / (tp + fp)
         comission = fp / (tn + fn)
 
