@@ -20,18 +20,19 @@ def visualize_test_data(model, num_gpus, params):
             print('---')
 
     elif params.satellite == 'Landsat8':
-        folders = sorted(os.listdir(params.project_path + "data/raw/"))
+        folders = sorted(os.listdir(params.project_path + "data/raw/Biome_dataset/"))
         folders = [f for f in folders if '.' not in f]  # Filter out .gitignore
 
         i = 1
         for folder in folders:
-            products = sorted(os.listdir(params.project_path + "data/raw/" + folder + "/BC/"))
-            products = [f for f in products if f in params.test_tiles]  # Filter for visualization set tiles
+            products = sorted(os.listdir(params.project_path + "data/raw/Biome_dataset/" + folder + "/BC/"))
+            products = [f for f in products if f in params.test_tiles[1]]  # Filter for visualization set tiles
+            # accessing params.test_tiles[1] for test set. params.test_tiles[0] would be train set
 
             for product in products:
                 print('Evaluating tile no.', i,':', folder, ' - ', product)
-                data_path = params.project_path + "data/raw/" + folder + "/BC/" + product + "/"
-                __visualize_landsat8_tile__(model, product, data_path, num_gpus, params)
+                data_path = params.project_path + params.data_path #  + folder + "/BC/" + product + "/"
+                __visualize_landsat8_tile__(model, file=product, data_path=data_path, params=params, folder=folder)
                 print('---')
 
                 i += 1
@@ -133,7 +134,7 @@ def __visualize_sentinel2_tile__(model, file, num_gpus, params):
             break
 
 
-def __visualize_landsat8_tile__(model, file, data_path, num_gpus, params):
+def __visualize_landsat8_tile__(model, data_path, folder, file, params):
     # Measure the time it takes to load data
     start_time = time.time()
 
@@ -145,17 +146,22 @@ def __visualize_landsat8_tile__(model, file, data_path, num_gpus, params):
     n_bands = np.size(params.bands)
 
     # Load the RGB data for the scene
-    img, img_rgb = load_product(file, params, data_path)
+    toa_path = "data/processed/Biome_TOA/" + folder + "/BC/" + file + "/"
+    data_path = data_path + folder + "/BC/" + file + "/"
+    #toa_path = params.project_path + params.toa_path + folder + "/BC/" + file + "/"
+    img, img_rgb, opm = load_product(file, params, data_path, toa_path)
 
     # Load the true classification mask
     mask_true = tiff.imread(data_path + file + '_fixedmask.TIF')  # The 30 m is the native resolution
+    
 
     # Get the masks
-    cls = get_cls(params)
+    cls = get_cls(params.satellite, params.train_dataset, params.cls)
 
     # Create the binary masks
     if params.collapse_cls:
         mask_true = extract_collapsed_cls(mask_true, cls)
+        print(mask_true)
 
     else:
         for i, c in enumerate(params.cls):
@@ -169,7 +175,7 @@ def __visualize_landsat8_tile__(model, file, data_path, num_gpus, params):
 
     # Get the predicted mask
     start_time = time.time()
-    predicted_mask, predicted_binary_mask = predict_img(model, params, img, n_bands, n_cls, num_gpus)
+    predicted_mask, predicted_binary_mask = predict_img(model, params, img, n_bands, n_cls, params.num_gpus)
     exec_time = str(time.time() - start_time)
     print("Prediction finished in: " + exec_time + "s")
 
@@ -180,9 +186,12 @@ def __visualize_landsat8_tile__(model, file, data_path, num_gpus, params):
     predicted_binary_mask[0, 1] = 1
 
     # Save as images
-    data_output_path = params.project_path + 'data/output/'
+    data_output_path = params.project_path + f'data/output/{params.modelID}/'
+    if not os.path.exists(data_output_path):
+        os.makedirs(data_output_path, exist_ok=True)
+
     start_time = time.time()
-    img_enhanced_contrast = image_normalizer(img_rgb, params, type='enhanced_contrast')
+    img_enhanced_contrast = image_normalizer(img_rgb, params, type='enhance_contrast')
     if not os.path.isfile(data_output_path + '%s-image.tiff' % file):
         Image.fromarray(np.uint8(img_enhanced_contrast * 255)).save(data_output_path + '%s-image.tiff' % file)
 

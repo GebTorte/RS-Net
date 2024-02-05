@@ -13,19 +13,23 @@ def get_predicted_thumbnails(file, thresholded, area, transparency, thumbnail_re
         file = file[0:26]
     elif params.satellite == 'Landsat8':
         file = file[0:21]
-    background = Image.open('../data/output/' + file + '-image.tiff').crop(area)
+    background = Image.open(f'../data/output/{params.modelID}/' + file + '-image.tiff').crop(area)
     background.thumbnail(thumbnail_res, Image.NEAREST)
 
     # Overlay the predicted mask
+
+    ################
+    # ERROR SOMEWHERE HERE:
+    ################
     if thresholded:
-        overlay = Image.open('../data/output/' + file + '_%s.tiff' % (model_name)).crop(
+        overlay = Image.open(f'../data/output/{params.modelID}/' + file + '_%s.tiff' % (model_name)).crop(
             area)
         overlay = threshold_prediction(overlay, params.threshold)
         overlay.thumbnail(thumbnail_res, Image.NEAREST)
         predicted = overlay_images(background, overlay, transparency)
 
     else:
-        overlay = Image.open('../data/output/' + file + '_%s.tiff' % (model_name)).crop(
+        overlay = Image.open(f'../data/output/{params.modelID}/' + file + '_%s.tiff' % (model_name)).crop(
             area)
         r = overlay.point(lambda i: i * 253 / 255)
         g = overlay.point(lambda i: i * 231 / 255)
@@ -38,18 +42,18 @@ def get_predicted_thumbnails(file, thresholded, area, transparency, thumbnail_re
 
     if params.satellite == 'Sentinel-2':
         # Overlay the sen2cor and fmask masks
-        overlay_sen2cor_org = Image.open('../data/output/' + file + '_cls-%s_sen2cor.tiff' % params.cls).crop(area)
+        overlay_sen2cor_org = Image.open(f'../data/output/{params.modelID}/' + file + '_cls-%s_sen2cor.tiff' % params.cls).crop(area)
         overlay_sen2cor_org.thumbnail(thumbnail_res, Image.NEAREST)
         predicted_sen2cor = overlay_images(background, overlay_sen2cor_org, transparency)
 
-        overlay_fmask_org = Image.open('../data/output/' + file + '_cls-%s_fmask.tiff' % params.cls).crop(area)
+        overlay_fmask_org = Image.open(f'../data/output/{params.modelID}/' + file + '_cls-%s_fmask.tiff' % params.cls).crop(area)
         overlay_fmask_org.thumbnail(thumbnail_res, Image.NEAREST)
         predicted_fmask = overlay_images(background, overlay_fmask_org, transparency)
 
         return background, predicted, predicted_sen2cor, predicted_fmask
 
     elif params.satellite == 'Landsat8':
-        overlay_true = Image.open('../data/output/' + file + '_true_cls-%s_collapse%s.tiff' % ("".join(str(c) for c in params.cls), params.collapse_cls)).crop(area)
+        overlay_true = Image.open(f'../data/output/{params.modelID}/' + file + '_true_cls-%s_collapse%s.tiff' % ("".join(str(c) for c in params.cls), params.collapse_cls)).crop(area)
         overlay_true.thumbnail(thumbnail_res, Image.NEAREST)
         mask_true = overlay_images(background, overlay_true, transparency)
 

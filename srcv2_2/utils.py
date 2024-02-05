@@ -143,16 +143,18 @@ def extract_collapsed_cls(mask, cls):
     """
     Combine several classes to one binary mask
     """
+    y = np.copy(mask)
+
     # Remember to zeroize class 1
     if 1 not in cls:
-        mask[mask == 1] = 0
+        y[y == 1] = 0
 
     # Make a binary mask including all classes in cls
     for c in cls:
-        mask[mask == c] = 1
-    mask[mask != 1] = 0
+        y[y == c] = 1
+    y[y != 1] = 0
 
-    return mask
+    return y
 
 
 def extract_cls_mask(mask, c):
@@ -221,7 +223,7 @@ def predict_img(model, params, img, n_bands, n_cls, num_gpus):
     #start_time = time.time()
     predicted_patches = np.zeros((np.shape(img_patched)[0],
                                   params.patch_size-params.overlap, params.patch_size-params.overlap, n_cls))
-    predicted_patches[indices, :, :, :] = model.predict(img_patched[indices, :, :, :], n_bands, n_cls, num_gpus, params)
+    predicted_patches[indices, :, :, :] = model.predict(img_patched[indices, :, :, :]) # , n_bands, n_cls, num_gpus, params
     #exec_time = str(time.time() - start_time)
     #print("Prediction of patches (not including splitting and stitching) finished in: " + exec_time + "s")
 
@@ -403,9 +405,8 @@ def load_product(name, params, product_path, toa_path):
                 img[:, :, i] = tiff.imread(product_path + name + '_B8A_20m.tiff')
 
     elif params.satellite == 'Landsat8':
-
         # Load TOA and set all NaN values to 0
-        toa = tiff.imread(toa_path + name + '_toa.TIF')
+        toa = tiff.imread(params.project_path + toa_path + name + '_toa.TIF')
         toa[toa == 32767] = 0
 
         # Create RGB image
