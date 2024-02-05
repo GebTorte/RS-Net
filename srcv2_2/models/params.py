@@ -7,7 +7,7 @@ import inspect
 import copy
 
 # Create a Namespace class for hyperparameters
-@keras.saving.register_keras_serializable() # is this even needed if no keras funcs are called here?
+# @keras.saving.register_keras_serializable() # is this even needed if no keras funcs are called here?
 class HParams:
     def __init__(self, **kwargs):
         self.__dict__.update(kwargs)
@@ -80,8 +80,9 @@ def get_params(model, satellite):
 
     elif model == 'U-net' and satellite == 'Landsat8':
         hparams = {
+            'modelNick': 'Unet-L8',
             'modelID': '180609113138',
-            'num_gpus': 2,
+            'num_gpus': 1,
             'optimizer': 'Adam',
             'loss_func': 'binary_crossentropy',
             'activation_func': 'elu',
@@ -115,6 +116,8 @@ def get_params(model, satellite):
             'brightness_augmentation': False,
             'bands': [1, 2, 3, 4, 5, 6, 7],
             'project_path': "/home/mxh/RS-Net/",
+            'toa_path': "data/processed/Biome_TOA/",
+            'data_path': 'data/raw/Biome_dataset/',
             'satellite': 'Landsat8',
             'train_dataset': 'Biome_fmask',
             'test_dataset': 'Biome_gt',

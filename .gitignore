@@ -1,6 +1,7 @@
 dev_dataset/*
 
-
+data/output/*
+!data/output/.gitkeep
 data/output/Biome/*
 !data/output/Biome/.gitkeep
 data/output/SPARCS/*

@@ -23,7 +23,7 @@ import numpy as np
 import tensorflow as tf
 from srcv2_2.data.make_dataset import make_numpy_dataset
 from srcv2_2.models.params import get_params
-from srcv2_2.models.Unet import Unet
+from srcv2_2.models.Unet import Unet, UnetV2
 from srcv2_2.models.evaluate_model import evaluate_test_set, write_csv_files
 
 # Don't allow tensorflow to reserve all memory available
@@ -136,11 +136,11 @@ if __name__ == '__main__':
             # Load the model
             params.modelID = datetime.datetime.now().strftime("%y%m%d%H%M%S")
             if args.model == 'U-net':
-                model = Unet(params)
+                model = UnetV2(params)
 
             model.train(params)
             # Run model on test data set
-            evaluate_test_set(model, params.test_dataset, params.num_gpus, params)
+            # evaluate_test_set(model, params.test_dataset, params.num_gpus, params)
         else:  # With k-fold cross-validation
             # Define number of k-folds
             if 'Biome' in params.train_dataset:
@@ -179,7 +179,7 @@ if __name__ == '__main__':
 
                 # Train and evaluate
                 params.modelID = params.modelID[0:12] + '-CV' + str(k+1) + 'of' + str(k_folds)  # Used for saving results
-                model = Unet(params)
+                model = UnetV2(params)
                 print("Training on fold " + str(k + 1) + " of " + str(k_folds))
                 model.train(params)
 
@@ -191,7 +191,7 @@ if __name__ == '__main__':
     if args.test:
         # If a model has been trained, use that one. If not, load a new one.
         if args.model == 'U-net':
-            model = Unet(params)
+            model = UnetV2(params)
         evaluate_test_set(model, params.test_dataset, params.num_gpus, params)
 
     # Print execution time
