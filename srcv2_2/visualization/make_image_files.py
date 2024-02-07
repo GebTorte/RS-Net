@@ -153,16 +153,14 @@ def __visualize_landsat8_tile__(model, data_path, folder, file, params):
 
     # Load the true classification mask
     mask_true = tiff.imread(data_path + file + '_fixedmask.TIF')  # The 30 m is the native resolution
-    
 
     # Get the masks
-    cls = get_cls(params.satellite, params.train_dataset, params.cls)
+    # has to be params.test_dataset for my application
+    cls = get_cls(params.satellite, params.test_dataset, params.cls)
 
     # Create the binary masks
     if params.collapse_cls:
         mask_true = extract_collapsed_cls(mask_true, cls)
-        print(mask_true)
-
     else:
         for i, c in enumerate(params.cls):
             y = extract_cls_mask(mask_true, cls)
@@ -188,17 +186,23 @@ def __visualize_landsat8_tile__(model, data_path, folder, file, params):
     # Save as images
     data_output_path = params.project_path + f'data/output/{params.modelID}/'
     if not os.path.exists(data_output_path):
-        os.makedirs(data_output_path, exist_ok=True)
+        os.makedirs(data_output_path)
 
     start_time = time.time()
+
+    if not os.path.isfile(data_output_path + '%s_cls-%s.tiff' % (file, params.cls)):
+        Image.fromarray(np.uint8(mask_true)).save(data_output_path + '%s_true_cls-%s_collapse%s.tiff' % (file, "".join(str(c) for c in params.cls), params.collapse_cls))
+
+
     img_enhanced_contrast = image_normalizer(img_rgb, params, type='enhance_contrast')
-    if not os.path.isfile(data_output_path + '%s-image.tiff' % file):
-        Image.fromarray(np.uint8(img_enhanced_contrast * 255)).save(data_output_path + '%s-image.tiff' % file)
+    # if not os.path.isfile(data_output_path + '%s-image.tiff' % file):  # save new file anyway
+    Image.fromarray(np.uint8(img_enhanced_contrast * 255)).save(data_output_path + '%s-image.tiff' % file)
 
     predicted_mask_rgb = np.zeros((np.shape(img_enhanced_contrast)))
     model_name = get_model_name(params)
     #for i, c in enumerate(params.cls):
     for i, c in enumerate([0]):
+
         # Convert predicted mask to RGB and save all masks (use PIL to save as it is much faster than matplotlib)
 
         # UNCOMMENT BELOW TO SAVE THRESHOLDED MASK
@@ -209,9 +213,7 @@ def __visualize_landsat8_tile__(model, data_path, folder, file, params):
 
         Image.fromarray(np.uint8(predicted_mask[:, :, i] * 255)).save(data_output_path + '%s_%s.tiff' % (file, model_name))
         Image.fromarray(np.uint8(predicted_binary_mask[:, :, i])).save(data_output_path + '%s_thresholded_%s.tiff' % (file, model_name))
-        if not os.path.isfile(data_output_path + '%s_cls-%s.tiff' % (file, params.cls)):
-            Image.fromarray(np.uint8(mask_true)).save(data_output_path + '%s_true_cls-%s_collapse%s.tiff' % (file, "".join(str(c) for c in params.cls), params.collapse_cls))
-
+        
         exec_time = str(time.time() - start_time)
         print("Images saved in       : " + exec_time + "s")
 

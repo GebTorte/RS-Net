@@ -3,7 +3,7 @@ import time
 import numpy as np
 import tifffile as tiff
 from PIL import Image
-from src.utils import load_product, get_cls, extract_collapsed_cls, extract_cls_mask, predict_img, image_normalizer
+from srcv2_2.utils import load_product, get_cls, extract_collapsed_cls, extract_cls_mask, predict_img, image_normalizer
 
 
 def evaluate_test_set(model, dataset, num_gpus, params, save_output=False, write_csv=True):

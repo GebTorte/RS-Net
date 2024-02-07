@@ -1,5 +1,5 @@
 from PIL import Image
-from src.utils import get_model_name
+from srcv2_2.utils import get_model_name
 
 
 def get_predicted_thumbnails(file, thresholded, area, transparency, thumbnail_res, params):
@@ -22,8 +22,8 @@ def get_predicted_thumbnails(file, thresholded, area, transparency, thumbnail_re
     # ERROR SOMEWHERE HERE:
     ################
     if thresholded:
-        overlay = Image.open(f'../data/output/{params.modelID}/' + file + '_%s.tiff' % (model_name)).crop(
-            area)
+        overlay = Image.open(f'../data/output/{params.modelID}/' + file + '_%s.tiff' % (model_name)).crop(area)
+        #overlay = Image.open(f'../data/output/{params.modelID}/' + file + '_thresholded_%s.tiff' % (model_name)).crop(area)
         overlay = threshold_prediction(overlay, params.threshold)
         overlay.thumbnail(thumbnail_res, Image.NEAREST)
         predicted = overlay_images(background, overlay, transparency)
