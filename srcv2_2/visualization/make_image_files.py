@@ -4,7 +4,46 @@ import os
 import time
 from ..utils import image_normalizer, predict_img, extract_cls_mask, extract_collapsed_cls, get_cls, get_model_name, load_product
 from PIL import Image
+from concurrent.futures import ThreadPoolExecutor
 
+def visualize_test_data_threaded(model, num_gpus, params, workers=6):
+    tasks = []
+    if params.satellite == 'Sentinel-2':
+        test_data_path = params.project_path + 'data/processed/visualization/'
+        files = sorted(os.listdir(test_data_path))  # os.listdir loads in arbitrary order, hence use sorted()
+        files = [f for f in files if 'B02_10m.tiff' in f]  # Filter out one ID for each tile
+
+        print('-----------------------------------------------------------------------------------------------------')
+        for i, file in enumerate(files):
+            #print('Evaluating tile (', i+1, 'of', np.size(files), ') :', file[0:26])
+            file = file[0:26]
+            tasks.append((model, file, num_gpus, params))
+            #__visualize_sentinel2_tile__(model, file, num_gpus, params)
+            #print('---')
+        with ThreadPoolExecutor(max_workers=workers) as tpe:
+            tpe.map(__visualize_sentinel2_tile__, tasks)
+
+    elif params.satellite == 'Landsat8':
+        folders = sorted(os.listdir(params.project_path + "data/raw/Biome_dataset/"))
+        folders = [f for f in folders if '.' not in f]  # Filter out .gitignore
+        
+        i = 1
+        for folder in folders:
+            products = sorted(os.listdir(params.project_path + "data/raw/Biome_dataset/" + folder + "/BC/"))
+            products = [f for f in products if f in params.test_tiles[1]]  # Filter for visualization set tiles
+            # accessing params.test_tiles[1] for test set. params.test_tiles[0] would be train set
+
+            for product in products:
+                #print('Evaluating tile no.', i,':', folder, ' - ', product)
+                data_path = params.project_path + params.data_path #  + folder + "/BC/" + product + "/"
+                # __visualize_landsat8_tile__(model, file=product, data_path=data_path, params=params, folder=folder)
+                tasks.append((model, product, data_path, params, folder))
+                #print('---')
+                i += 1
+
+        with ThreadPoolExecutor(max_workers=workers) as tpe:
+            tpe.map(__visualize_landsat8_tile__, tasks)
+    
 
 def visualize_test_data(model, num_gpus, params):
     if params.satellite == 'Sentinel-2':
