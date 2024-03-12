@@ -76,6 +76,8 @@ def visualize_test_data(model, num_gpus, params):
 
                 i += 1
 
+def __visualize_modisga09_tile__(model, file, params):
+    pass
 
 def __visualize_sentinel2_tile__(model, file, num_gpus, params):
     # Measure the time it takes to load data
