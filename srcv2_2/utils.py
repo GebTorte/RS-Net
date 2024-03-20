@@ -139,6 +139,96 @@ def stitch_image(img_patched, n_height, n_width, patch_size, overlap):
     return img
 
 
+def patch_mod(img, patch_size=256, overlap=10):
+    """
+    Input:
+    img: Shape = (width, height, depth)   (Note: Gdal probably supplies (depth, width, height) )
+
+    Plan:
+    I need to buffer every patch, not only the whole image. Buffer around all 4 edges with actual image data (if possible),
+    not white noise, as I dont want to lose the information and the algo/model probably works better with more information.
+
+    For the model i need:
+    Therefore cut_size+buffer == 256 has to hold, as i need 7x256x256 images.
+    Do i need to scale up to 256x256 on the edge-images? Yes
+    #buffer2 = max(buffer, current_patch_size - cut_size) 
+
+    This will probably result in worse results on the edges.
+
+    cut_size > buffer!
+    """
+    cut_size = patch_size - 2*overlap  # buffer around all edges
+
+    if overlap > cut_size:
+        raise ValueError("overlap > cut_size")
+
+
+    img_shape = np.shape(img)
+
+    # Find number of patches
+    n_width = int(np.ceil(int(img_shape[0]) / cut_size))
+    n_height = int(np.ceil(int(img_shape[1]) / cut_size))
+
+    # find rest 
+    bufferx = int(max(overlap, n_width*cut_size-int(img_shape[0])))
+    buffery = int(max(overlap, n_height*cut_size-int(img_shape[1])))
+
+    # prepare padded img of zeros
+    img_padded = np.zeros((overlap + int(img_shape[0]) + bufferx, overlap + int(img_shape[1]) + buffery, int(img_shape[2])), dtype=img.dtype)
+    img_padded[overlap:overlap + int(img_shape[0]), overlap:overlap + int(img_shape[1]), :] = img
+    
+    #patches = [[None] * n_height] * n_width
+    img_patched = np.zeros((n_height * n_width, patch_size, patch_size, int(img_shape[2])), dtype=img.dtype)
+
+
+    # cut patches
+    for i in range(n_width):
+        for j in range(n_height):
+            id = n_height * i + j
+
+            # patches[i][j] = img[i*cut_size-buffer:(i+1)*cut_size+buffer, j*cut_size-buffer:(j+1)*cut_size+buffer, :]
+            xfrom = i*cut_size - min(i*overlap, overlap)
+            xto = (i+1)*cut_size + (overlap*2 if i == 0 else overlap)   #+min((i+1)*buffer, buffer*2) #min(i*cut_size, buffer)
+            yfrom = j*cut_size - min(j*overlap, overlap)
+            yto = (j+1)*cut_size + (overlap*2 if j == 0 else overlap) #cut_size+min((j+1)*buffer, buffer*2) # min(j*cut_size, buffer)
+            #patches[i][j] = img_padded[xfrom:xto, yfrom:yto, :]# 0:7]
+
+            # Cut out the patches.
+            # img_patched[id, width , height, depth]
+            img_patched[id, :, :, :] = img_padded[xfrom:xto, yfrom:yto, :] #patches[i][j] # img_padded[xmin:xmax, ymin:ymax, :]
+
+    return img_patched, img_shape, img.dtype, n_width, n_height
+
+
+def stitch_mod(images, og_shape, og_dtype, patch_size=256, overlap=10):
+    """
+    images: (index_img, width, height, depth)
+    og_shape: (width, height, depth)
+
+    returns stitched image in original dimensions (if it was patched by stitch_mod)
+    """
+    cut_size = patch_size - 2*overlap 
+    
+    # Find number of patches
+    n_width = int(np.ceil(int(og_shape[0]) / cut_size))
+    n_height = int(np.ceil(int(og_shape[1]) / cut_size))
+
+    # find rest 
+    bufferx = int(max(overlap, n_width*cut_size-int(og_shape[0])))
+    buffery = int(max(overlap, n_height*cut_size-int(og_shape[1])))
+    
+    # define image with bufferx and buffery to fit all patches. buffers will be omitted at return
+    img_stitched = np.zeros((og_shape[0]+bufferx, og_shape[1]+buffery, og_shape[2]), dtype=og_dtype)
+
+    #for i, img in enumerate(images):
+    for i in range(n_width):
+        for j in range(n_height):
+            id = n_height * i + j
+            img_stitched[i*cut_size:(i+1)*cut_size, j*cut_size:(j+1)*cut_size,:] = images[id][overlap:patch_size-overlap, overlap:patch_size-overlap, :]
+
+    return img_stitched[0:og_shape[0],0:og_shape[1],:]
+
+
 def extract_collapsed_cls(mask, cls):
     """
     Combine several classes to one binary mask
@@ -173,6 +263,67 @@ def extract_cls_mask(mask, c):
     y[y != 1] = 0
     return y
 
+def predict_img_mod(model, params, img, n_bands, n_cls, num_gpus):
+    """
+    Run prediction on an full image
+    """
+    # Find dimensions
+    img_shape = np.shape(img)
+
+    # Normalize the product
+    img = image_normalizer(img, params, type=params.norm_method)
+
+    # Patch the image in patch_size * patch_size pixel patches
+    img_patched, og_img_shape, og_img_dtype, n_width, n_height = patch_mod(img, patch_size=params.patch_size, overlap=params.overlap)
+
+    # Now find all completely black patches and inpaint partly black patches
+    indices = []  # Used to ignore completely black patches during prediction
+    use_inpainting = False
+    for i in range(0, np.shape(img_patched)[0]):  # For all patches
+        if np.any(img_patched[i, :, :, :] == 0):  # If any black pixels
+            if np.mean(img_patched[i, :, :, :] != 0):  # Ignore completely black patches
+                indices.append(i)  # Use the patch for prediction
+                # Fill in zero pixels using the non-zero pixels in the patch
+                for j in range(0, np.shape(img_patched)[3]):  # Loop over each spectral band in the patch
+                    # Use more advanced inpainting method
+                    if use_inpainting:
+                        zero_mask = np.zeros_like(img_patched[i, :, :, j])
+                        zero_mask[img_patched[i, :, :, j] == 0] = 1
+                        inpainted_patch = cv2.inpaint(np.uint8(img_patched[i, :, :, j] * 255),
+                                                      np.uint8(zero_mask),
+                                                      inpaintRadius=5,
+                                                      flags=cv2.INPAINT_TELEA)
+
+                        img_patched[i, :, :, j] = np.float32(inpainted_patch) / 255
+                    # Use very simple inpainting method (fill in the mean value)
+                    else:
+                        # Bands do not always overlap. Use mean of all bands if zero-slice is found, otherwise use
+                        # mean of the specific band
+                        if np.mean(img_patched[i, :, :, j]) == 0:
+                            mean_value = np.mean(img_patched[i, img_patched[i, :, :, :] != 0])
+                        else:
+                            mean_value = np.mean(img_patched[i, img_patched[i, :, :, j] != 0, j])
+
+                        img_patched[i, img_patched[i, :, :, j] == 0, j] = mean_value
+        else:
+            indices.append(i)  # Use the patch for prediction
+
+    # Now do the cloud masking (on non-zero patches according to indices)
+    #start_time = time.time()
+    predicted_patches = np.zeros((np.shape(img_patched)[0],
+                                  params.patch_size-params.overlap, params.patch_size-params.overlap, n_cls))
+    predicted_patches[indices, :, :, :] = model.predict(img_patched[indices, :, :, :]) # , n_bands, n_cls, num_gpus, params
+    #exec_time = str(time.time() - start_time)
+    #print("Prediction of patches (not including splitting and stitching) finished in: " + exec_time + "s")
+
+    # Stitch the patches back together
+    predicted_mask = stitch_mod(predicted_patches, og_shape=og_img_shape, og_dtype=og_img_dtype, patch_size=params.patch_size, overlap=params.overlap)
+
+    
+    # Threshold the prediction
+    predicted_binary_mask = predicted_mask >= np.float32(params.threshold)
+
+    return predicted_mask, predicted_binary_mask
 
 def predict_img(model, params, img, n_bands, n_cls, num_gpus):
     """
