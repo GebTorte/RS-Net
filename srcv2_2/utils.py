@@ -317,7 +317,7 @@ def predict_img_mod(model, params, img, n_bands, n_cls, num_gpus, patch_size=256
                                   #patch_size-overlap, patch_size-overlap, n_cls))
     print("predicted_patches shape: ", predicted_patches.shape)
     print("img_patched shape: ", img_patched.shape)
-    res = model.predict_v2(img_patched[indices, :, :, :]) # , n_bands, n_cls, num_gpus, params
+    res = model.predict(img_patched[indices, :, :, :]) # , n_bands, n_cls, num_gpus, params
     print(res.shape)
     predicted_patches[indices, :, :, :] = res
     #exec_time = str(time.time() - start_time)
