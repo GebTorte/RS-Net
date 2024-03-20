@@ -216,6 +216,23 @@ class UnetV2(object):
             predicted[i:i + patch_batch_size, :, :, :] = self.model.predict(img[i:i + patch_batch_size, :, :, :])
 
         return predicted
+    
+        
+    def predict_v2(self, img):
+        #account for padding around ~all~ edges
+        # also predict whole img
+        
+        # Predict batches of patches
+        patches = np.shape(img)[0]  # Total number of patches
+        patch_batch_size = 128
+
+        # Do the prediction
+        predicted = np.zeros((patches, self.params.patch_size, self.params.patch_size, self.params.n_cls))
+        for i in range(0, patches, patch_batch_size):
+            predicted[i:i + patch_batch_size, :, :, :] = self.model.predict(img[i:i + patch_batch_size, :, :, :])
+
+        return predicted
+
 
 
 
@@ -416,6 +433,8 @@ class Unet(object):
 
         # Do the prediction
         predicted = np.zeros((patches, self.params.patch_size - self.params.overlap, self.params.patch_size - self.params.overlap, self.n_cls))
+
+        #predicted = np.zeros((patches, self.params.patch_size - self.params.overlap, self.params.patch_size - self.params.overlap, self.n_cls))
         for i in range(0, patches, patch_batch_size):
             predicted[i:i + patch_batch_size, :, :, :] = self.model.predict(img[i:i + patch_batch_size, :, :, :])
 

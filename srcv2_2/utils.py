@@ -263,7 +263,7 @@ def extract_cls_mask(mask, c):
     y[y != 1] = 0
     return y
 
-def predict_img_mod(model, params, img, n_bands, n_cls, num_gpus):
+def predict_img_mod(model, params, img, n_bands, n_cls, num_gpus, patch_size=256, overlap=40):
     """
     Run prediction on an full image
     """
@@ -274,7 +274,7 @@ def predict_img_mod(model, params, img, n_bands, n_cls, num_gpus):
     img = image_normalizer(img, params, type=params.norm_method)
 
     # Patch the image in patch_size * patch_size pixel patches
-    img_patched, og_img_shape, og_img_dtype, n_width, n_height = patch_mod(img, patch_size=params.patch_size, overlap=params.overlap)
+    img_patched, og_img_shape, og_img_dtype, n_width, n_height = patch_mod(img, patch_size=patch_size, overlap=overlap)
 
     # Now find all completely black patches and inpaint partly black patches
     indices = []  # Used to ignore completely black patches during prediction
@@ -310,15 +310,21 @@ def predict_img_mod(model, params, img, n_bands, n_cls, num_gpus):
 
     # Now do the cloud masking (on non-zero patches according to indices)
     #start_time = time.time()
+    print(np.shape(img_patched)[1])
     predicted_patches = np.zeros((np.shape(img_patched)[0],
-                                  params.patch_size-params.overlap, params.patch_size-params.overlap, n_cls))
-    predicted_patches[indices, :, :, :] = model.predict(img_patched[indices, :, :, :]) # , n_bands, n_cls, num_gpus, params
+                                  np.shape(img_patched)[1],
+                                  np.shape(img_patched)[2], n_cls))
+                                  #patch_size-overlap, patch_size-overlap, n_cls))
+    print("predicted_patches shape: ", predicted_patches.shape)
+    print("img_patched shape: ", img_patched.shape)
+    res = model.predict_v2(img_patched[indices, :, :, :]) # , n_bands, n_cls, num_gpus, params
+    print(res.shape)
+    predicted_patches[indices, :, :, :] = res
     #exec_time = str(time.time() - start_time)
     #print("Prediction of patches (not including splitting and stitching) finished in: " + exec_time + "s")
 
     # Stitch the patches back together
-    predicted_mask = stitch_mod(predicted_patches, og_shape=og_img_shape, og_dtype=og_img_dtype, patch_size=params.patch_size, overlap=params.overlap)
-
+    predicted_mask = stitch_mod(predicted_patches, og_shape=og_img_shape, og_dtype=og_img_dtype, patch_size=patch_size, overlap=overlap)
     
     # Threshold the prediction
     predicted_binary_mask = predicted_mask >= np.float32(params.threshold)
@@ -425,6 +431,36 @@ def get_cls(satellite, dataset, cls_string):
                 cls_int = [4]
             elif cls_string == 'water':
                 cls_int = [5]
+    elif satellite == 'MODIS':
+        if dataset == 'Biome_gt':
+            cls_int = []
+            for c in cls_string:
+                if c == 'fill':
+                    cls_int.append(0)
+                elif c == 'shadow':
+                    cls_int.append(64)
+                elif c == 'clear':
+                    cls_int.append(128)
+                elif c == 'thin':
+                    cls_int.append(192)
+                elif c == 'cloud':
+                    cls_int.append(255)
+
+        elif dataset == 'Biome_fmask':
+            cls_int = []
+            for c in cls_string:
+                if c == 'fill':
+                    cls_int.append(0)
+                elif c == 'clear':
+                    cls_int.append(1)
+                elif c == 'cloud':
+                    cls_int.append(2)
+                elif c == 'shadow':
+                    cls_int.append(3)
+                elif c == 'snow':
+                    cls_int.append(4)
+                elif c == 'water':
+                    cls_int.append(5)
 
     elif satellite == 'Landsat8':
         if dataset == 'Biome_gt':
