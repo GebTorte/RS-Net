@@ -16,6 +16,14 @@ class HParams:
         return {'__dict__', self.__dict__}
 
     def parse(self, params):
+        """
+        This atrocious function serves as a "parser" which up until now works on used cases.
+        This does *not* mean it wont crush down if inputs are other than the implemented ones. 
+        Even for those, there might be some *cough* unexpected *cough* errors.
+        
+        A way to fix this, would be to implement default parameters with predetermined datatypes and casting to those while parsing.
+
+        """
         param_list = params.strip().split(",")
         for param in param_list:
             key, value = param.split("=")
@@ -33,6 +41,7 @@ class HParams:
                         return
                     except ValueError:
                         pass
+            # note, these will run disregadring above try and excepts
             if value == 'True':
                 value = True
             elif value == 'False':
@@ -44,9 +53,7 @@ class HParams:
          return self.__dict__.get(item)
     
     def values(self):
-        # naming is a bit off
         return self.__dict__
-        # return self._hyperparameters.values()
 
     def keys(self):
         return self.__dict__.keys()
@@ -55,6 +62,7 @@ class HParams:
 
 @keras.saving.register_keras_serializable()
 def get_params(model, satellite):
+    hparams = None
     if model == 'U-net' and satellite == 'Sentinel-2':
         hparams = {
             'learning_rate': 0.001,
@@ -76,8 +84,6 @@ def get_params(model, satellite):
             'project_path': '/home/mxh/RS-Net/',
             'satellite': 'Sentinel-2'
         }
-        return HParams(**hparams)
-
     elif model == 'U-net' and satellite == 'Landsat8':
         hparams = {
             'modelNick': 'Unet-L8',
@@ -123,7 +129,7 @@ def get_params(model, satellite):
             'test_dataset': 'Biome_gt',
             'split_dataset': True,
             'test_tiles': __data_split__('Biome_gt')
-        } 
+        }
     elif model == 'U-net' and satellite == 'MODIS':
         hparams = {
             'modelNick': 'Unet-MOD09GA',
@@ -171,6 +177,7 @@ def get_params(model, satellite):
             'split_dataset': True,
             'test_tiles': __data_split__('Biome_gt')
         }
+    if hparams is not None:
         return HParams(**hparams)
 
 def __data_split__(dataset):
