@@ -20,11 +20,20 @@ from tensorflow.keras.utils import get_custom_objects  # To use swish activation
 
 
 class UnetV2(object):
-    def __init__(self, params, model=None):
+    def __init__(self, params, model=None, training_params=None):
         # Seed for the random generators
         self.seed = 1
         self.params = params
         self.model = model
+
+        try:
+            if self.training_params == None: # access training_params. If its uninitialized, init it to None, otherwise pass
+                pass
+        except AttributeError as ae: # init training_params if its not set.
+            if training_params != None:
+                self.training_params = training_params
+            else:
+                self.training_params = None
 
         # Find the model you would like
         self.model_name = get_model_name(self.params)
@@ -143,9 +152,12 @@ class UnetV2(object):
         return model
 
     def get_config(self):
-        return {'seed': self.seed, 'params': self.params, 'n_cls': self.n_cls, 'n_bands': self.n_bands}
+        return {'seed': self.seed, 'params': self.params,'training_params': self.training_params, 'n_cls': self.n_cls, 'n_bands': self.n_bands}
 
     def train(self):
+        #set training params to params used while training
+        self.training_params = self.params
+
         # Define callbacks
         csv_logger, model_checkpoint, reduce_lr, tensorboard, early_stopping = get_callbacks(self.params)
         used_callbacks = [csv_logger, model_checkpoint, tensorboard]
