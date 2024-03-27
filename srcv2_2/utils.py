@@ -488,6 +488,68 @@ def get_cls(satellite, dataset, cls_string):
                     cls_int.append(4)
                 elif c == 'water':
                     cls_int.append(5)
+    elif satellite == 'MODIS':
+        if dataset == 'Biome_gt':
+            cls_int = []
+            for c in cls_string:
+                if c == 'fill':
+                    cls_int.append(0)
+                elif c == 'shadow':
+                    cls_int.append(64)
+                elif c == 'clear':
+                    cls_int.append(128)
+                elif c == 'thin':
+                    cls_int.append(192)
+                elif c == 'cloud':
+                    cls_int.append(255)
+
+        elif dataset == 'Biome_fmask':
+            cls_int = []
+            for c in cls_string:
+                if c == 'fill':
+                    cls_int.append(0)
+                elif c == 'clear':
+                    cls_int.append(1)
+                elif c == 'cloud':
+                    cls_int.append(2)
+                elif c == 'shadow':
+                    cls_int.append(3)
+                elif c == 'snow':
+                    cls_int.append(4)
+                elif c == 'water':
+                    cls_int.append(5)
+
+        elif dataset == 'SPARCS_gt':
+            cls_int = []
+            for c in cls_string:
+                if c == 'shadow':
+                    cls_int.append(0)
+                    cls_int.append(1)
+                elif c == 'water':
+                    cls_int.append(2)
+                    cls_int.append(6)
+                elif c == 'snow':
+                    cls_int.append(3)
+                elif c == 'cloud':
+                    cls_int.append(5)
+                elif c == 'clear':
+                    cls_int.append(4)
+
+        elif dataset == 'SPARCS_fmask':
+            cls_int = []
+            for c in cls_string:
+                if c == 'fill':
+                    cls_int.append(0)
+                elif c == 'clear':
+                    cls_int.append(1)
+                elif c == 'cloud':
+                    cls_int.append(2)
+                elif c == 'shadow':
+                    cls_int.append(3)
+                elif c == 'snow':
+                    cls_int.append(4)
+                elif c == 'water':
+                    cls_int.append(5)
     return cls_int
 
 
