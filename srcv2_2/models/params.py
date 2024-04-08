@@ -166,7 +166,7 @@ def get_params(model, satellite):
             'toa_path': "data/processed/Biome_TOA/",
             'data_path': 'data/raw/Biome_dataset/',
             'satellite': 'MODIS',
-            'dataset': 'MOD09GA',
+            'sensor': 'MOD09GA',
             'train_dataset': 'Biome_fmask',
             'test_dataset': 'Biome_gt',
             'split_dataset': True,

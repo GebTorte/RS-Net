@@ -200,7 +200,7 @@ def patch_mod(img, patch_size=256, overlap=10):
     return img_patched, img_shape, img.dtype, n_width, n_height
 
 
-def stitch_mod(images, og_shape, og_dtype, patch_size=256, overlap=10):
+def stitch_mod(images, og_shape, og_dtype, n_cls=None, patch_size=256, overlap=10):
     """
     images: (index_img, width, height, depth)
     og_shape: (width, height, depth)
@@ -218,13 +218,16 @@ def stitch_mod(images, og_shape, og_dtype, patch_size=256, overlap=10):
     buffery = int(max(overlap, n_height*cut_size-int(og_shape[1])))
     
     # define image with bufferx and buffery to fit all patches. buffers will be omitted at return
-    img_stitched = np.zeros((og_shape[0]+bufferx, og_shape[1]+buffery, og_shape[2]), dtype=og_dtype)
-
+    if n_cls == None:
+        img_stitched = np.zeros((og_shape[0]+bufferx, og_shape[1]+buffery, og_shape[2]), dtype=og_dtype)
+    else: 
+        img_stitched = np.zeros((og_shape[0]+bufferx, og_shape[1]+buffery, n_cls), dtype=og_dtype)
     #for i, img in enumerate(images):
     for i in range(n_width):
         for j in range(n_height):
             id = n_height * i + j
-            img_stitched[i*cut_size:(i+1)*cut_size, j*cut_size:(j+1)*cut_size,:] = images[id][overlap:patch_size-overlap, overlap:patch_size-overlap, :]
+            img_stitched[i*cut_size:(i+1)*cut_size, j*cut_size:(j+1)*cut_size,:] = images[id][overlap:patch_size-overlap, 
+                                                                                              overlap:patch_size-overlap, :]
 
     return img_stitched[0:og_shape[0],0:og_shape[1],:]
 
@@ -312,14 +315,19 @@ def predict_img_mod(model, params, img, n_bands, n_cls, num_gpus):
     #start_time = time.time()
     predicted_patches = np.zeros((np.shape(img_patched)[0],
                                   params.patch_size-params.overlap, params.patch_size-params.overlap, n_cls))
-    predicted_patches[indices, :, :, :] = model.predict(img_patched[indices, :, :, :]) # , n_bands, n_cls, num_gpus, params
+    
+    model_out = model.predict(img_patched[indices, :, :, :]) # , n_bands, n_cls, num_gpus, params
+    predicted_patches[indices, :, :, :] = model_out
     #exec_time = str(time.time() - start_time)
     #print("Prediction of patches (not including splitting and stitching) finished in: " + exec_time + "s")
 
     # Stitch the patches back together
-    predicted_mask = stitch_mod(predicted_patches, og_shape=og_img_shape, og_dtype=og_img_dtype, patch_size=params.patch_size, overlap=params.overlap)
+    predicted_mask = stitch_mod(predicted_patches, og_shape=og_img_shape, og_dtype=og_img_dtype, n_cls=n_cls,patch_size=params.patch_size, overlap=params.overlap)
 
-    
+    # Throw away the inpainting of the zero pixels in the individual patches
+    # The summation is done to ensure that all pixels are included. The bands do not perfectly overlap (!)
+    predicted_mask[np.sum(img, axis=2) == 0] = 0
+
     # Threshold the prediction
     predicted_binary_mask = predicted_mask >= np.float32(params.threshold)
 
