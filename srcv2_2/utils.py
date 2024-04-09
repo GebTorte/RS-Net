@@ -510,7 +510,6 @@ def get_cls(satellite, dataset, cls_string):
                     cls_int.append(192)
                 elif c == 'cloud':
                     cls_int.append(255)
-
         elif dataset == 'Biome_fmask':
             cls_int = []
             for c in cls_string:
@@ -584,6 +583,17 @@ def get_model_name(params):
                      '_decay' + str(params.decay) + \
                      '_L2reg' + str(params.L2reg) + \
                      '_dropout' + str(params.dropout) + '.hdf5'
+    elif params.satellite =="MODIS":
+        model_name = 'modis_unet_cls-'+ "".join(str(c) for c in params.cls) + \
+                    '_sensor' + params.sensor + \
+                    '_initmodel-' + params.initial_model + \
+                    '_collapse' + str(params.collapse_cls) + \
+                    '_bands' + "".join(str(b) for b in params.bands) + \
+                    '_lr' + str(params.learning_rate) + \
+                    '_decay' + str(params.decay) + \
+                    '_L2reg' + str(params.L2reg) + \
+                    '_activation_func' +  str(params.activation_func) + \
+                    '_loss' + str(params.loss)
     return model_name
 
 

@@ -133,6 +133,7 @@ def get_params(model, satellite):
             'optimizer': 'Adam',
             'loss_func': 'binary_crossentropy',
             'activation_func': 'elu',
+            'last_layer_activation_func': 'sigmoid',
             'initialization': 'glorot_uniform',
             'use_batch_norm': True,
             'dropout_on_last_layer_only': True,

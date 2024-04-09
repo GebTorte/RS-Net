@@ -347,7 +347,10 @@ class Unet(object):
         clip_pixels = np.int32 (self.params.overlap / 2)  # Only used for input in Cropping2D function on next line
         crop9 = Cropping2D(cropping=((clip_pixels, clip_pixels), (clip_pixels, clip_pixels)))(conv9)
         # -----------------------------------------------------------------------
-        conv10 = Conv2D(self.n_cls, (1, 1), activation='sigmoid')(crop9)
+
+        # SIS: change to softmax for multi class prediction
+        #conv10 = Conv2D(self.n_cls, (1, 1), activation='sigmoid')(crop9)
+        conv10 = Conv2D(self.n_cls, (1, 1), activation=self.params.last_layer_activation_func)(crop9)
         # -----------------------------------------------------------------------
         model = Model(inputs=inputs, outputs=conv10)
 
@@ -420,6 +423,7 @@ class Unet(object):
         else:
             self.model.save_weights(self.params.project_path + 'models/Unet/' + self.model_name)
             self.model.save(self.params.project_path + 'models/Unet/' + self.model_name + '.keras')
+            self.model.save(self.params.project_path + 'models/Unet/' + get_model_name(self.params) + '.keras')
 
     def predict(self, img):
         # Predict batches of patches
