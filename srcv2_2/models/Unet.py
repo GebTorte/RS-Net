@@ -145,14 +145,16 @@ class UnetV2(object):
         clip_pixels = np.int32 (self.params.overlap / 2)  # Only used for input in Cropping2D function on next line
         crop9 = Cropping2D(cropping=((clip_pixels, clip_pixels), (clip_pixels, clip_pixels)))(conv9)
         # -----------------------------------------------------------------------
-        conv10 = Conv2D(self.n_cls, (1, 1), activation='sigmoid')(crop9)
+        # SIS: change to softmax for multi class prediction
+        #conv10 = Conv2D(self.n_cls, (1, 1), activation='sigmoid')(crop9)
+        conv10 = Conv2D(self.n_cls, (1, 1), activation=self.params.last_layer_activation_func)(crop9)
         # -----------------------------------------------------------------------
         model = Model(inputs=inputs, outputs=conv10)
 
         return model
 
     def get_config(self):
-        return {'seed': self.seed, 'params': self.params,'training_params': self.training_params, 'n_cls': self.n_cls, 'n_bands': self.n_bands}
+        return {'seed': self.seed, 'params': self.params, 'n_cls': self.n_cls, 'n_bands': self.n_bands, 'model_config': self.model.get_config()}
 
     def train(self):
         #set training params to params used while training
@@ -173,6 +175,12 @@ class UnetV2(object):
                                    loss='binary_crossentropy',
                                    metrics=['binary_crossentropy', jaccard_coef_loss, jaccard_coef,
                                             jaccard_coef_thresholded, 'accuracy'])
+            # SIS: Multi Class Prediction loss func
+            elif self.params.loss_func == 'categorical_crossentropy':
+                self.model.compile(optimizer=Adam(learning_rate=self.params.learning_rate, decay=self.params.decay, amsgrad=True),
+                                loss='categorical_crossentropy',
+                                metrics=['binary_crossentropy', 'categorical_crossentropy', jaccard_coef_loss, jaccard_coef,
+                                        jaccard_coef_thresholded, 'accuracy'])
             elif self.params.loss_func == 'jaccard_coef_loss':
                 self.model.compile(optimizer=Adam(lr=self.params.learning_rate, decay=self.params.decay, amsgrad=True),
                                    loss=jaccard_coef_loss,
@@ -216,6 +224,12 @@ class UnetV2(object):
         # There is a bug with multi_gpu_model (https://github.com/kuza55/keras-extras/issues/3), hence model.layers[-2]
         self.model.save_weights(self.params.project_path + 'models/Unet/' + self.model_name)
         self.model.save(self.params.project_path + 'models/Unet/' + self.model_name + '.keras')
+        self.model.save(self.params.project_path + 'models/Unet/' + get_model_name(self.params) + '.keras')
+        self.save_params()
+
+    def save_params(self):
+        with open(self.params.project_path + 'models/Unet/' + get_model_name(self.params) + '_params.json', 'w') as f:
+            f.write(str(self.params.__dict__))
 
     def predict(self, img):
         # Predict batches of patches
@@ -348,9 +362,7 @@ class Unet(object):
         crop9 = Cropping2D(cropping=((clip_pixels, clip_pixels), (clip_pixels, clip_pixels)))(conv9)
         # -----------------------------------------------------------------------
 
-        # SIS: change to softmax for multi class prediction
-        #conv10 = Conv2D(self.n_cls, (1, 1), activation='sigmoid')(crop9)
-        conv10 = Conv2D(self.n_cls, (1, 1), activation=self.params.last_layer_activation_func)(crop9)
+        conv10 = Conv2D(self.n_cls, (1, 1), activation='sigmoid')(crop9)
         # -----------------------------------------------------------------------
         model = Model(inputs=inputs, outputs=conv10)
 
@@ -423,7 +435,6 @@ class Unet(object):
         else:
             self.model.save_weights(self.params.project_path + 'models/Unet/' + self.model_name)
             self.model.save(self.params.project_path + 'models/Unet/' + self.model_name + '.keras')
-            self.model.save(self.params.project_path + 'models/Unet/' + get_model_name(self.params) + '.keras')
 
     def predict(self, img):
         # Predict batches of patches
