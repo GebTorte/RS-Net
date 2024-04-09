@@ -593,7 +593,8 @@ def get_model_name(params):
                     '_decay' + str(params.decay) + \
                     '_L2reg' + str(params.L2reg) + \
                     '_activation_func' +  str(params.activation_func) + \
-                    '_loss' + str(params.loss)
+                    '_loss_func' + str(params.loss_func) + \
+                    '_modelID' + str(params.modelID)
     return model_name
 
 
