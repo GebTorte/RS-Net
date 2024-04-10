@@ -177,10 +177,11 @@ class UnetV2(object):
                                             jaccard_coef_thresholded, 'accuracy'])
             # SIS: Multi Class Prediction loss func
             elif self.params.loss_func == 'categorical_crossentropy':
+                print("Compiling with Categorical Crossentropy")
                 self.model.compile(optimizer=Adam(learning_rate=self.params.learning_rate, decay=self.params.decay, amsgrad=True),
-                                loss='categorical_crossentropy',
-                                metrics=['binary_crossentropy', 'categorical_crossentropy', jaccard_coef_loss, jaccard_coef,
-                                        jaccard_coef_thresholded, 'accuracy'])
+                                loss=keras.losses.CategoricalCrossentropy(),
+                                metrics=[keras.metrics.CategoricalAccuracy(), keras.metrics.CategoricalCrossentropy(), jaccard_coef_loss, jaccard_coef,
+                                        jaccard_coef_thresholded, keras.metrics.Accuracy()])
             elif self.params.loss_func == 'jaccard_coef_loss':
                 self.model.compile(optimizer=Adam(lr=self.params.learning_rate, decay=self.params.decay, amsgrad=True),
                                    loss=jaccard_coef_loss,
