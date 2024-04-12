@@ -180,8 +180,10 @@ class UnetV2(object):
                 print("Compiling with Categorical Crossentropy")
                 self.model.compile(optimizer=Adam(learning_rate=self.params.learning_rate, decay=self.params.decay, amsgrad=True),
                                 loss=keras.losses.CategoricalCrossentropy(),
-                                metrics=[keras.metrics.CategoricalAccuracy(), keras.metrics.CategoricalCrossentropy(), jaccard_coef_loss, jaccard_coef,
-                                        jaccard_coef_thresholded, keras.metrics.Accuracy()])
+                                metrics=[keras.metrics.CategoricalCrossentropy(), jaccard_coef_loss, jaccard_coef,
+                                        jaccard_coef_thresholded, keras.metrics.CategoricalAccuracy()]) 
+                                        # drop keras.metrics.Accuracy()
+                                        # 'accuracy' will be converted to CategoricalAccuracy by tf in this case
             elif self.params.loss_func == 'jaccard_coef_loss':
                 self.model.compile(optimizer=Adam(lr=self.params.learning_rate, decay=self.params.decay, amsgrad=True),
                                    loss=jaccard_coef_loss,
