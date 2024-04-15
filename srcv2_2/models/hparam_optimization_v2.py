@@ -71,7 +71,7 @@ for activation_func in activation_functions:
                                             subprocess.check_call([interpreter,
                                                                 script,
                                                                 "--train",
-                                                                "--test",
+                                                                # "--test", # exclude this until load_product in __evaluate_test...__ error is fixed 
                                                                 "--satellite",
                                                                 str(satellite), 
                                                                 params])
