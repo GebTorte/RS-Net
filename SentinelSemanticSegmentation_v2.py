@@ -22,7 +22,7 @@ import random
 import numpy as np
 import tensorflow as tf
 from srcv2_2.data.make_dataset import make_numpy_dataset
-from srcv2_2.models.params import get_params
+from srcv2_2.models.params import get_params, HParams
 from srcv2_2.models.Unet import Unet, UnetV2
 from srcv2_2.models.evaluate_model import evaluate_test_set, write_csv_files
 
@@ -67,7 +67,7 @@ parser.add_argument('--test',
 parser.add_argument('--satellite',
                     type=str,
                     default='Landsat8',
-                    help='The satellite used (Sentinel-2 or Landsat8)')
+                    help='The satellite used (Sentinel-2 or Landsat8 or MODIS)')
 
 parser.add_argument('--initial_model',
                     type=str,
@@ -122,6 +122,7 @@ if __name__ == '__main__':
 
     # If you want to use local files (else it uses network drive)
     if args.dev_dataset:
+        print("using dev_dataset!")
         params.data_path = "/home/mxh/RS-Net/dev_dataset/"
 
     # Check to see if a new data set should be processed from the raw data
@@ -149,7 +150,7 @@ if __name__ == '__main__':
                 k_folds = 5  # SPARCS contains 80 scenes, so split it nicely
 
                 # Create a list of names for the splitting
-                sparcs_products = sorted(os.listdir(params.project_path + "data/raw/SPARCS_dataset/"))
+                sparcs_products = sorted(os.listdir(params.project_path + "data/raw/SPARCS_dataset/l8cloudmasks/sending/"))
                 sparcs_products = [f for f in sparcs_products if 'data.tif' in f]
                 sparcs_products = [f for f in sparcs_products if 'aux' not in f]
 
@@ -181,7 +182,7 @@ if __name__ == '__main__':
                 params.modelID = params.modelID[0:12] + '-CV' + str(k+1) + 'of' + str(k_folds)  # Used for saving results
                 model = UnetV2(params)
                 print("Training on fold " + str(k + 1) + " of " + str(k_folds))
-                model.train(params)
+                model.train() # params) # uses params from self.
 
                 # leave for --test flag
                 # Run model on test data set and save output
