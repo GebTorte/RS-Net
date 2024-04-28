@@ -209,8 +209,6 @@ class UnetV2(object):
         # Do the training
         print('------------------------------------------')
         print('Start training:')
-        # deprecated method
-        #self.model.fit_generator(
         self.model.fit(image_generator,
                         epochs=self.params.epochs,
                         steps_per_epoch=self.params.steps_per_epoch,
