@@ -136,7 +136,7 @@ if __name__ == '__main__':
         if not params.split_dataset:  # No k-fold cross-validation
             # Load the model
             params.modelID = datetime.datetime.now().strftime("%y%m%d%H%M%S")
-            if args.model == 'U-net':
+            if args.model == 'U-net-v2':
                 model = UnetV2(params)
 
             model.train(params)
@@ -179,7 +179,7 @@ if __name__ == '__main__':
                     params.test_tiles[1] = temp
 
                 # Train and evaluate
-                params.modelID = params.modelID[0:12] + '-CV' + str(k+1) + 'of' + str(k_folds)  # Used for saving results
+                params.modelID = params.modelNick +'_'+  params.modelID[0:12] + '-CV' + str(k+1) + 'of' + str(k_folds)  # Used for saving results
                 model = UnetV2(params)
                 print("Training on fold " + str(k + 1) + " of " + str(k_folds))
                 model.train() # params) # uses params from self.
