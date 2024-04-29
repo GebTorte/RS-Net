@@ -67,7 +67,7 @@ parser.add_argument('--test',
 parser.add_argument('--satellite',
                     type=str,
                     default='Landsat8',
-                    help='The satellite used (Sentinel-2 or Landsat8 or MODIS)')
+                    help='The satellite used (Sentinel-2 or Landsat8)')
 
 parser.add_argument('--initial_model',
                     type=str,
@@ -80,7 +80,7 @@ parser.add_argument('--initial_model',
 # ----------------------------------------------------------------------------------------------------------------------
 parser.add_argument('--model',
                     type=str,
-                    default='U-net',
+                    default='U-net-v2',
                     help='Comma separated list of "name=value" pairs.')
 
 parser.add_argument('--params',
@@ -191,7 +191,7 @@ if __name__ == '__main__':
 
     if args.test:
         # If a model has been trained, use that one. If not, load a new one.
-        if args.model == 'U-net':
+        if args.model == 'U-net-v2':
             model = UnetV2(params)
         evaluate_test_set(model, params.test_dataset, params.num_gpus, params)
 

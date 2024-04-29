@@ -4,18 +4,18 @@
 import subprocess
 import numpy as np
 
-activation_functions = ['elu']# ['elu', 'relu']
+activation_functions = ['elu', 'relu']
 loss_functions = ['categorical_crossentropy'] # ['binary_crossentropy']
 initializers = ['glorot_normal'] #, 'he_normal']
-learning_rates = [1e-6]# [1e-4, 1e-5, 1e-6, 1e-7]
+learning_rates = [1e-4, 1e-5, 1e-6, 1e-7, 1e-8]
 use_batch_norm = ['True']
-l2regs = [1e-4] # [1e-3, 1e-4, 1e-5, 1e-6]
+l2regs = [1e-3, 1e-4, 1e-5, 1e-6, 1e-7, 1e-8]
 dropouts = [0, 1e-3, 1e-2, 1e-1, 0.25, 0.5]
 band_combinations = [[1, 2, 3, 4, 5, 6, 7]]# [[1, 2, 3, 4, 5, 6, 7, 9, 10, 11], [1, 2, 3, 4, 5, 6, 7, 9], [2, 3, 4, 5], [2, 3, 4], [3]]
-epochs = [5, 8] #[3, 5, 8, 11, 15, 20, 30, 50]# [3, 10, 20, 40, 80, 160, 200, 200, 200, 200, 200, 200, 200, 200]  # Only used to run random search for longer
-dropout_on_last_layer_only=['True'] # ['True', 'False']
+epochs = [3, 5, 8, 11, 15, 20, 30, 50]# [3, 10, 20, 40, 80, 160, 200, 200, 200, 200, 200, 200, 200, 200]  # Only used to run random search for longer
+dropout_on_last_layer_only=['True', 'False']
 last_layer_activation_func = 'softmax'
-satellite = "MODIS"
+satellite = "Landsat8"
 cls=[['cloud', 'thin', 'clear', 'shadow'], ['clear', 'cloud', 'thin', 'shadow', 'snow', 'water'] ]
 collapse_cls = 'False'
 
@@ -71,7 +71,7 @@ for activation_func in activation_functions:
                                             subprocess.check_call([interpreter,
                                                                 script,
                                                                 "--train",
-                                                                # "--test", # exclude this until load_product in __evaluate_test...__ error is fixed 
+                                                                "--test", 
                                                                 "--satellite",
                                                                 str(satellite), 
                                                                 params])

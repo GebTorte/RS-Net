@@ -125,7 +125,7 @@ def get_params(model, satellite):
             'test_tiles': __data_split__('Biome_gt')
         }
         return HParams(**hparams)
-    elif model == 'U-net' and satellite == 'MODIS':
+    elif model == 'U-net-v2' and satellite == 'Landsat8':
         hparams = {
             'modelNick': 'Unet-MOD09GA',
             'modelID': '180609113139',
@@ -166,8 +166,8 @@ def get_params(model, satellite):
             'project_path': "/home/mxh/RS-Net/",
             'toa_path': "data/processed/Biome_TOA/",
             'data_path': 'data/raw/Biome_dataset/',
-            'satellite': 'MODIS',
-            'sensor': 'MOD09GA',
+            'satellite': 'Landsat8',
+            'usecase': 'MOD09GA',
             'train_dataset': 'Biome_fmask',
             'test_dataset': 'Biome_gt',
             'split_dataset': True,
