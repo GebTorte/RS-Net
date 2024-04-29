@@ -638,7 +638,7 @@ def load_product(name, params, product_path, toa_path):
 
     elif params.satellite == 'Landsat8':
         # Load TOA and set all NaN values to 0
-        toa = tiff.imread(params.project_path + toa_path + name + '_toa.TIF')
+        toa = tiff.imread(toa_path + name + '_toa.TIF')
         toa[toa == 32767] = 0
 
         # Create RGB image
