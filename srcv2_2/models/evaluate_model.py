@@ -246,7 +246,7 @@ def __evaluate_biome_dataset__(model, num_gpus, params, save_output=False, write
             for j, threshold in enumerate(thresholds):
                 predicted_binary_mask = np.uint8(predicted_mask >= threshold)
 
-                accuracy, omission, comission, pixel_jaccard, precision, recall, f_one_score, tp, tn, fp, fn, npix = calculate_evaluation_criteria(
+                accuracy, omission, comission, pixel_jaccard, precision, recall, f_one_score, tp, tn, fp, fn, npix, categorical_accuracy = calculate_evaluation_criteria(
                     valid_pixels_mask, predicted_binary_mask, mask_true)
 
                 # Create an additional nesting in the dict for each threshold value
@@ -266,6 +266,11 @@ def __evaluate_biome_dataset__(model, num_gpus, params, save_output=False, write
                 evaluation_metrics[product]['threshold_' + str(threshold)]['omission'] = omission
                 evaluation_metrics[product]['threshold_' + str(threshold)]['comission'] = comission
                 evaluation_metrics[product]['threshold_' + str(threshold)]['pixel_jaccard'] = pixel_jaccard
+
+                evaluation_metrics[product]['threshold_' + str(threshold)]['categorical_accuracy'] = categorical_accuracy
+
+                # todo
+                # categorical acc berechnen und saven
 
             for threshold in thresholds:
                 print("threshold=" + str(threshold) +
@@ -372,8 +377,12 @@ def calculate_evaluation_criteria(valid_pixels_mask, predicted_binary_mask, true
     else:
         omission = comission = 0
 
+    categorical_accuracy = 0
+    #for c in cls:
+        #c_accuracy = ...
+    #categorical_accuracy = mean(c_accuracy)
 
-    return accuracy, omission, comission, pixel_jaccard, precision, recall, f_one_score, tp, tn, fp, fn, npix
+    return accuracy, omission, comission, pixel_jaccard, precision, recall, f_one_score, tp, tn, fp, fn, npix, categorical_accuracy
 
 
 def __evaluate_sentinel2_dataset__(model, num_gpus, params):
