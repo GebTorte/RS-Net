@@ -125,7 +125,7 @@ def get_params(model, satellite):
             'test_tiles': __data_split__('Biome_gt')
         }
         return HParams(**hparams)
-    elif model == 'U-net-v2' and satellite == 'Landsat8':
+    elif model == 'U-net-v2' and (satellite == 'Landsat8' or satellite =='MODIS'):
         hparams = {
             'modelNick': 'Unet-MOD09GA',
             'modelID': '180609113139',

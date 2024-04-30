@@ -193,9 +193,10 @@ if __name__ == '__main__':
 
     if args.test:
         # If a model has been trained, use that one. If not, load a new one.
-        if not args.train: # then no model has been trained in current step
+        if not args.train: # then no model has been trained in current step, so load the saved one
             if args.model == 'U-net-v2':
                 model = UnetV2(params)
+        # out = model.evaluate(return_dict=True)
         evaluate_test_set(model, params.test_dataset, params.num_gpus, params)
 
     # Print execution time

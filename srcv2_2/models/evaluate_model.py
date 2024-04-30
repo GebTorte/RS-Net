@@ -228,7 +228,7 @@ def __evaluate_biome_dataset__(model, num_gpus, params, save_output=False, write
 
             else:
                 for l, c in enumerate(params.cls):
-                    y = extract_cls_mask(mask_true, cls)
+                    y = extract_cls_mask(mask_true, c) # c was cls
 
                     # Save the binary masks as one hot representations
                     mask_true[:, :, l] = y[:, :, 0]
@@ -246,8 +246,10 @@ def __evaluate_biome_dataset__(model, num_gpus, params, save_output=False, write
             for j, threshold in enumerate(thresholds):
                 predicted_binary_mask = np.uint8(predicted_mask >= threshold)
 
-                accuracy, omission, comission, pixel_jaccard, precision, recall, f_one_score, tp, tn, fp, fn, npix, categorical_accuracy = calculate_evaluation_criteria(
+                accuracy, omission, comission, pixel_jaccard, precision, recall, f_one_score, tp, tn, fp, fn, npix = calculate_evaluation_criteria(
                     valid_pixels_mask, predicted_binary_mask, mask_true)
+                
+                categorical_accuracy = calculate_class_evaluation_criteria(cls, valid_pixels_mask, predicted_mask, mask_true)
 
                 # Create an additional nesting in the dict for each threshold value
                 evaluation_metrics[product]['threshold_' + str(threshold)] = {}
@@ -268,9 +270,6 @@ def __evaluate_biome_dataset__(model, num_gpus, params, save_output=False, write
                 evaluation_metrics[product]['threshold_' + str(threshold)]['pixel_jaccard'] = pixel_jaccard
 
                 evaluation_metrics[product]['threshold_' + str(threshold)]['categorical_accuracy'] = categorical_accuracy
-
-                # todo
-                # categorical acc berechnen und saven
 
             for threshold in thresholds:
                 print("threshold=" + str(threshold) +
@@ -333,6 +332,34 @@ def __evaluate_biome_dataset__(model, num_gpus, params, save_output=False, write
     if write_csv:
         write_csv_files(evaluation_metrics, params)
 
+def calculate_class_evaluation_criteria(cls, valid_pixels_mask, predicted_mask, true_mask):
+    # Count number of actual pixels
+    npix = valid_pixels_mask.sum()
+
+    categorical_accuracy = 0
+
+    # convert mask_true to predicted values
+    mask_true_cls_corrected = true_mask.copy()
+
+    for l, c in enumerate(cls):
+        # convert true mask values to internal prediction classes
+        mask_true_cls_corrected[mask_true_cls_corrected == c] = len(cls) - l - 1  # rewrite this with some enum of sort
+                                                                                  # like this, its unclear which value corresponds to what type
+
+    # argmax over predicted masks
+    # convert index to type
+    # see if index-type corresponds to true_mask category type -> if yes, considered accurate
+    argmaxed_pred_mask = np.argmax(predicted_mask, axis=-1)
+
+    binary_accuracy_mask = argmaxed_pred_mask == mask_true_cls_corrected
+    binary_accuracy_mask &= np.asarray(valid_pixels_mask, dtype=bool) # remote invalid pixel
+    equal_count=np.sum(binary_accuracy_mask)
+
+    #categorical_accuracy = # of correctly predicted records / total number of records
+    categorical_accuracy = equal_count / npix
+
+    return categorical_accuracy
+
 
 def calculate_evaluation_criteria(valid_pixels_mask, predicted_binary_mask, true_binary_mask):
     # From https://www.kaggle.com/lopuhin/full-pipeline-demo-poly-pixels-ml-poly
@@ -377,12 +404,7 @@ def calculate_evaluation_criteria(valid_pixels_mask, predicted_binary_mask, true
     else:
         omission = comission = 0
 
-    categorical_accuracy = 0
-    #for c in cls:
-        #c_accuracy = ...
-    #categorical_accuracy = mean(c_accuracy)
-
-    return accuracy, omission, comission, pixel_jaccard, precision, recall, f_one_score, tp, tn, fp, fn, npix, categorical_accuracy
+    return accuracy, omission, comission, pixel_jaccard, precision, recall, f_one_score, tp, tn, fp, fn, npix
 
 
 def __evaluate_sentinel2_dataset__(model, num_gpus, params):
