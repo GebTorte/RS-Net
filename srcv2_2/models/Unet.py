@@ -209,7 +209,7 @@ class UnetV2(object):
         # Do the training
         print('------------------------------------------')
         print('Start training:')
-        self.model.fit(image_generator,
+        history = self.model.fit(image_generator,
                         epochs=self.params.epochs,
                         steps_per_epoch=self.params.steps_per_epoch,
                         verbose=1,
@@ -227,6 +227,7 @@ class UnetV2(object):
         self.model.save(self.params.project_path + 'models/Unet/' + self.model_name + '.keras')
         self.model.save(self.params.project_path + 'models/Unet/' + get_model_name(self.params) + '.keras')
         self.save_params()
+        return history
 
     def save_params(self):
         with open(self.params.project_path + 'models/Unet/' + get_model_name(self.params) + '_params.json', 'w') as f:

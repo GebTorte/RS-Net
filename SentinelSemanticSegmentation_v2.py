@@ -133,13 +133,14 @@ if __name__ == '__main__':
     # Check to see if a model should be trained
     if args.train:
         print("Training " + args.model + " model")
+        training_history = []
         if not params.split_dataset:  # No k-fold cross-validation
             # Load the model
             params.modelID = datetime.datetime.now().strftime("%y%m%d%H%M%S")
             if args.model == 'U-net-v2':
                 model = UnetV2(params)
 
-            model.train(params)
+            training_history += model.train(params)
             # Run model on test data set
             # evaluate_test_set(model, params.test_dataset, params.num_gpus, params)
         else:  # With k-fold cross-validation
@@ -182,17 +183,19 @@ if __name__ == '__main__':
                 params.modelID = params.modelNick +'_'+  params.modelID[0:12] + '-CV' + str(k+1) + 'of' + str(k_folds)  # Used for saving results
                 model = UnetV2(params)
                 print("Training on fold " + str(k + 1) + " of " + str(k_folds))
-                model.train() # params) # uses params from self.
+                training_history += model.train() # params) # uses params from self.
 
                 # leave for --test flag
                 # Run model on test data set and save output
                 # evaluate_test_set(model, params.test_dataset, params.num_gpus, params)
 
+                # save history in reports
 
     if args.test:
         # If a model has been trained, use that one. If not, load a new one.
-        if args.model == 'U-net-v2':
-            model = UnetV2(params)
+        if not args.train: # then no model has been trained in current step
+            if args.model == 'U-net-v2':
+                model = UnetV2(params)
         evaluate_test_set(model, params.test_dataset, params.num_gpus, params)
 
     # Print execution time
