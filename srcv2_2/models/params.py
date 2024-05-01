@@ -125,13 +125,13 @@ def get_params(model, satellite):
             'test_tiles': __data_split__('Biome_gt')
         }
         return HParams(**hparams)
-    elif model == 'U-net-v2' and (satellite == 'Landsat8' or satellite =='MODIS'):
+    elif (model == 'U-net-v2' or model =='U-net')and (satellite == 'Landsat8' or satellite =='MODIS'):
         hparams = {
             'modelNick': 'Unet-MOD09GA',
             'modelID': '180609113139',
             'num_gpus': 1,
             'optimizer': 'Adam',
-            'loss_func': 'binary_crossentropy',
+            'loss_func': 'categorical_crossentropy',
             'activation_func': 'elu',
             'last_layer_activation_func': 'softmax',
             'initialization': 'glorot_uniform',
@@ -159,7 +159,7 @@ def get_params(model, satellite):
             'norm_method': 'enhance_contrast',
             'norm_threshold': 16000,
             'cls': ['cloud', 'thin'],
-            'collapse_cls': True,
+            'collapse_cls': False,
             'affine_transformation': True,
             'brightness_augmentation': False,
             'bands': [1, 2, 3, 4, 5, 6, 7],

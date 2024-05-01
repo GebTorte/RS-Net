@@ -40,12 +40,11 @@ class CategoryIndexOrder(IntEnum):
         enum_list = self.__generate_enum_list(model_cls)
 
         try:
-            index = enum_list.index(self._cast_string_to_category(c))
+            return enum_list.index(self._cast_string_to_category(c))
         except ValueError as e: # then model_cls has no class c
-            index = None
-
+            return 
         # return index of Enum element fitting to param c - this index corresponds to the layer, in which the model returns the corresponding probabilities
-        return index
+
     
     def get_model_index_for_type(self, model_cls: list, c):
         assert isinstance(c, CategoryIndexOrder)
@@ -53,12 +52,11 @@ class CategoryIndexOrder(IntEnum):
         enum_list = self.__generate_enum_list(model_cls)
         
         try:
-            index = enum_list.index(c)
+            return enum_list.index(c)
         except ValueError as e: # then model_cls has no class c
-            index = None
+            return
 
         # return index of Enum element fitting to param c - this index corresponds to the layer, in which the model returns the corresponding probabilities
-        return index
 
     def _cast_string_to_category(self, string):
         if string=='clear':

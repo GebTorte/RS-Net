@@ -362,16 +362,22 @@ def calculate_class_evaluation_criteria(param_cls, cls, valid_pixels_mask, predi
     #cloudy types
     positives_mask = [CategoryIndexOrder.THIN, CategoryIndexOrder.CLOUD, CategoryIndexOrder.SHADOW]
     positives_mask = [c.get_model_index_for_type(param_cls, c) for c in positives_mask]
+    positives_mask = [x for x in positives_mask if x is not None]
 
     #non-cloudy types
     negatives_mask = [CategoryIndexOrder.CLEAR, CategoryIndexOrder.SNOW, CategoryIndexOrder.WATER]
     negatives_mask = [c.get_model_index_for_type(param_cls, c) for c in negatives_mask]
+    negatives_mask = [x for x in negatives_mask if x is not None]
 
     # this might not run correctly if positives and negatives indices are off!!
     # perhaps index-correct the masks before
-    tp = ((np.isin(argmaxed_pred_mask, positives_mask) & np.isin(mask_true_cls_corrected, positives_mask)) & valid_pixels_mask).sum()
-    fp = ((np.isin(argmaxed_pred_mask, positives_mask) & (np.isin(mask_true_cls_corrected, negatives_mask))) & valid_pixels_mask).sum()
-    fn = (((np.isin(argmaxed_pred_mask, negatives_mask) & np.isin(mask_true_cls_corrected, positives_mask))) & valid_pixels_mask).sum()
+    pred_positives = np.isin(argmaxed_pred_mask, positives_mask)
+    pred_negatives = np.isin(argmaxed_pred_mask, negatives_mask)
+    true_positives = np.isin(mask_true_cls_corrected, positives_mask)
+
+    tp = ((pred_positives & true_positives) & valid_pixels_mask).sum()
+    fp = (pred_positives & np.isin(mask_true_cls_corrected, negatives_mask) & valid_pixels_mask).sum()
+    fn = ((pred_negatives & true_positives) & valid_pixels_mask).sum()
     tn = npix - tp - fp - fn
 
     # Calculate metrics
