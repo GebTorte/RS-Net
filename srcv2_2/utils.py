@@ -3,6 +3,57 @@ import numpy as np
 import tifffile as tiff
 import cv2
 import time
+from enum import IntEnum
+
+class CategoryIndexOrder(IntEnum):
+    """
+    Define the order in which a model returns its predicted classes.
+    This is necessary, because, depending on the number of classes the model predicts, its category-indices shift.
+    Therefore the order of the below Enum-classes is defining.
+
+    NOTE: This order seems to work for BIOME(_gt) dataset. Others have not been tested. 
+    Model v12 with ID "_v2_overlap40_mc_cloud-thin-clear-shadow_Last-Layer-softmax_v12_lr-1e-7_L2reg-1e-4_dropout-0_epochs-8"
+    which was trained with cls in this order: ['cloud', 'thin', 'clear', 'shadow']
+    seems to work and has a categorical_accuracy of ~0.71 on product 'LC81390292014135LGN00'
+    """
+    CLEAR=0
+    SHADOW=1
+    THIN=2
+    CLOUD=3
+    SNOW=4
+    WATER=5
+
+    def get_model_index_for_string(self, model_cls: list, c:str):
+        """
+        reverse-engineer the index of a class
+        """
+        #assert isinstance(c, CategoryIndexOrder)
+
+        enum_list = []
+        for i, mc in enumerate(model_cls):
+            enum_list.append(self._cast_string_to_category(mc))
+        
+        enum_list = sorted(enum_list) # sort existing cls-entries by enum order defined above
+
+        # return index of Enum element fitting to param c - this index corresponds to the layer, in which the model returns the corresponding probabilities
+        return enum_list.index(self._cast_string_to_category(c))
+
+
+    def _cast_string_to_category(self, string):
+        if string=='clear':
+            return self.CLEAR
+        elif string=='shadow':
+            return self.SHADOW
+        elif string=='thin':
+            return self.THIN
+        elif string=='cloud':
+            return self.CLOUD
+        elif string=='snow':
+            return self.SNOW
+        elif string=='water':
+            return self.WATER
+        else:
+            raise KeyError(f"String: {string} is not supported by this method.")
 
 
 def image_normalizer(img, params, type='enhance_contrast'):
