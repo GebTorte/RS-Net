@@ -42,19 +42,19 @@ for activation_func in activation_functions:
                                             # Params string format must fit with the HParams object
                                             # See more at https://www.tensorflow.org/api_docs/python/tf/contrib/training/HParams
                                             params = "--params=activation_func=" + activation_func + \
-                                                    ",loss_func=" + str(loss_func) + \
-                                                    ",learning_rate=" + str(learning_rate) + \
-                                                    ",L2reg=" + str(l2reg) + \
-                                                    ",dropout=" + str(dropout) + \
-                                                    ",bands=" + str(bands) + \
-                                                    ",epochs=" + str(epoch_no) + \
-                                                    ",use_batch_norm=" + str(use_bn) + \
-                                                    ",dropout_on_last_layer_only=" + str(dropout_on_only_last_layer) + \
-                                                    ",initialization=" + str(initializer) + \
-                                                    ",last_layer_activation_func=" + str(last_layer_activation_func) + \
-                                                    ",satellite=" + str(satellite) + \
-                                                    ",cls=" + str(c) + \
-                                                    ",collapse_cls=" + str(collapse_cls)
+                                                    ";loss_func=" + str(loss_func) + \
+                                                    ";learning_rate=" + str(learning_rate) + \
+                                                    ";L2reg=" + str(l2reg) + \
+                                                    ";dropout=" + str(dropout) + \
+                                                    ";bands=" + str(bands) + \
+                                                    ";epochs=" + str(epoch_no) + \
+                                                    ";use_batch_norm=" + str(use_bn) + \
+                                                    ";dropout_on_last_layer_only=" + str(dropout_on_only_last_layer) + \
+                                                    ";initialization=" + str(initializer) + \
+                                                    ";last_layer_activation_func=" + str(last_layer_activation_func) + \
+                                                    ";satellite=" + str(satellite) + \
+                                                    ";cls=" + str(cls) + \
+                                                    ";collapse_cls=" + str(collapse_cls)
 
                                             print('-------------STARTING NEW--------------------------')
                                             print('Activation function: ' + activation_func)
