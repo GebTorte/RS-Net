@@ -3,7 +3,7 @@ import time
 import numpy as np
 import tifffile as tiff
 from PIL import Image
-from srcv2_2.utils import load_product, get_cls, extract_collapsed_cls, extract_cls_mask, predict_img, image_normalizer
+from srcv2_2.utils import CategoryIndexOrder, load_product, get_cls, extract_collapsed_cls, extract_cls_mask, predict_img, image_normalizer
 
 
 def evaluate_test_set(model, dataset, num_gpus, params, save_output=False, write_csv=True):
@@ -227,11 +227,15 @@ def __evaluate_biome_dataset__(model, num_gpus, params, save_output=False, write
                 mask_true = extract_collapsed_cls(mask_true, cls)
 
             else:
+                cio = CategoryIndexOrder.CLOUD # dummy object 
                 for l, c in enumerate(params.cls):
-                    y = extract_cls_mask(mask_true, c) # c was cls
+                    mask_true[mask_true == cls[l]] = cio.get_model_index_for_string(params.cls, c)
+                
+                # for l, c in enumerate(params.cls):
+                #     y = extract_cls_mask(mask_true, c) # c was cls
 
-                    # Save the binary masks as one hot representations
-                    mask_true[:, :, l] = y[:, :, 0]
+                #     # Save the binary masks as one hot representations
+                #     mask_true[:, :, l] = y[:, :, 0]
 
             prediction_time_start = time.time()
             predicted_mask, _ = predict_img(model, params, img, n_bands, n_cls, num_gpus)
@@ -246,14 +250,16 @@ def __evaluate_biome_dataset__(model, num_gpus, params, save_output=False, write
             for j, threshold in enumerate(thresholds):
                 predicted_binary_mask = np.uint8(predicted_mask >= threshold)
 
-                accuracy, omission, comission, pixel_jaccard, precision, recall, f_one_score, tp, tn, fp, fn, npix = calculate_evaluation_criteria(
+                categorical_accuracy= accuracy= omission= comission= pixel_jaccard= precision= recall= f_one_score= tp= tn = fp = fn = npix = 0
+                if params.collapse_cls:
+                    accuracy, omission, comission, pixel_jaccard, precision, recall, f_one_score, tp, tn, fp, fn, npix = calculate_evaluation_criteria(
                     valid_pixels_mask, predicted_binary_mask, mask_true)
-                
-                categorical_accuracy = calculate_class_evaluation_criteria(cls, valid_pixels_mask, predicted_mask, mask_true)
+                else:
+                    categorical_accuracy, accuracy, omission, comission, pixel_jaccard, precision, recall, f_one_score, tp, tn, fp, fn, npix = calculate_class_evaluation_criteria(params.cls, 
+                    cls, valid_pixels_mask, predicted_mask, mask_true)
 
                 # Create an additional nesting in the dict for each threshold value
                 evaluation_metrics[product]['threshold_' + str(threshold)] = {}
-
                 # Save the values in the dict
                 evaluation_metrics[product]['threshold_' + str(threshold)]['biome'] = folder  # Save biome type too
                 evaluation_metrics[product]['threshold_' + str(threshold)]['tp'] = tp
@@ -268,7 +274,6 @@ def __evaluate_biome_dataset__(model, num_gpus, params, save_output=False, write
                 evaluation_metrics[product]['threshold_' + str(threshold)]['omission'] = omission
                 evaluation_metrics[product]['threshold_' + str(threshold)]['comission'] = comission
                 evaluation_metrics[product]['threshold_' + str(threshold)]['pixel_jaccard'] = pixel_jaccard
-
                 evaluation_metrics[product]['threshold_' + str(threshold)]['categorical_accuracy'] = categorical_accuracy
 
             for threshold in thresholds:
@@ -277,6 +282,7 @@ def __evaluate_biome_dataset__(model, num_gpus, params, save_output=False, write
                       ": fp=" + str(evaluation_metrics[product]['threshold_' + str(threshold)]['fp']) +
                       ": fn=" + str(evaluation_metrics[product]['threshold_' + str(threshold)]['fn']) +
                       ": tn=" + str(evaluation_metrics[product]['threshold_' + str(threshold)]['tn']) +
+                      ": Categorical-accuracy=" + str(evaluation_metrics[product]['threshold_' + str(threshold)]['categorical_accuracy']) +
                       ": Accuracy=" + str(evaluation_metrics[product]['threshold_' + str(threshold)]['accuracy']) +
                       ": precision=" + str(evaluation_metrics[product]['threshold_' + str(threshold)]['precision'])+
                       ": recall=" + str(evaluation_metrics[product]['threshold_' + str(threshold)]['recall']) +
@@ -332,7 +338,7 @@ def __evaluate_biome_dataset__(model, num_gpus, params, save_output=False, write
     if write_csv:
         write_csv_files(evaluation_metrics, params)
 
-def calculate_class_evaluation_criteria(cls, valid_pixels_mask, predicted_mask, true_mask):
+def calculate_class_evaluation_criteria(param_cls, cls, valid_pixels_mask, predicted_mask, true_mask):
     # Count number of actual pixels
     npix = valid_pixels_mask.sum()
 
@@ -340,12 +346,7 @@ def calculate_class_evaluation_criteria(cls, valid_pixels_mask, predicted_mask, 
 
     # convert mask_true to predicted values
     mask_true_cls_corrected = true_mask.copy()
-
-    for l, c in enumerate(cls):
-        # convert true mask values to internal prediction classes
-        mask_true_cls_corrected[mask_true_cls_corrected == c] = len(cls) - l - 1  # rewrite this with some enum of sort
-                                                                                  # like this, its unclear which value corresponds to what type
-
+                
     # argmax over predicted masks
     # convert index to type
     # see if index-type corresponds to true_mask category type -> if yes, considered accurate
@@ -358,7 +359,42 @@ def calculate_class_evaluation_criteria(cls, valid_pixels_mask, predicted_mask, 
     #categorical_accuracy = # of correctly predicted records / total number of records
     categorical_accuracy = equal_count / npix
 
-    return categorical_accuracy
+    #cloudy types
+    positives_mask = [CategoryIndexOrder.THIN, CategoryIndexOrder.CLOUD, CategoryIndexOrder.SHADOW]
+    positives_mask = [c.get_model_index_for_type(param_cls, c) for c in positives_mask]
+
+    #non-cloudy types
+    negatives_mask = [CategoryIndexOrder.CLEAR, CategoryIndexOrder.SNOW, CategoryIndexOrder.WATER]
+    negatives_mask = [c.get_model_index_for_type(param_cls, c) for c in negatives_mask]
+
+    # this might not run correctly if positives and negatives indices are off!!
+    # perhaps index-correct the masks before
+    tp = ((np.isin(argmaxed_pred_mask, positives_mask) & np.isin(mask_true_cls_corrected, positives_mask)) & valid_pixels_mask).sum()
+    fp = ((np.isin(argmaxed_pred_mask, positives_mask) & (np.isin(mask_true_cls_corrected, negatives_mask))) & valid_pixels_mask).sum()
+    fn = (((np.isin(argmaxed_pred_mask, negatives_mask) & np.isin(mask_true_cls_corrected, positives_mask))) & valid_pixels_mask).sum()
+    tn = npix - tp - fp - fn
+
+    # Calculate metrics
+    accuracy = (tp + tn) / npix
+    if tp != 0:
+        precision = tp / (tp + fp)
+        recall = tp / (tp + fn)
+        f_one_score = 2 * (precision * recall) / (precision + recall)
+        # See https://en.wikipedia.org/wiki/Jaccard_index#Similarity_of_asymmetric_binary_attributes
+        pixel_jaccard = tp / (tp + fp + fn)
+    else:
+        precision = recall = f_one_score = pixel_jaccard = 0
+
+    # Metrics from Foga 2017 paper
+    # if fp!=0: # accunting for runtime division by 0 (tn was 0)
+    if fp != 0 and tn != 0:
+        omission = fp / (tp + fp)
+        comission = fp / (tn + fn)
+
+    else:
+        omission = comission = 0
+
+    return categorical_accuracy, accuracy, omission, comission, pixel_jaccard, precision, recall, f_one_score, tp, tn, fp, fn, npix
 
 
 def calculate_evaluation_criteria(valid_pixels_mask, predicted_binary_mask, true_binary_mask):
@@ -459,7 +495,7 @@ def write_csv_files(evaluation_metrics, params):
                 string += key + '_' + str(i) + ','
 
         # Create headers for averaged metrics
-        f.write(string + 'mean_accuracy,mean_precision,mean_recall,mean_f_one_score,mean_omission,mean_comission,mean_pixel_jaccard\n')
+        f.write(string + 'mean_accuracy,mean_precision,mean_recall,mean_f_one_score,mean_omission,mean_comission,mean_pixel_jaccard,mean_categorical_accuracy\n')
         f.close()
 
     # Write a new line for each threshold value
@@ -483,7 +519,7 @@ def write_csv_files(evaluation_metrics, params):
                 string += str(params.values()[key]) + ','
 
         # Initialize variables for calculating mean visualization set values
-        accuracy_sum = precision_sum = recall_sum = f_one_score_sum = omission_sum = comission_sum = pixel_jaccard_sum=0
+        categorical_accuracy_sum = accuracy_sum = precision_sum = recall_sum = f_one_score_sum = omission_sum = comission_sum = pixel_jaccard_sum=0
 
         # Write visualization set values
         for product in list(evaluation_metrics):
@@ -508,13 +544,15 @@ def write_csv_files(evaluation_metrics, params):
                     comission_sum += evaluation_metrics[product][threshold][key]
                 elif 'pixel_jaccard' in key:
                     pixel_jaccard_sum += evaluation_metrics[product][threshold][key]
+                elif 'categorical_accuracy' in key:
+                    categorical_accuracy_sum += evaluation_metrics[product][threshold][key]    
 
         # Add mean values to string
         n_products = np.size(list(evaluation_metrics))
         string += str(accuracy_sum / n_products) + ',' + str(precision_sum / n_products) + ',' + \
                   str(recall_sum / n_products) + ',' + str(f_one_score_sum / n_products) + ',' + \
                   str(omission_sum / n_products) + ',' + str(comission_sum / n_products) + ',' + \
-                  str(pixel_jaccard_sum / n_products)
+                  str(pixel_jaccard_sum / n_products)+ ',' + str(categorical_accuracy_sum / n_products)
 
         # Write string and close csv file
         f.write(string + '\n')
