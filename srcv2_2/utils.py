@@ -23,21 +23,42 @@ class CategoryIndexOrder(IntEnum):
     SNOW=4
     WATER=5
 
+    def __generate_enum_list(self, cls_list:list):
+        enum_list = []
+        for i, mc in enumerate(cls_list):
+            enum_list.append(self._cast_string_to_category(mc))
+        
+        return sorted(enum_list) # sort existing cls-entries by enum order defined above
+
+
     def get_model_index_for_string(self, model_cls: list, c:str):
         """
         reverse-engineer the index of a class
         """
         #assert isinstance(c, CategoryIndexOrder)
 
-        enum_list = []
-        for i, mc in enumerate(model_cls):
-            enum_list.append(self._cast_string_to_category(mc))
-        
-        enum_list = sorted(enum_list) # sort existing cls-entries by enum order defined above
+        enum_list = self.__generate_enum_list(model_cls)
+
+        try:
+            index = enum_list.index(self._cast_string_to_category(c))
+        except ValueError as e: # then model_cls has no class c
+            index = None
 
         # return index of Enum element fitting to param c - this index corresponds to the layer, in which the model returns the corresponding probabilities
-        return enum_list.index(self._cast_string_to_category(c))
+        return index
+    
+    def get_model_index_for_type(self, model_cls: list, c):
+        assert isinstance(c, CategoryIndexOrder)
 
+        enum_list = self.__generate_enum_list(model_cls)
+        
+        try:
+            index = enum_list.index(c)
+        except ValueError as e: # then model_cls has no class c
+            index = None
+
+        # return index of Enum element fitting to param c - this index corresponds to the layer, in which the model returns the corresponding probabilities
+        return index
 
     def _cast_string_to_category(self, string):
         if string=='clear':
