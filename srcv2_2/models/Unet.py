@@ -56,6 +56,7 @@ class UnetV2(object):
                     print('No weights found')
 
             else:
+                print("ATTENTION: Only running on CPU")
                 with tf.device("/cpu:0"):
                     self.model = self.__create_inference__()  # initialize the model on the CPU
                     try:
