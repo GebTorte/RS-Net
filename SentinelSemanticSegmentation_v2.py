@@ -23,7 +23,7 @@ import numpy as np
 import tensorflow as tf
 from srcv2_2.data.make_dataset import make_numpy_dataset
 from srcv2_2.models.params import get_params, HParams
-from srcv2_2.models.Unet import Unet, UnetV2
+from srcv2_2.models.Unet import Unet, UnetV2, get_model_name
 from srcv2_2.models.evaluate_model import evaluate_test_set, write_csv_files
 
 # Don't allow tensorflow to reserve all memory available
@@ -85,7 +85,7 @@ parser.add_argument('--model',
 
 parser.add_argument('--params',
                     type=str,
-                    help='Comma separated list of "name=value" pairs.')
+                    help='Semi-colon separated list of "name=value" pairs.')
 
 parser.add_argument('--dev_dataset',
                     action='store_true',
@@ -139,6 +139,7 @@ if __name__ == '__main__':
             # Load the model
             params.modelID = datetime.datetime.now().strftime("%y%m%d%H%M%S")
             if args.model == 'U-net-v2':
+                # TODO: load model, if its name is passed by commandline
                 model = UnetV2(params)
 
             hist = model.train(params)
@@ -165,6 +166,8 @@ if __name__ == '__main__':
 
             # Do the training/testing with k-fold cross-validation
             params.modelID = datetime.datetime.now().strftime("%y%m%d%H%M%S")
+            Unet_model = None
+            model = None
             for k in range(k_folds):
                 # Define train and test tiles (note that params.test_tiles[0] are training and .test_tiles[1] are test)
                 if 'SPARCS' in params.train_dataset:
@@ -183,10 +186,12 @@ if __name__ == '__main__':
                     params.test_tiles[1] = temp
 
                 # Train and evaluate
-                params.modelID = params.modelNick +'_'+  params.modelID[0:12] + '-CV' + str(k+1) + 'of' + str(k_folds)  # Used for saving results
-                model = UnetV2(params)
+                params.modelID = params.modelID[0:12] + '-CV' + str(k+1) + 'of' + str(k_folds)  # Used for saving results
+                Unet_model = UnetV2(params, model)  # load previous loops model, if initialized
                 print("Training on fold " + str(k + 1) + " of " + str(k_folds))
-                hist = model.train() # params) # uses params from self.
+                hist = Unet_model.train() # params) # uses params from self.
+                model = Unet_model.model  # save model to provide it in next loop
+
                 #training_history[f"hist{hist_index}"] = hist 
                 #hist_index += 1
 
