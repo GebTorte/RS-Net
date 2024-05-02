@@ -634,9 +634,9 @@ def get_model_name(params):
     '''
     Combine the parameters for the model into a string (to name the model file)
     '''
-    if params.modelID:
-        model_name = 'Unet_' + params.satellite + '_' + params.modelID
-    elif params.satellite == 'Sentinel-2':
+    #if params.modelID:
+    #    model_name = 'Unet_' + params.satellite + '_' + params.modelID
+    if params.satellite == 'Sentinel-2':
         model_name = 'sentinel2_unet_cls-' + "".join(str(c) for c in params.cls) + \
                      '_initmodel-' + params.initial_model + \
                      '_collapse' + str(params.collapse_cls) + \
@@ -646,13 +646,29 @@ def get_model_name(params):
                      '_L2reg' + str(params.L2reg) + \
                      '_dropout' + str(params.dropout) + '.hdf5'
     elif params.satellite == 'Landsat8':
-        model_name = 'landsat8_unet_cls-' + "".join(str(c) for c in params.cls) + \
+        if params.collapse_cls:
+            model_name = 'landsat8_unet_cls-' + \
+                     "".join(str(c) for c in params.cls) + \
                      '_collapse' + str(params.collapse_cls) + \
                      '_bands' + "".join(str(b) for b in params.bands) + \
-                     "_lr" + str(params.learning_rate) + \
+                     '_lr' + str(params.learning_rate) + \
                      '_decay' + str(params.decay) + \
                      '_L2reg' + str(params.L2reg) + \
-                     '_dropout' + str(params.dropout) + '.hdf5'
+                     '_activation_func' +  str(params.activation_func) + \
+                     '_loss_func' + str(params.loss_func) 
+        else:
+            model_name = 'landsat8_unet' + \
+                     '_modelID' + str(params.modelID) + \
+                     '_cls-' + "".join(str(c) for c in params.cls) + \
+                     '_collapse' + str(params.collapse_cls) + \
+                     '_bands' + "".join(str(b) for b in params.bands) + \
+                     '_lr' + str(params.learning_rate) + \
+                     '_decay' + str(params.decay) + \
+                     '_L2reg' + str(params.L2reg) + \
+                     '_activation_func' +  str(params.activation_func) + \
+                     '_last_layer_activation_func' +  str(params.last_layer_activation_func) + \
+                     '_loss_func' + str(params.loss_func) 
+        
     elif params.satellite =="MODIS":
         model_name = 'modis_unet_cls-'+ "".join(str(c) for c in params.cls) + \
                     '_sensor' + params.sensor + \
