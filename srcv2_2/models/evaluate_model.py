@@ -179,8 +179,11 @@ def __evaluate_biome_dataset__(model, num_gpus, params, save_output=False, write
 
     product_names = []
 
-    thresholds = [0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5,
+    if params.loss == "binary_crossentropy": # assuming this is only 
+        thresholds = [0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5,
                   0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95]
+    else: # assuming this is categorical
+        thresholds = [params.threshold]
     evaluation_metrics = {}
     evaluating_product_no = 1  # Used in print statement later
 
@@ -228,7 +231,7 @@ def __evaluate_biome_dataset__(model, num_gpus, params, save_output=False, write
 
             else:
                 cio = CategoryIndexOrder.CLOUD # dummy object 
-                for l, c in enumerate(params.cls):
+                for l, c in enumerate(params.cls):  # depending on params.cls and cls being correctly ordered
                     mask_true[mask_true == cls[l]] = cio.get_model_index_for_string(params.cls, c)
                 
                 # for l, c in enumerate(params.cls):
@@ -248,7 +251,9 @@ def __evaluate_biome_dataset__(model, num_gpus, params, save_output=False, write
             mask_true = np.uint8(mask_true)
             # Loop over different threshold values
             for j, threshold in enumerate(thresholds):
+                threshold = params.threshold
                 predicted_binary_mask = np.uint8(predicted_mask >= threshold)
+                #predicted_mask = np.uint8(predicted_mask >= threshold) # not needed because of argmaxing i think
 
                 categorical_accuracy= accuracy= omission= comission= pixel_jaccard= precision= recall= f_one_score= tp= tn = fp = fn = npix = 0
                 if params.collapse_cls:
@@ -277,18 +282,19 @@ def __evaluate_biome_dataset__(model, num_gpus, params, save_output=False, write
                 evaluation_metrics[product]['threshold_' + str(threshold)]['categorical_accuracy'] = categorical_accuracy
 
             for threshold in thresholds:
+                print("Only using one threshold atm")
                 print("threshold=" + str(threshold) +
-                      ": tp=" + str(evaluation_metrics[product]['threshold_' + str(threshold)]['tp']) +
-                      ": fp=" + str(evaluation_metrics[product]['threshold_' + str(threshold)]['fp']) +
-                      ": fn=" + str(evaluation_metrics[product]['threshold_' + str(threshold)]['fn']) +
-                      ": tn=" + str(evaluation_metrics[product]['threshold_' + str(threshold)]['tn']) +
-                      ": Categorical-accuracy=" + str(evaluation_metrics[product]['threshold_' + str(threshold)]['categorical_accuracy']) +
-                      ": Accuracy=" + str(evaluation_metrics[product]['threshold_' + str(threshold)]['accuracy']) +
-                      ": precision=" + str(evaluation_metrics[product]['threshold_' + str(threshold)]['precision'])+
-                      ": recall=" + str(evaluation_metrics[product]['threshold_' + str(threshold)]['recall']) +
-                      ": omission=" + str(evaluation_metrics[product]['threshold_' + str(threshold)]['omission']) +
-                      ": comission=" + str(evaluation_metrics[product]['threshold_' + str(threshold)]['comission'])+
-                      ": pixel_jaccard=" + str(evaluation_metrics[product]['threshold_' + str(threshold)]['pixel_jaccard']))
+                        ": tp=" + str(evaluation_metrics[product]['threshold_' + str(threshold)]['tp']) +
+                        ": fp=" + str(evaluation_metrics[product]['threshold_' + str(threshold)]['fp']) +
+                        ": fn=" + str(evaluation_metrics[product]['threshold_' + str(threshold)]['fn']) +
+                        ": tn=" + str(evaluation_metrics[product]['threshold_' + str(threshold)]['tn']) +
+                        ": Categorical-accuracy=" + str(evaluation_metrics[product]['threshold_' + str(threshold)]['categorical_accuracy']) +
+                        ": Accuracy=" + str(evaluation_metrics[product]['threshold_' + str(threshold)]['accuracy']) +
+                        ": precision=" + str(evaluation_metrics[product]['threshold_' + str(threshold)]['precision'])+
+                        ": recall=" + str(evaluation_metrics[product]['threshold_' + str(threshold)]['recall']) +
+                        ": omission=" + str(evaluation_metrics[product]['threshold_' + str(threshold)]['omission']) +
+                        ": comission=" + str(evaluation_metrics[product]['threshold_' + str(threshold)]['comission'])+
+                        ": pixel_jaccard=" + str(evaluation_metrics[product]['threshold_' + str(threshold)]['pixel_jaccard']))
 
             threshold_loop_time.append(time.time() - threshold_loop_time_start)
 
@@ -344,7 +350,7 @@ def calculate_class_evaluation_criteria(param_cls, cls, valid_pixels_mask, predi
 
     categorical_accuracy = 0
 
-    # convert mask_true to predicted values
+    # converted mask_true to predicted values as input
     mask_true_cls_corrected = true_mask.copy()
                 
     # argmax over predicted masks
