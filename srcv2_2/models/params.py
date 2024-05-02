@@ -13,12 +13,21 @@ class HParams:
         self.__dict__.update(kwargs)
 
     def get_config(self):
-        return {'__dict__', self.__dict__}
+        return {'__dict__', self.__dict__} # (self.__dict__)
 
     def parse(self, params):
         param_list = params.strip().split(";")
         for param in param_list:
             key, value = param.split("=")
+            if str(key) == "cls":  # parse cls strings
+                try:
+                    value = value.strip('][')
+                    value = value.replace('\"', '').replace('\'', '').replace(' ', '')
+                    value = [str(i) for i in  value.split(',')] # striping off <SPACE>, [, ], ', "
+                    self.__dict__[key] = value
+                    continue
+                except ValueError:
+                        pass
             try:
                 value = int(value)
             except ValueError:
@@ -30,9 +39,10 @@ class HParams:
                     try:
                         value = [int(i) for i in value.strip('][').split(',')]
                         self.__dict__[key] = value
-                        return
+                        continue
                     except ValueError:
                         pass
+    
             if value == 'True':
                 value = True
             elif value == 'False':
