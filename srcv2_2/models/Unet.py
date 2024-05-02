@@ -5,6 +5,7 @@ seed(1)
 from tensorflow.random import set_seed
 set_seed(1)
 
+import json
 import numpy as np
 import tensorflow as tf
 import tensorflow.distribute
@@ -26,14 +27,14 @@ class UnetV2(object):
         self.params = params
         self.model = model
 
-        try:
-            if self.training_params == None: # access training_params. If its uninitialized, init it to None, otherwise pass
-                pass
-        except AttributeError as ae: # init training_params if its not set.
-            if training_params != None:
-                self.training_params = training_params
-            else:
-                self.training_params = None
+        # try:
+        #     if self.training_params == None: # access training_params. If its uninitialized, init it to None, otherwise pass
+        #         pass
+        # except AttributeError as ae: # init training_params if its not set.
+        #     if training_params != None:
+        #         self.training_params = training_params
+        #     else:
+        #         self.training_params = None
 
         # Find the model you would like
         self.model_name = get_model_name(self.params)
@@ -45,7 +46,7 @@ class UnetV2(object):
             self.n_cls = np.size(self.params.cls)
         self.n_bands = np.size(self.params.bands)
 
-        # Create the model in keras
+        # Create the model in keras, if not provided
         if model == None:
             if self.params.num_gpus == 1:
                 self.model = self.__create_inference__()  # initialize the model
@@ -160,6 +161,7 @@ class UnetV2(object):
     def train(self):
         #set training params to params used while training
         self.training_params = self.params
+        print("Model: Training on cls categories: ", self.params.cls)
 
         # Define callbacks
         csv_logger, model_checkpoint, reduce_lr, tensorboard, early_stopping = get_callbacks(self.params)
@@ -224,15 +226,17 @@ class UnetV2(object):
 
         # Save the weights (append the val score in the name)
         # There is a bug with multi_gpu_model (https://github.com/kuza55/keras-extras/issues/3), hence model.layers[-2]
-        self.model.save_weights(self.params.project_path + 'models/Unet/' + self.model_name)
+        # self.model.save_weights(self.params.project_path + 'models/Unet/' + get_model_name(self.params))
         #self.model.save(self.params.project_path + 'models/Unet/' + self.model_name + '.keras')
         self.model.save(self.params.project_path + 'models/Unet/' + get_model_name(self.params) + '.keras')
         self.save_params()
         return history
 
     def save_params(self):
+        # TODO: Jsonify this (json_dumps...)
         with open(self.params.project_path + 'models/Unet/' + get_model_name(self.params) + '_params.json', 'w') as f:
-            f.write(str(self.params.__dict__))
+            json.dump(str(self.params.__dict__), f, indent=4)
+            #f.write(str(self.params.__dict__))
 
     def predict(self, img):
         # Predict batches of patches
