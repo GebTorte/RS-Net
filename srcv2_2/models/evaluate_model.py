@@ -179,7 +179,7 @@ def __evaluate_biome_dataset__(model, num_gpus, params, save_output=False, write
 
     product_names = []
 
-    if params.loss == "binary_crossentropy": # assuming this is only 
+    if params.loss_func == "binary_crossentropy": # assuming this is only 
         thresholds = [0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5,
                   0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95]
     else: # assuming this is categorical
@@ -251,7 +251,6 @@ def __evaluate_biome_dataset__(model, num_gpus, params, save_output=False, write
             mask_true = np.uint8(mask_true)
             # Loop over different threshold values
             for j, threshold in enumerate(thresholds):
-                threshold = params.threshold
                 predicted_binary_mask = np.uint8(predicted_mask >= threshold)
                 #predicted_mask = np.uint8(predicted_mask >= threshold) # not needed because of argmaxing i think
 
@@ -542,7 +541,9 @@ def write_csv_files(evaluation_metrics, params):
                 string += str(evaluation_metrics[product][threshold][key]) + ','
 
                 # Extract values for calculating mean values of entire visualization set
-                if 'accuracy' in key:
+                if 'categorical_accuracy' in key: # this has to be run before accuracy summation, as the accuracy if statement holds for categorical_accuracy aswell...
+                    categorical_accuracy_sum += evaluation_metrics[product][threshold][key]    
+                elif 'accuracy' in key:
                     accuracy_sum += evaluation_metrics[product][threshold][key]
                 elif 'precision' in key:
                     precision_sum += evaluation_metrics[product][threshold][key]
@@ -556,8 +557,6 @@ def write_csv_files(evaluation_metrics, params):
                     comission_sum += evaluation_metrics[product][threshold][key]
                 elif 'pixel_jaccard' in key:
                     pixel_jaccard_sum += evaluation_metrics[product][threshold][key]
-                elif 'categorical_accuracy' in key:
-                    categorical_accuracy_sum += evaluation_metrics[product][threshold][key]    
 
         # Add mean values to string
         n_products = np.size(list(evaluation_metrics))
