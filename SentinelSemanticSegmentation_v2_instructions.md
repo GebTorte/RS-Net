@@ -2,6 +2,11 @@
 
 Params are now semi-colon-separeted!
 
+## Making a dataset
+Train_dataset defines the processing step
+
+>python3 SentinelSemanticSegmentation_v2.py --make_dataset --params=train_dataset='Biome_gt' --satellite=Landsat8
+
 ## Testing a Model:
 > python3 SentinelSemanticSegmentation_v2.py --test --satellite Landsat8 --params modelID=Unet_Landsat8_Unet-MOD09GA_240501173116-CV1of2
 
