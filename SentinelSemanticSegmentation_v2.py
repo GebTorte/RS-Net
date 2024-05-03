@@ -126,6 +126,7 @@ if __name__ == '__main__':
         params.data_path = "/home/mxh/RS-Net/dev_dataset/"
 
     # Check to see if a new data set should be processed from the raw data
+    # important if new training dataset was chosen in params
     if args.make_dataset:
         print("Processing numpy data set")
         make_numpy_dataset(params)
@@ -205,7 +206,8 @@ if __name__ == '__main__':
         # If a model has been trained, use that one. If not, load a new one.
         if not args.train: # then no model has been trained in current step, so load the saved one
             if args.model == 'U-net-v2':
-                model = UnetV2(params)
+                loaded_model = tf.keras.saving.load_model(f"../models/Unet/{get_model_name(params)}.keras")
+                model = UnetV2(params, model=loaded_model)  # to implement for V2: load model from file
         # out = model.evaluate(return_dict=True)
         evaluate_test_set(model, params.test_dataset, params.num_gpus, params)
 
