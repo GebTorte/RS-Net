@@ -5,16 +5,26 @@ import cv2
 import time
 from enum import IntEnum
 
+
 class CategoryIndexOrder(IntEnum):
     """
     Define the order in which a model returns its predicted classes.
     This is necessary, because, depending on the number of classes the model predicts, its category-indices shift.
     Therefore the order of the below Enum-classes is defining.
 
-    NOTE: This order seems to work for BIOME(_gt) dataset. Others have not been tested. 
+    NOTE: This order seems to work for BIOME(_fmask) training-dataset. Others have not been tested. 
     Model v12 with ID "_v2_overlap40_mc_cloud-thin-clear-shadow_Last-Layer-softmax_v12_lr-1e-7_L2reg-1e-4_dropout-0_epochs-8"
     which was trained with cls in this order: ['cloud', 'thin', 'clear', 'shadow']
     seems to work and has a categorical_accuracy of ~0.71 on product 'LC81390292014135LGN00'
+    
+    WHERE IS FILL=-1?
+    IS THIS ORDER INDEPENDENT OF Biome_gt, Biome_fmask, ...?
+    CLEAR=0
+    SHADOW=1
+    THIN=2
+    CLOUD=3
+    SNOW=4
+    WATER=5
     """
     CLEAR=0
     SHADOW=1
@@ -22,6 +32,7 @@ class CategoryIndexOrder(IntEnum):
     CLOUD=3
     SNOW=4
     WATER=5
+    FILL=6
 
     def __generate_enum_list(self, cls_list:list):
         enum_list = []
@@ -34,6 +45,8 @@ class CategoryIndexOrder(IntEnum):
     def get_model_index_for_string(self, model_cls: list, c:str):
         """
         reverse-engineer the index of a class
+        TODO: This method might profit from a Train-dataset input (Biome_fmask/_gt). 
+        Depending on Train/Test combination, output of index-order should possibly be different
         """
         #assert isinstance(c, CategoryIndexOrder)
 
@@ -71,8 +84,15 @@ class CategoryIndexOrder(IntEnum):
             return self.SNOW
         elif string=='water':
             return self.WATER
+        elif string=='fill':
+            return self.FILL
         else:
             raise KeyError(f"String: {string} is not supported by this method.")
+        
+
+class BIOME_GT_ENUM(IntEnum):
+    pass
+
 
 
 def image_normalizer(img, params, type='enhance_contrast'):
@@ -671,7 +691,6 @@ def get_model_name(params):
         
     elif params.satellite =="MODIS":
         model_name = 'modis_unet_cls-'+ "".join(str(c) for c in params.cls) + \
-                    '_sensor' + params.sensor + \
                     '_initmodel-' + params.initial_model + \
                     '_collapse' + str(params.collapse_cls) + \
                     '_bands' + "".join(str(b) for b in params.bands) + \

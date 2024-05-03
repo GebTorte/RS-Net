@@ -74,6 +74,10 @@ parser.add_argument('--initial_model',
                     default='sen2cor',
                     help='Which initial is model is wanted for training (sen2cor or fmask)')
 
+parser.add_argument('--save_output',
+                    type=bool,
+                    default=False,
+                    help='Wheather model evaluations images are supposed to be saved')
 
 # ----------------------------------------------------------------------------------------------------------------------
 # Define the arguments for the training
@@ -90,7 +94,6 @@ parser.add_argument('--params',
 parser.add_argument('--dev_dataset',
                     action='store_true',
                     help='Very small dataset to be used while developing the project')
-
 
 # ----------------------------------------------------------------------------------------------------------------------
 # Define the arguments for the visualization
@@ -209,7 +212,7 @@ if __name__ == '__main__':
                 loaded_model = tf.keras.saving.load_model(f"../models/Unet/{get_model_name(params)}.keras")
                 model = UnetV2(params, model=loaded_model)  # to implement for V2: load model from file
         # out = model.evaluate(return_dict=True)
-        evaluate_test_set(model, params.test_dataset, params.num_gpus, params)
+        evaluate_test_set(model, params.test_dataset, params.num_gpus, params, save_output=args.save_output)
 
     # Print execution time
     exec_time = str(time.time() - start_time)

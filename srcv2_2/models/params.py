@@ -178,10 +178,10 @@ def get_params(model, satellite):
             'data_path': 'data/raw/Biome_dataset/',
             'satellite': 'Landsat8',
             'usecase': 'MOD09GA',
-            'train_dataset': 'Biome_fmask',
-            'test_dataset': 'Biome_gt',
+            'train_dataset': 'Biome_gt',  # train on ground truth by default # Choose Biome_gt, Biome_fmask, SPARCS_gt, or SPARCS_fmask
+            'test_dataset': 'Biome_gt', # Biome_gt # Choose Biome_gt, Biome_fmask, SPARCS_gt, or SPARCS_fmask
             'split_dataset': True,
-            'test_tiles': __data_split__('Biome_gt')
+            'test_tiles': __data_split__('Biome_gt') # Biome_gt # Chose test_dataset value
         }
         return HParams(**hparams)
 

@@ -48,25 +48,36 @@ class UnetV2(object):
 
         # Create the model in keras, if not provided
         if model == None:
+            # Try loading a saved model. get_model_name has to be unique
+            try:
+                model = tf.keras.saving.load_model(self.params.project_path + 'models/Unet/' + get_model_name(self.params) + '.keras')
+                print(f"Model {get_model_name(self.params)} has been loaded.")
+                return # dont create inference
+            except:
+                print("No model was loaded.")
+
             if self.params.num_gpus == 1:
                 self.model = self.__create_inference__()  # initialize the model
-                try:
-                    self.model.load_weights(self.params.project_path + 'models/Unet/' + self.model_name)
-                    print('Weights loaded from model: ' + self.model_name)
-                except:
-                    print('No weights found')
+                # try:
+                #     self.model.load_weights(self.params.project_path + 'models/Unet/' + self.model_name)
+                #     print('Weights loaded from model: ' + self.model_name)
+                # except:
+                #     print('No weights found')
 
             else:
                 print("ATTENTION: Only running on CPU")
                 with tf.device("/cpu:0"):
                     self.model = self.__create_inference__()  # initialize the model on the CPU
-                    try:
-                        self.model.load_weights(self.params.project_path + 'models/Unet/' + self.model_name)
-                        print('Weights loaded from model: ' + self.model_name)
-                    except:
-                        print('No weights found')
+                    # try:
+                    #     self.model.load_weights(self.params.project_path + 'models/Unet/' + self.model_name)
+                    #     print('Weights loaded from model: ' + self.model_name)
+                    # except:
+                    #     print('No weights found')
             # deprecated -> use tf.distribute.MirroredStrategy().scope() for compiling and training on mulitple gpus instead
             # self.model = multi_gpu_model(self.model, gpus=self.params.num_gpus)  # Make it run on multiple GPUs
+        else:
+            print(f"Model {get_model_name(self.params)} has been provided in constructor.")
+            return
 
     def __create_inference__(self):
         # Note about BN and dropout: https://stackoverflow.com/questions/46316687/how-to-include-batch-normalization-in-non-sequential-keras-model

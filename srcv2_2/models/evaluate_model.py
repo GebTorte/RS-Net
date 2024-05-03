@@ -179,11 +179,14 @@ def __evaluate_biome_dataset__(model, num_gpus, params, save_output=False, write
 
     product_names = []
 
-    if params.loss_func == "binary_crossentropy": # assuming this is only 
+    if params.loss_func == "binary_crossentropy":
         thresholds = [0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5,
                   0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95]
-    else: # assuming this is categorical
+    elif params.loss_func =="categorical_crossentropy": # for categorical argmaxing, thresholding seems to be irrelevant
         thresholds = [params.threshold]
+    else:
+        thresholds = [0.5]
+
     evaluation_metrics = {}
     evaluating_product_no = 1  # Used in print statement later
 
@@ -228,12 +231,14 @@ def __evaluate_biome_dataset__(model, num_gpus, params, save_output=False, write
             # Create the binary masks
             if params.collapse_cls:
                 mask_true = extract_collapsed_cls(mask_true, cls)
-
             else:
                 cio = CategoryIndexOrder.CLOUD # dummy object 
                 for l, c in enumerate(params.cls):  # depending on params.cls and cls being correctly ordered
-                    mask_true[mask_true == cls[l]] = cio.get_model_index_for_string(params.cls, c)
-                
+                    try:
+                        mask_true[mask_true == cls[l]] = cio.get_model_index_for_string(params.cls, c)
+                    except IndexError as e: # index out of cls range. -> skipping this cls
+                        print(f"IndexError on l={l}, c={c}, cls={str(cls)}", e)
+                        continue
                 # for l, c in enumerate(params.cls):
                 #     y = extract_cls_mask(mask_true, c) # c was cls
 
@@ -281,7 +286,6 @@ def __evaluate_biome_dataset__(model, num_gpus, params, save_output=False, write
                 evaluation_metrics[product]['threshold_' + str(threshold)]['categorical_accuracy'] = categorical_accuracy
 
             for threshold in thresholds:
-                print("Only using one threshold atm")
                 print("threshold=" + str(threshold) +
                         ": tp=" + str(evaluation_metrics[product]['threshold_' + str(threshold)]['tp']) +
                         ": fp=" + str(evaluation_metrics[product]['threshold_' + str(threshold)]['fp']) +
@@ -309,11 +313,17 @@ def __evaluate_biome_dataset__(model, num_gpus, params, save_output=False, write
 
             # Save predicted mask as 16 bit png file (https://github.com/python-pillow/Pillow/issues/2970)
             arr = np.uint16(predicted_mask[:, :, 0] * 65535)
+            arr2 = np.uint16(np.argmax(predicted_mask, axis=-1) * 65535)
             array_buffer = arr.tobytes()
+            array_buffer2 = arr2.tobytes()
             img = Image.new("I", arr.T.shape)
             img.frombytes(array_buffer, 'raw', "I;16")
+            img2 = Image.new("I", arr2.T.shape)
+            img2.frombytes(array_buffer2, 'raw', "I;16")
             if save_output:
-                img.save(data_output_path + '%s-model%s-prediction.png' % (product, params.modelID))
+                os.makedirs(data_output_path + params.modelID, exist_ok=True) # make folder for model
+                img.save(data_output_path + params.modelID + f'/{product}-prediction.png')
+                img2.save(data_output_path + params.modelID + f'/{product}-nb_prediction.png')
             save_time.append(time.time() - save_time_start)
 
             #Image.fromarray(np.uint16(predicted_mask[:, :, 0] * 65535)).\
@@ -370,11 +380,11 @@ def calculate_class_evaluation_criteria(param_cls, cls, valid_pixels_mask, predi
     positives_mask = [x for x in positives_mask if x is not None]
 
     #non-cloudy types
-    negatives_mask = [CategoryIndexOrder.CLEAR, CategoryIndexOrder.SNOW, CategoryIndexOrder.WATER]
+    negatives_mask = [CategoryIndexOrder.CLEAR, CategoryIndexOrder.SNOW, CategoryIndexOrder.WATER, CategoryIndexOrder.FILL]
     negatives_mask = [c.get_model_index_for_type(param_cls, c) for c in negatives_mask]
     negatives_mask = [x for x in negatives_mask if x is not None]
 
-    # this might not run correctly if positives and negatives indices are off!!
+    # this might not run correctly if positives and negatives indices are off!
     # perhaps index-correct the masks before
     pred_positives = np.isin(argmaxed_pred_mask, positives_mask)
     pred_negatives = np.isin(argmaxed_pred_mask, negatives_mask)
@@ -469,14 +479,15 @@ def __evaluate_sentinel2_dataset__(model, num_gpus, params):
 
 
 def write_csv_files(evaluation_metrics, params):
-    if 'Biome' in params.train_dataset and 'Biome' in params.test_dataset:
-        file_name = 'param_optimization_BiomeTrain_BiomeEval.csv'
-    elif 'SPARCS' in params.train_dataset and 'SPARCS' in params.test_dataset:
-        file_name = 'param_optimization_SPARCSTrain_SPARCSEval.csv'
-    elif 'Biome' in params.train_dataset and 'SPARCS' in params.test_dataset:
-        file_name = 'param_optimization_BiomeTrain_SPARCSEval.csv'
-    elif 'SPARCS' in params.train_dataset and 'Biome' in params.test_dataset:
-        file_name = 'param_optimization_SPARCSTrain_BiomeEval.csv'
+    file_name = f"param_optimization_{params.train_dataset}_Train_{params.test_dataset}_Eval.csv"
+    # if 'Biome' in params.train_dataset and 'Biome' in params.test_dataset:
+    #     file_name = 'param_optimization_BiomeTrain_BiomeEval.csv'
+    # elif 'SPARCS' in params.train_dataset and 'SPARCS' in params.test_dataset:
+    #     file_name = 'param_optimization_SPARCSTrain_SPARCSEval.csv'
+    # elif 'Biome' in params.train_dataset and 'SPARCS' in params.test_dataset:
+    #     file_name = 'param_optimization_BiomeTrain_SPARCSEval.csv'
+    # elif 'SPARCS' in params.train_dataset and 'Biome' in params.test_dataset:
+    #     file_name = 'param_optimization_SPARCSTrain_BiomeEval.csv'
 
     if 'fmask' in params.train_dataset:
         file_name = file_name[:-4] + '_fmask.csv'
@@ -512,7 +523,7 @@ def write_csv_files(evaluation_metrics, params):
     # Write a new line for each threshold value
     for threshold in list(evaluation_metrics[list(evaluation_metrics)[0]]):  # Use first product to list thresholds
         # Update the params threshold value before writing
-        params.threshold = str(threshold[-3:])
+        # params.threshold = str(threshold[-3:])
 
         # Write params values
         f = open(params.project_path + 'reports/Unet/' + file_name, 'a')
