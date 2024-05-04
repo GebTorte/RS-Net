@@ -9,7 +9,7 @@ loss_functions = ['categorical_crossentropy'] # ['binary_crossentropy']
 initializers = ['glorot_normal']
 learning_rates = [1e-5, 1e-6, 1e-7]
 use_batch_norm = ['True']
-l2regs = [1e-2, 1e-4, 1e-5] # , 1e-4
+l2regs = [1e-2, 1e-4, 1e-5, 1e-6] # , 1e-4
 dropouts = [0, 0.1, 0.2, 0.3]
 band_combinations = [[1, 2, 3, 4, 5, 6, 7]]# [[1, 2, 3, 4, 5, 6, 7, 9, 10, 11], [1, 2, 3, 4, 5, 6, 7, 9], [2, 3, 4, 5], [2, 3, 4], [3]]
 epochs = [5] #3, 5, 8]# [3, 10, 20, 40, 80, 160, 200, 200, 200, 200, 200, 200, 200, 200]  # Only used to run random search for longer
@@ -80,7 +80,7 @@ for activation_func in activation_functions:
 
                                                                 #"--dev_dataset",
                                                                 "--test", # works now, but takes a loong time. # needed for writing csv output.
-                                                                "--save_output", True,
+                                                                "--save_output", str(True),
                                                                 "--satellite", str(satellite), 
                                                                 params])
 

@@ -313,7 +313,7 @@ def __evaluate_biome_dataset__(model, num_gpus, params, save_output=False, write
 
             # Save predicted mask as 16 bit png file (https://github.com/python-pillow/Pillow/issues/2970)
             arr = np.uint16(predicted_mask[:, :, 0] * 65535)
-            arr2 = np.uint16(np.argmax(predicted_mask, axis=-1) * 65535)
+            arr2 = np.uint16((1/np.argmax(predicted_mask, axis=-1)) * 65535) # TODO -> convert indices to fmask/gt values
             array_buffer = arr.tobytes()
             array_buffer2 = arr2.tobytes()
             img = Image.new("I", arr.T.shape)
