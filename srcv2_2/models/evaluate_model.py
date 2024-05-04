@@ -3,7 +3,7 @@ import time
 import numpy as np
 import tifffile as tiff
 from PIL import Image
-from srcv2_2.utils import CategoryIndexOrder, load_product, get_cls, extract_collapsed_cls, extract_cls_mask, predict_img, image_normalizer
+from srcv2_2.utils import CategoryIndexOrder, load_product, get_cls, extract_collapsed_cls, extract_cls_mask, predict_img, predict_img_v2, image_normalizer
 
 
 def evaluate_test_set(model, dataset, num_gpus, params, save_output=False, write_csv=True):
@@ -232,13 +232,19 @@ def __evaluate_biome_dataset__(model, num_gpus, params, save_output=False, write
             if params.collapse_cls:
                 mask_true = extract_collapsed_cls(mask_true, cls)
             else:
-                cio = CategoryIndexOrder.CLOUD # dummy object 
-                for l, c in enumerate(params.cls):  # depending on params.cls and cls being correctly ordered
-                    try:
-                        mask_true[mask_true == cls[l]] = cio.get_model_index_for_string(params.cls, c)
-                    except IndexError as e: # index out of cls range. -> skipping this cls
-                        print(f"IndexError on l={l}, c={c}, cls={str(cls)}", e)
-                        continue
+                if params.loss_func == "categorical_crossentropy":
+                    cio = CategoryIndexOrder.CLOUD # dummy object 
+                    for l, c in enumerate(params.cls):  # depending on params.cls and cls being correctly ordered
+                        try:
+                            mask_true[mask_true == cls[l]] = cio.get_model_index_for_string(params.cls, c)
+                        except IndexError as e: # index out of cls range. -> skipping this cls
+                            print(f"IndexError on l={l}, c={c}, cls={str(cls)}", e)
+                            continue
+                elif params.loss_func == "sparse_categorical_crossentropy":
+                    print(mask_true.max())
+                    pass
+                    
+                    # mask_true = extract_collapsed_cls(mask_true, cls)
                 # for l, c in enumerate(params.cls):
                 #     y = extract_cls_mask(mask_true, c) # c was cls
 
@@ -246,7 +252,7 @@ def __evaluate_biome_dataset__(model, num_gpus, params, save_output=False, write
                 #     mask_true[:, :, l] = y[:, :, 0]
 
             prediction_time_start = time.time()
-            predicted_mask, _ = predict_img(model, params, img, n_bands, n_cls, num_gpus)
+            predicted_mask, _ = predict_img_v2(model, params, img, n_bands, n_cls, num_gpus)
             prediction_time.append(time.time() - prediction_time_start)
 
             # Create a nested dict to save evaluation metrics for each product
@@ -264,8 +270,12 @@ def __evaluate_biome_dataset__(model, num_gpus, params, save_output=False, write
                     accuracy, omission, comission, pixel_jaccard, precision, recall, f_one_score, tp, tn, fp, fn, npix = calculate_evaluation_criteria(
                     valid_pixels_mask, predicted_binary_mask, mask_true)
                 else:
-                    categorical_accuracy, accuracy, omission, comission, pixel_jaccard, precision, recall, f_one_score, tp, tn, fp, fn, npix = calculate_class_evaluation_criteria(params.cls, 
-                    cls, valid_pixels_mask, predicted_mask, mask_true)
+                    if params.loss_func == "sparse_categorical_crossentropy":
+                        categorical_accuracy, accuracy, omission, comission, pixel_jaccard, precision, recall, f_one_score, tp, tn, fp, fn, npix = calculate_sparse_class_evaluation_criteria(params, 
+                        valid_pixels_mask, predicted_mask, mask_true)
+                    elif params.loss_func == "categorical_crossentropy":
+                        categorical_accuracy, accuracy, omission, comission, pixel_jaccard, precision, recall, f_one_score, tp, tn, fp, fn, npix = calculate_class_evaluation_criteria(params.cls, 
+                        cls, valid_pixels_mask, predicted_mask, mask_true)
 
                 # Create an additional nesting in the dict for each threshold value
                 evaluation_metrics[product]['threshold_' + str(threshold)] = {}
@@ -313,7 +323,8 @@ def __evaluate_biome_dataset__(model, num_gpus, params, save_output=False, write
 
             # Save predicted mask as 16 bit png file (https://github.com/python-pillow/Pillow/issues/2970)
             arr = np.uint16(predicted_mask[:, :, 0] * 65535)
-            arr2 = np.uint16((1/np.argmax(predicted_mask, axis=-1)) * 65535) # TODO -> convert indices to fmask/gt values
+            argmaxed_pred = np.argmax(predicted_mask, axis=-1)
+            arr2 = np.uint16(argmaxed_pred * (2**16//argmaxed_pred.max())) # TODO -> convert indices to fmask/gt values
             array_buffer = arr.tobytes()
             array_buffer2 = arr2.tobytes()
             img = Image.new("I", arr.T.shape)
@@ -352,6 +363,75 @@ def __evaluate_biome_dataset__(model, num_gpus, params, save_output=False, write
     #     write_csv_files(np.mean(pixel_jaccard[i, :]), pixel_jaccard[i, :], product_names, params)
     if write_csv:
         write_csv_files(evaluation_metrics, params)
+
+def calculate_sparse_class_evaluation_criteria(params, valid_pixels_mask, predicted_mask, true_mask):
+    # Count number of actual pixels
+    npix = valid_pixels_mask.sum()
+
+    categorical_accuracy = 0
+
+    # converted mask_true to predicted values as input
+    mask_true_cls_corrected = true_mask.copy()
+    
+    for i, c in enumerate(params.cls): # cls have to be converted by get_cls beforehand
+        mask_true_cls_corrected[mask_true_cls_corrected == c] = i  # basically argmaxing, since model outputs class to index
+        # DOESNT WORK YET...
+                
+    # argmax over predicted masks
+    # convert index to type
+    # see if index-type corresponds to true_mask category type -> if yes, considered accurate
+
+    argmaxed_pred_mask = np.argmax(predicted_mask, axis=-1)
+
+    binary_accuracy_mask = argmaxed_pred_mask == mask_true_cls_corrected
+    binary_accuracy_mask &= np.asarray(valid_pixels_mask, dtype=bool) # remote invalid pixel
+    equal_count=np.sum(binary_accuracy_mask)
+
+    #categorical_accuracy = # of correctly predicted records / total number of records
+    categorical_accuracy = equal_count / npix
+
+    #cloudy types
+    # ! THIS IS NOT CORRECT YET, NEED TO CONVERT CLS TO INDICES
+    positives_mask = get_cls(params.satellite, params.train_dataset, cls_string=['cloud', 'shadow', 'thin'])
+
+    #non-cloudy types
+    # ! THIS IS NOT CORRECT YET, NEED TO CONVERT CLS TO INDICES
+    negatives_mask = get_cls(params.satellite, params.train_dataset, cls_string=['clear', 'fill'])
+
+    # this might not run correctly if positives and negatives indices are off!
+    # perhaps index-correct the masks before
+    pred_positives = np.isin(argmaxed_pred_mask, positives_mask)
+    pred_negatives = np.isin(argmaxed_pred_mask, negatives_mask)
+    true_positives = np.isin(mask_true_cls_corrected, positives_mask)
+
+    tp = ((pred_positives & true_positives) & valid_pixels_mask).sum()
+    fp = (pred_positives & np.isin(mask_true_cls_corrected, negatives_mask) & valid_pixels_mask).sum()
+    fn = ((pred_negatives & true_positives) & valid_pixels_mask).sum()
+    tn = npix - tp - fp - fn
+
+    # Calculate metrics
+    accuracy = (tp + tn) / npix
+    if tp != 0:
+        precision = tp / (tp + fp)
+        recall = tp / (tp + fn)
+        f_one_score = 2 * (precision * recall) / (precision + recall)
+        # See https://en.wikipedia.org/wiki/Jaccard_index#Similarity_of_asymmetric_binary_attributes
+        pixel_jaccard = tp / (tp + fp + fn)
+    else:
+        precision = recall = f_one_score = pixel_jaccard = 0
+
+    # Metrics from Foga 2017 paper
+    # if fp!=0: # accunting for runtime division by 0 (tn was 0)
+    if fp != 0 and tn != 0:
+        omission = fp / (tp + fp)
+        comission = fp / (tn + fn)
+
+    else:
+        omission = comission = 0
+
+    return categorical_accuracy, accuracy, omission, comission, pixel_jaccard, precision, recall, f_one_score, tp, tn, fp, fn, npix
+
+
 
 def calculate_class_evaluation_criteria(param_cls, cls, valid_pixels_mask, predicted_mask, true_mask):
     # Count number of actual pixels

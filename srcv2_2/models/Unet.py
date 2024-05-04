@@ -150,10 +150,10 @@ class UnetV2(object):
         up9 = Concatenate(axis=3)([UpSampling2D(size=(2, 2))(conv8), conv1])
         conv9 = Conv2D(32, (3, 3), activation=self.params.activation_func, padding='same',
                        kernel_regularizer=regularizers.l2(self.params.L2reg))(up9)
-        conv9 = Dropout (self.params.dropout)(conv9) if not self.params.dropout_on_last_layer_only else conv9
+        conv9 = Dropout(self.params.dropout)(conv9) if not self.params.dropout_on_last_layer_only else conv9
         conv9 = Conv2D(32, (3, 3), activation=self.params.activation_func, padding='same',
                        kernel_regularizer=regularizers.l2(self.params.L2reg))(conv9)
-        conv9 = Dropout (self.params.dropout)(conv9)
+        conv9 = Dropout(self.params.dropout)(conv9)
         # -----------------------------------------------------------------------
         clip_pixels = np.int32 (self.params.overlap / 2)  # Only used for input in Cropping2D function on next line
         crop9 = Cropping2D(cropping=((clip_pixels, clip_pixels), (clip_pixels, clip_pixels)))(conv9)
@@ -190,8 +190,23 @@ class UnetV2(object):
                                    metrics=['binary_crossentropy', jaccard_coef_loss, jaccard_coef,
                                             jaccard_coef_thresholded, 'accuracy'])
             # SIS: Multi Class Prediction loss func
+            elif self.params.loss_func == 'sparse_categorical_crossentropy':
+                print("Compiling with Sparse Categorical Crossentropy")
+                sparse_cat_loss = keras.losses.SparseCategoricalCrossentropy() # (labels, logits)
+                self.model.compile(optimizer=Adam(learning_rate=self.params.learning_rate, decay=self.params.decay, amsgrad=True),
+                                loss=sparse_cat_loss,
+                                metrics=[keras.metrics.SparseCategoricalCrossentropy(), jaccard_coef_loss, jaccard_coef,
+                                        jaccard_coef_thresholded, keras.metrics.SparseCategoricalAccuracy()]) 
+                                        # drop keras.metrics.Accuracy()
+                                        # 'accuracy' will be converted to CategoricalAccuracy by tf in this case
             elif self.params.loss_func == 'categorical_crossentropy':
                 print("Compiling with Categorical Crossentropy")
+                probability = 1/self.n_cls
+                logits = tf.constant([[probability]*self.n_cls] *self.n_cls) # uniform distribution
+                labels = tf.constant([((i-1)*[0] + [1] + (self.n_cls-i) * [0]) for i in range(1, self.n_cls+1)]) # one hot encoded
+                #labels = tf.constant([[1, 0, 0], [0, 1, 0]]) # one hot encoded
+                print(logits, labels)
+                cat_loss = keras.losses.CategoricalCrossentropy(from_logits=False)(labels, logits)
                 self.model.compile(optimizer=Adam(learning_rate=self.params.learning_rate, decay=self.params.decay, amsgrad=True),
                                 loss=keras.losses.CategoricalCrossentropy(),
                                 metrics=[keras.metrics.CategoricalCrossentropy(), jaccard_coef_loss, jaccard_coef,
@@ -381,6 +396,7 @@ class Unet(object):
         # -----------------------------------------------------------------------
 
         conv10 = Conv2D(self.n_cls, (1, 1), activation='sigmoid')(crop9)
+        
         # -----------------------------------------------------------------------
         model = Model(inputs=inputs, outputs=conv10)
 

@@ -16,17 +16,21 @@ class HParams:
         return {'__dict__', self.__dict__} # (self.__dict__)
 
     def parse(self, params):
-        param_list = params.strip().split(";")
+        param_list = params.split(";")
         for param in param_list:
             key, value = param.split("=")
             if str(key) == "cls":  # parse cls strings
                 try:
-                    value = value.strip('][')
                     value = value.replace('\"', '').replace('\'', '').replace(' ', '')
-                    value = [str(i) for i in  value.split(',')] # striping off <SPACE>, [, ], ', "
+                    value = value.strip('][')
+                    try:
+                        value = [str(i) for i in  value.split(',')] # striping off <SPACE>, [, ], ', "
+                    except ValueError:
+                        value = [int(i) for i in  value.split(',')] # for sparse categorical crossentropy
                     self.__dict__[key] = value
                     continue
-                except ValueError:
+                except ValueError as e:
+                        print("value error: ", e)
                         pass
             try:
                 value = int(value)
@@ -114,7 +118,7 @@ def get_params(model, satellite):
             'threshold': 0.5,
             'patch_size': 256,
             'overlap': 40,
-            'overlap_train_set': 0,
+            'overlap_train_set': 40, # 0, trying 40 for train dataset (npy) generation
             'batch_size': 40,
             'steps_per_epoch': None,
             'epochs': 5,

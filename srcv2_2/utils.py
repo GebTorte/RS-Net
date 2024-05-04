@@ -229,7 +229,7 @@ def stitch_image(img_patched, n_height, n_width, patch_size, overlap):
     return img
 
 
-def patch_mod(img, patch_size=256, overlap=10):
+def patch_v2(img, patch_size=256, overlap=40):
     """
     Input:
     img: Shape = (width, height, depth)   (Note: Gdal probably supplies (depth, width, height) )
@@ -270,7 +270,6 @@ def patch_mod(img, patch_size=256, overlap=10):
     #patches = [[None] * n_height] * n_width
     img_patched = np.zeros((n_height * n_width, patch_size, patch_size, int(img_shape[2])), dtype=img.dtype)
 
-
     # cut patches
     for i in range(n_width):
         for j in range(n_height):
@@ -290,7 +289,7 @@ def patch_mod(img, patch_size=256, overlap=10):
     return img_patched, img_shape, img.dtype, n_width, n_height
 
 
-def stitch_mod(images, og_shape, og_dtype, n_cls=None, patch_size=256, overlap=10):
+def stitch_v2(images, og_shape, og_dtype, n_cls=None, patch_size=256, overlap=40):
     """
     images: (index_img, width, height, depth)
     og_shape: (width, height, depth)
@@ -356,7 +355,7 @@ def extract_cls_mask(mask, c):
     y[y != 1] = 0
     return y
 
-def predict_img_mod(model, params, img, n_bands, n_cls, num_gpus):
+def predict_img_v2(model, params, img, n_bands, n_cls, num_gpus):
     """
     Run prediction on an full image
     """
@@ -367,7 +366,7 @@ def predict_img_mod(model, params, img, n_bands, n_cls, num_gpus):
     img = image_normalizer(img, params, type=params.norm_method)
 
     # Patch the image in patch_size * patch_size pixel patches
-    img_patched, og_img_shape, og_img_dtype, n_width, n_height = patch_mod(img, patch_size=params.patch_size, overlap=params.overlap)
+    img_patched, og_img_shape, og_img_dtype, n_width, n_height = patch_v2(img, patch_size=params.patch_size, overlap=params.overlap)
 
     # Now find all completely black patches and inpaint partly black patches
     indices = []  # Used to ignore completely black patches during prediction
@@ -406,13 +405,13 @@ def predict_img_mod(model, params, img, n_bands, n_cls, num_gpus):
     predicted_patches = np.zeros((np.shape(img_patched)[0],
                                   params.patch_size-params.overlap, params.patch_size-params.overlap, n_cls))
     
-    model_out = model.predict(img_patched[indices, :, :, :]) # , n_bands, n_cls, num_gpus, params
-    predicted_patches[indices, :, :, :] = model_out
+    predicted_patches[indices, :, :, :] = model.predict(img_patched[indices, :, :, :]) # , n_bands, n_cls, num_gpus, params
+
     #exec_time = str(time.time() - start_time)
     #print("Prediction of patches (not including splitting and stitching) finished in: " + exec_time + "s")
 
     # Stitch the patches back together
-    predicted_mask = stitch_mod(predicted_patches, og_shape=og_img_shape, og_dtype=og_img_dtype, n_cls=n_cls,patch_size=params.patch_size, overlap=params.overlap)
+    predicted_mask = stitch_v2(predicted_patches, og_shape=og_img_shape, og_dtype=og_img_dtype, n_cls=n_cls,patch_size=params.patch_size, overlap=params.overlap)
 
     # Throw away the inpainting of the zero pixels in the individual patches
     # The summation is done to ensure that all pixels are included. The bands do not perfectly overlap (!)

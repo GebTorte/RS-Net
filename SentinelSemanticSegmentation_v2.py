@@ -85,7 +85,7 @@ parser.add_argument('--save_output',
 parser.add_argument('--model',
                     type=str,
                     default='U-net-v2',
-                    help='Comma separated list of "name=value" pairs.')
+                    help='Model type')
 
 parser.add_argument('--params',
                     type=str,
@@ -107,7 +107,6 @@ parser.add_argument('--dataset',
 if __name__ == '__main__':
     # Load the arguments
     args = parser.parse_args()
-
     # Store current time to calculate execution time later
     start_time = time.time()
 
@@ -120,8 +119,8 @@ if __name__ == '__main__':
 
     # If any hyperparameters were overwritten in the commandline, parse them into params
     if args.params:
-        print(args.params)
         params.parse(args.params)
+        print("parsed params: ", params.__dict__)
 
     # If you want to use local files (else it uses network drive)
     if args.dev_dataset:
@@ -209,7 +208,8 @@ if __name__ == '__main__':
         # If a model has been trained, use that one. If not, load a new one.
         if not args.train: # then no model has been trained in current step, so load the saved one
             if args.model == 'U-net-v2':
-                loaded_model = tf.keras.saving.load_model(f"../models/Unet/{get_model_name(params)}.keras")
+                loaded_model = tf.keras.saving.load_model(f"./models/Unet/{get_model_name(params)}.keras")
+                #loaded_model = tf.keras.saving.load_model(f"../models/Unet/{params.modelID}.keras")
                 model = UnetV2(params, model=loaded_model)  # to implement for V2: load model from file
         # out = model.evaluate(return_dict=True)
         print("Saving output: ", args.save_output)
