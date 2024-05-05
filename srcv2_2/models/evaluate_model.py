@@ -241,7 +241,6 @@ def __evaluate_biome_dataset__(model, num_gpus, params, save_output=False, write
                             print(f"IndexError on l={l}, c={c}, cls={str(cls)}", e)
                             continue
                 elif params.loss_func == "sparse_categorical_crossentropy":
-                    print(mask_true.max())
                     pass
                     
                     # mask_true = extract_collapsed_cls(mask_true, cls)
@@ -265,7 +264,7 @@ def __evaluate_biome_dataset__(model, num_gpus, params, save_output=False, write
                 predicted_binary_mask = np.uint8(predicted_mask >= threshold)
                 #predicted_mask = np.uint8(predicted_mask >= threshold) # not needed because of argmaxing i think
 
-                categorical_accuracy= accuracy= omission= comission= pixel_jaccard= precision= recall= f_one_score= tp= tn = fp = fn = npix = 0
+                categorical_accuracy = accuracy= omission= comission= pixel_jaccard= precision= recall= f_one_score= tp= tn = fp = fn = npix = 0
                 if params.collapse_cls:
                     accuracy, omission, comission, pixel_jaccard, precision, recall, f_one_score, tp, tn, fp, fn, npix = calculate_evaluation_criteria(
                     valid_pixels_mask, predicted_binary_mask, mask_true)
@@ -323,8 +322,13 @@ def __evaluate_biome_dataset__(model, num_gpus, params, save_output=False, write
 
             # Save predicted mask as 16 bit png file (https://github.com/python-pillow/Pillow/issues/2970)
             arr = np.uint16(predicted_mask[:, :, 0] * 65535)
+
             argmaxed_pred = np.argmax(predicted_mask, axis=-1)
-            arr2 = np.uint16(argmaxed_pred * (2**16//argmaxed_pred.max())) # TODO -> convert indices to fmask/gt values
+            print(params.cls)
+            for i, c in enumerate(params.cls): # cls have to be converted by get_cls beforehand
+                argmaxed_pred[argmaxed_pred == i] = c * 2**8 - 1 
+            arr2 = np.uint16(argmaxed_pred)
+
             array_buffer = arr.tobytes()
             array_buffer2 = arr2.tobytes()
             img = Image.new("I", arr.T.shape)
@@ -368,10 +372,9 @@ def calculate_sparse_class_evaluation_criteria(params, valid_pixels_mask, predic
     # Count number of actual pixels
     npix = valid_pixels_mask.sum()
 
-    categorical_accuracy = 0
-
     # converted mask_true to predicted values as input
     mask_true_cls_corrected = true_mask.copy()
+    mask_true_cls_corrected = np.uint8(mask_true_cls_corrected)
     
     for i, c in enumerate(params.cls): # cls have to be converted by get_cls beforehand
         mask_true_cls_corrected[mask_true_cls_corrected == c] = i  # basically argmaxing, since model outputs class to index
@@ -392,11 +395,11 @@ def calculate_sparse_class_evaluation_criteria(params, valid_pixels_mask, predic
 
     #cloudy types
     # ! THIS IS NOT CORRECT YET, NEED TO CONVERT CLS TO INDICES
-    positives_mask = get_cls(params.satellite, params.train_dataset, cls_string=['cloud', 'shadow', 'thin'])
+    positives_mask = get_cls(params.satellite, params.test_dataset, cls_string=['cloud', 'shadow', 'thin'])
 
     #non-cloudy types
     # ! THIS IS NOT CORRECT YET, NEED TO CONVERT CLS TO INDICES
-    negatives_mask = get_cls(params.satellite, params.train_dataset, cls_string=['clear', 'fill'])
+    negatives_mask = get_cls(params.satellite, params.test_dataset, cls_string=['clear', 'fill'])
 
     # this might not run correctly if positives and negatives indices are off!
     # perhaps index-correct the masks before

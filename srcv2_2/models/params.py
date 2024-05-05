@@ -24,9 +24,9 @@ class HParams:
                     value = value.replace('\"', '').replace('\'', '').replace(' ', '')
                     value = value.strip('][')
                     try:
-                        value = [str(i) for i in  value.split(',')] # striping off <SPACE>, [, ], ', "
-                    except ValueError:
                         value = [int(i) for i in  value.split(',')] # for sparse categorical crossentropy
+                    except ValueError:
+                        value = [str(i) for i in  value.split(',')] # striping off <SPACE>, [, ], ', "
                     self.__dict__[key] = value
                     continue
                 except ValueError as e:
