@@ -18,3 +18,5 @@ Train_dataset defines the processing step
 > python3 SentinelSemanticSegmentation_v2.py --test  --save_output True --params="modelID=SparseCE-Test-2;cls=[0,64,128,192,255];learning_rate=1e-6;decay=0.2;L2reg=1e-4;epochs=5;loss_func=sparse_categorical_crossentropy"
 
 > python3 SentinelSemanticSegmentation_v2.py --test --params="modelID=SparseCE-Test-2;cls=[0,64,128,192,255];learning_rate=1e-6;decay=0.2;L2reg=1e-4;epochs=5;loss_func=sparse_categorical_crossentropy"
+
+> python3 SentinelSemanticSegmentation_v2.py --test --save_output True --params="modelID=SparseCE-Test-2;cls=[64,128,192,255];learning_rate=1e-6;decay=0.2;L2reg=1e-4;epochs=5;loss_func=sparse_categorical_crossentropy;threshold=0.5;dropout=0.1;norm_threshold=65536"
