@@ -26,6 +26,7 @@ data/raw/SPARCS_dataset/*
 !data/raw/SPARCS_dataset/.gitkeep
 data/raw/test_threading/*
 
+
 models/Unet/*
 !models/Unet/.gitkeep
 
@@ -38,6 +39,7 @@ notebooks/*.img
 notebooks/tar/*
 !notebooks/tar/.gitkeep
 notebooks/unzipped/*
+notebooks/unzipped_old/*
 !notebooks/unzipped/.gitkeep
 
 src/__pycache__/*

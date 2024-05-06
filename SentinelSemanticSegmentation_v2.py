@@ -60,6 +60,10 @@ parser.add_argument('--test',
                     action='store_true',
                     help='Run test step')
 
+parser.add_argument('--save_output',
+                    action='store_true',
+                    help='Save output of testing')
+
 
 # ----------------------------------------------------------------------------------------------------------------------
 # Define the arguments used in the entire pipeline
@@ -73,11 +77,6 @@ parser.add_argument('--initial_model',
                     type=str,
                     default='sen2cor',
                     help='Which initial is model is wanted for training (sen2cor or fmask)')
-
-parser.add_argument('--save_output',
-                    type=bool,
-                    default=False,
-                    help='Wheather model evaluations images are supposed to be saved')
 
 # ----------------------------------------------------------------------------------------------------------------------
 # Define the arguments for the training
@@ -213,7 +212,11 @@ if __name__ == '__main__':
                 model = UnetV2(params, model=loaded_model)  # to implement for V2: load model from file
         # out = model.evaluate(return_dict=True)
         print("Saving output: ", args.save_output)
-        evaluate_test_set(model, params.test_dataset, params.num_gpus, params, save_output=args.save_output) # todo: implement args.save_output
+        if args.save_output:
+            store_flag = True
+        else: 
+            store_flag = False
+        evaluate_test_set(model, params.test_dataset, params.num_gpus, params, save_output=store_flag) # todo: implement args.save_output
 
     # Print execution time
     exec_time = str(time.time() - start_time)
