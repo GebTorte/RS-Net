@@ -255,8 +255,8 @@ class UnetV2(object):
         # self.model.save_weights(self.params.project_path + 'models/Unet/' + get_model_name(self.params))
         #self.model.save(self.params.project_path + 'models/Unet/' + self.model_name + '.keras')
         self.model.save(self.params.project_path + 'models/Unet/' + get_model_name(self.params) + '.keras')
-        self.save_params()
-        self.save_history(history.history)
+        self._save_params()
+        self._save_history(history.history)
     
     def _save_history(self, history):
         np.save(f"{self.params.project_path}reports/Unet/{self.params.modelID}_history.npy", history)
