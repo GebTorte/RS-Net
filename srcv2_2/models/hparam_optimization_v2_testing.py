@@ -42,7 +42,7 @@ last_layer_activation_func = 'softmax'
 satellite = "Landsat8"
 gt_cls_list=[['shadow', 'clear', 'thin', 'cloud']]  # [['clear', 'cloud', 'shadow', 'snow', 'water']] # [['clear', 'cloud', 'thin', 'shadow']] 
 fmask_cls_list = [['clear', 'cloud', 'shadow', 'snow', 'water']] # ['clear', 'cloud']
-train_datasets = ["Biome_gt", "Biome_fmask"]
+train_datasets = [ "Biome_fmask", "Biome_gt"]
 # ['clear', 'shadow', 'thin', 'cloud'] # thin only in Biome_gt
 # ['clear', 'cloud', 'shadow', 'snow', 'water']  # this is only possible on BIOME_fmask
 collapse_cls = False

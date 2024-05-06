@@ -401,12 +401,10 @@ def calculate_sparse_class_evaluation_criteria(params, valid_pixels_mask, predic
     categorical_accuracy = equal_count / npix
 
     #cloudy types / classy types
-    # ! THIS IS NOT CORRECT YET, NEED TO CONVERT CLS TO INDICES
-    positives_mask = get_cls(params.satellite, params.test_dataset, cls_string=['shadow', 'thin', 'cloud'])
+    positives_mask = get_cls(params.satellite, params.train_dataset, cls_string=['shadow', 'thin', 'cloud'])
 
     #non-cloudy types
-    # ! THIS IS NOT CORRECT YET, NEED TO CONVERT CLS TO INDICES
-    negatives_mask = get_cls(params.satellite, params.test_dataset, cls_string=['fill','clear', 'snow', 'water'])
+    negatives_mask = get_cls(params.satellite, params.train_dataset, cls_string=['fill', 'clear', 'snow', 'water'])
 
     # this might not run correctly if positives and negatives indices are off!
     # perhaps index-correct the masks before
