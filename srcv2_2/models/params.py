@@ -16,7 +16,7 @@ class HParams:
         return {'__dict__', self.__dict__} # (self.__dict__)
 
     def parse(self, params):
-        param_list = params.split(";")
+        param_list = params.strip("\"\'[]").split(";")
         for param in param_list:
             key, value = param.split("=")
             if str(key) == "cls":  # parse cls strings

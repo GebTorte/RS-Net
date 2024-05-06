@@ -330,17 +330,21 @@ def __evaluate_biome_dataset__(model, num_gpus, params, save_output=False, write
                     argmaxed_pred = np.argmax(predicted_mask, axis=-1)
                     predicted_mask_copy = predicted_mask.copy()
                     for i, c in enumerate(params.cls): # cls have to be converted by get_cls beforehand
-                        argmaxed_pred[argmaxed_pred == i] = min(c , 2**8)
+                        argmaxed_pred[argmaxed_pred == i] = min(c , 2**8 - 1)
                         predicted_mask_copy[:,:,i][argmaxed_pred == i] = c
-                    arr2 = np.uint8(argmaxed_pred)
-                    predicted_mask_copy = np.uint8(predicted_mask_copy)
-                    # array_buffer2 = arr2.tobytes()
-                    #img2 = Image.new("I", arr2.T.shape)
-                    #img2.frombytes(array_buffer2, 'raw', "I;16")
-                    #img2.save(data_output_path + params.modelID + f'/{product}-nb_prediction.png')
                     
-                    tiff.imwrite(data_output_path + params.modelID + f'/{product}-layered_nb_prediction.tiff', data=predicted_mask_copy)
-                    tiff.imwrite(data_output_path + params.modelID + f'/{product}-nb_prediction.tiff', data=arr2)
+
+                    arr2_buffer = np.uint8(argmaxed_pred).tobytes()
+                    img2 = Image.new("L", argmaxed_pred.T.shape)
+                    img2.frombytes(arr2_buffer, 'raw', "L")
+                    img2.save(data_output_path + params.modelID + f'/{product}-nb_prediction.png')
+                    
+                    # predicted_mask_copy_buffer = np.uint8(predicted_mask_copy).tobytes()
+                    #img3 = Image.fromarray(predicted_mask_copy, mode='RGBA')
+                    #img3.save(data_output_path + params.modelID + f'/{product}-layered_nb_prediction.png')
+
+                    tiff.imwrite(data_output_path + params.modelID + f'/{product}-layered_nb_prediction.tiff', data=np.uint8(predicted_mask_copy))
+                    #tiff.imwrite(data_output_path + params.modelID + f'/{product}-nb_prediction.tiff', data=arr2_buffer)
 
                 array_buffer = arr.tobytes()
                 img = Image.new("I", arr.T.shape)

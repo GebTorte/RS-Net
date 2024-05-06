@@ -21,7 +21,7 @@ from tensorflow.keras.utils import get_custom_objects  # To use swish activation
 
 
 class UnetV2(object):
-    def __init__(self, params, model=None, training_params=None):
+    def __init__(self, params, model=None):
         # Seed for the random generators
         self.seed = 1
         self.params = params
