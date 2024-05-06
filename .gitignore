@@ -28,6 +28,7 @@ data/raw/test_threading/*
 
 
 models/Unet/*
+!models/Unet/landsat8_unet_modelID240506202518-CV2of2_cls-12345_collapseFalse_bands1234567_lr1e-05_decay0_L2reg0.0001_activation_funcelu_last_layer_activation_funcsoftmax_loss_funcsparse_categorical_crossentropy.keras
 !models/Unet/.gitkeep
 
 reports/Unet/csvlogger/*
