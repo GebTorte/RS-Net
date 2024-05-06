@@ -256,9 +256,15 @@ class UnetV2(object):
         #self.model.save(self.params.project_path + 'models/Unet/' + self.model_name + '.keras')
         self.model.save(self.params.project_path + 'models/Unet/' + get_model_name(self.params) + '.keras')
         self.save_params()
-        return history
+        self.save_history(history.history)
+    
+    def _save_history(self, history):
+        np.save(f"{self.params.project_path}reports/Unet/{self.params.modelID}_history.npy", history)
 
-    def save_params(self):
+    def load_history(self):
+        return np.load(f"{self.params.project_path}reports/Unet/{self.params.modelID}_history.npy", allow_pickle=True).item()
+
+    def _save_params(self):
         # TODO: Jsonify this (json_dumps...)
         with open(self.params.project_path + 'models/Unet/' + get_model_name(self.params) + '_params.json', 'w') as f:
             json.dump(str(self.params.__dict__), f, indent=4)
