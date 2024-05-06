@@ -251,7 +251,7 @@ def __evaluate_biome_dataset__(model, num_gpus, params, save_output=False, write
                 #     mask_true[:, :, l] = y[:, :, 0]
 
             prediction_time_start = time.time()
-            predicted_mask, _ = predict_img_v2(model, params, img, n_bands, n_cls, num_gpus)
+            predicted_mask, _ = predict_img_v2(model, params, img, n_bands, n_cls, num_gpus) # predict_v2 is bugged!
             prediction_time.append(time.time() - prediction_time_start)
 
             # Create a nested dict to save evaluation metrics for each product
@@ -320,26 +320,33 @@ def __evaluate_biome_dataset__(model, num_gpus, params, save_output=False, write
                 Image.fromarray(np.uint8(img_enhanced_contrast * 255)).save(data_output_path + '%s-photo.png' % product)
                 Image.open(data_path + product + '_fixedmask.TIF').save(data_output_path + '%s-mask.png' % product)
 
-            # Save predicted mask as 16 bit png file (https://github.com/python-pillow/Pillow/issues/2970)
-            arr = np.uint16(predicted_mask[:, :, 0] * 65535)
-
-            argmaxed_pred = np.argmax(predicted_mask, axis=-1)
-            print(params.cls)
-            for i, c in enumerate(params.cls): # cls have to be converted by get_cls beforehand
-                argmaxed_pred[argmaxed_pred == i] = c * 2**8 - 1 
-            arr2 = np.uint16(argmaxed_pred)
-
-            array_buffer = arr.tobytes()
-            array_buffer2 = arr2.tobytes()
-            img = Image.new("I", arr.T.shape)
-            img.frombytes(array_buffer, 'raw', "I;16")
-            img2 = Image.new("I", arr2.T.shape)
-            img2.frombytes(array_buffer2, 'raw', "I;16")
             if save_output:
                 os.makedirs(data_output_path + params.modelID, exist_ok=True) # make folder for model
+
+                # Save predicted mask as 16 bit png file (https://github.com/python-pillow/Pillow/issues/2970)
+                arr = np.uint16(predicted_mask[:, :, 0] * 2**16)
+
+                if params.loss_func == "sparse_categorical_crossentropy":
+                    argmaxed_pred = np.argmax(predicted_mask, axis=-1)
+                    predicted_mask_copy = predicted_mask.copy()
+                    for i, c in enumerate(params.cls): # cls have to be converted by get_cls beforehand
+                        argmaxed_pred[argmaxed_pred == i] = min(c , 2**8)
+                        predicted_mask_copy[:,:,i][argmaxed_pred == i] = c
+                    arr2 = np.uint8(argmaxed_pred)
+                    predicted_mask_copy = np.uint8(predicted_mask_copy)
+                    # array_buffer2 = arr2.tobytes()
+                    #img2 = Image.new("I", arr2.T.shape)
+                    #img2.frombytes(array_buffer2, 'raw', "I;16")
+                    #img2.save(data_output_path + params.modelID + f'/{product}-nb_prediction.png')
+                    
+                    tiff.imwrite(data_output_path + params.modelID + f'/{product}-layered_nb_prediction.tiff', data=predicted_mask_copy)
+                    tiff.imwrite(data_output_path + params.modelID + f'/{product}-nb_prediction.tiff', data=arr2)
+
+                array_buffer = arr.tobytes()
+                img = Image.new("I", arr.T.shape)
+                img.frombytes(array_buffer, 'raw', "I;16")
                 img.save(data_output_path + params.modelID + f'/{product}-prediction.png')
-                img2.save(data_output_path + params.modelID + f'/{product}-nb_prediction.png')
-            save_time.append(time.time() - save_time_start)
+                save_time.append(time.time() - save_time_start)
 
             #Image.fromarray(np.uint16(predicted_mask[:, :, 0] * 65535)).\
             #    save(data_output_path + '%s-model%s-prediction.png' % (product, params.modelID))
@@ -373,20 +380,17 @@ def calculate_sparse_class_evaluation_criteria(params, valid_pixels_mask, predic
     npix = valid_pixels_mask.sum()
 
     # converted mask_true to predicted values as input
-    mask_true_cls_corrected = true_mask.copy()
-    mask_true_cls_corrected = np.uint8(mask_true_cls_corrected)
+    #mask_true_cls_corrected = true_mask.copy()
     
-    for i, c in enumerate(params.cls): # cls have to be converted by get_cls beforehand
-        mask_true_cls_corrected[mask_true_cls_corrected == c] = i  # basically argmaxing, since model outputs class to index
+    #for i, c in enumerate(params.cls): # cls have to be converted by get_cls beforehand
+    #    mask_true_cls_corrected[mask_true_cls_corrected == c] = i  # basically argmaxing, since model outputs class to index
         # DOESNT WORK YET...
-                
-    # argmax over predicted masks
-    # convert index to type
-    # see if index-type corresponds to true_mask category type -> if yes, considered accurate
 
     argmaxed_pred_mask = np.argmax(predicted_mask, axis=-1)
+    for i, c in enumerate(params.cls): # cls have to be converted by get_cls beforehand# has to be correct order!
+        argmaxed_pred_mask[argmaxed_pred_mask == i] = c  # convert indices of model output to cls
 
-    binary_accuracy_mask = argmaxed_pred_mask == mask_true_cls_corrected
+    binary_accuracy_mask = argmaxed_pred_mask == true_mask
     binary_accuracy_mask &= np.asarray(valid_pixels_mask, dtype=bool) # remote invalid pixel
     equal_count=np.sum(binary_accuracy_mask)
 
@@ -395,20 +399,21 @@ def calculate_sparse_class_evaluation_criteria(params, valid_pixels_mask, predic
 
     #cloudy types
     # ! THIS IS NOT CORRECT YET, NEED TO CONVERT CLS TO INDICES
-    positives_mask = get_cls(params.satellite, params.test_dataset, cls_string=['cloud', 'shadow', 'thin'])
+    positives_mask = get_cls(params.satellite, params.test_dataset, cls_string=['shadow',  'thin', 'cloud'])
 
     #non-cloudy types
     # ! THIS IS NOT CORRECT YET, NEED TO CONVERT CLS TO INDICES
-    negatives_mask = get_cls(params.satellite, params.test_dataset, cls_string=['clear', 'fill'])
+    negatives_mask = get_cls(params.satellite, params.test_dataset, cls_string=['fill','clear'])
 
     # this might not run correctly if positives and negatives indices are off!
     # perhaps index-correct the masks before
     pred_positives = np.isin(argmaxed_pred_mask, positives_mask)
+
     pred_negatives = np.isin(argmaxed_pred_mask, negatives_mask)
-    true_positives = np.isin(mask_true_cls_corrected, positives_mask)
+    true_positives = np.isin(true_mask, positives_mask)
 
     tp = ((pred_positives & true_positives) & valid_pixels_mask).sum()
-    fp = (pred_positives & np.isin(mask_true_cls_corrected, negatives_mask) & valid_pixels_mask).sum()
+    fp = (pred_positives & np.isin(true_mask, negatives_mask) & valid_pixels_mask).sum()
     fn = ((pred_negatives & true_positives) & valid_pixels_mask).sum()
     tn = npix - tp - fp - fn
 

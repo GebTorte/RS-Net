@@ -252,7 +252,6 @@ def patch_v2(img, patch_size=256, overlap=40):
     if overlap > cut_size:
         raise ValueError("overlap > cut_size")
 
-
     img_shape = np.shape(img)
 
     # Find number of patches
@@ -405,14 +404,16 @@ def predict_img_v2(model, params, img, n_bands, n_cls, num_gpus):
     predicted_patches = np.zeros((np.shape(img_patched)[0],
                                   params.patch_size-params.overlap, params.patch_size-params.overlap, n_cls))
     
-    predicted_patches[indices, :, :, :] = model.predict(img_patched[indices, :, :, :]) # , n_bands, n_cls, num_gpus, params
+    # DEBUGGER KILLED SOMEWHERE HERE!!! - KILLED - Probably too much mem consumption somewhere
 
+    predicted_patches[indices, :, :, :] = model.predict(img_patched[indices, :, :, :]) # , n_bands, n_cls, num_gpus, params
+    del img_patched
     #exec_time = str(time.time() - start_time)
     #print("Prediction of patches (not including splitting and stitching) finished in: " + exec_time + "s")
 
     # Stitch the patches back together
     predicted_mask = stitch_v2(predicted_patches, og_shape=og_img_shape, og_dtype=og_img_dtype, n_cls=n_cls,patch_size=params.patch_size, overlap=params.overlap)
-
+    del predicted_patches
     # Throw away the inpainting of the zero pixels in the individual patches
     # The summation is done to ensure that all pixels are included. The bands do not perfectly overlap (!)
     predicted_mask[np.sum(img, axis=2) == 0] = 0
