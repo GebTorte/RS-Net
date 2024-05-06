@@ -11,7 +11,7 @@ import os
 import random
 import shutil
 from PIL import Image
-from ..utils import patch_image
+from ..utils import patch_image, patch_v2
 
 
 def make_numpy_dataset(params):
@@ -170,8 +170,8 @@ def __make_landsat8_biome_dataset__(params):
                 raise ValueError('Invalid dataset. Choose Biome_gt, Biome_fmask, SPARCS_gt, or SPARCS_fmask.')
 
             # Patch the image and the mask
-            x_patched, _, _ = patch_image(x, patch_size, overlap=params.overlap_train_set)
-            y_patched, _, _ = patch_image(y, patch_size, overlap=params.overlap_train_set)
+            x_patched, _, _, _, _ = patch_v2(x, patch_size, overlap=params.overlap_train_set)
+            y_patched, _, _,_,_ = patch_v2(y, patch_size, overlap=params.overlap_train_set)
 
             # Save all the patches individually
             for patch in range(np.size(x_patched, axis=0)):

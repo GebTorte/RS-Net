@@ -311,9 +311,9 @@ def __evaluate_biome_dataset__(model, num_gpus, params, save_output=False, write
             threshold_loop_time.append(time.time() - threshold_loop_time_start)
 
             evaluating_product_no += 1
-
-            # Save images and predictions
+            
             save_time_start = time.time()
+
             data_output_path = params.project_path + "data/output/Biome/"
             if not os.path.isfile(data_output_path + '%s-photo.png' % product):
                 img_enhanced_contrast = image_normalizer(img_rgb, params, type='enhance_contrast')
@@ -321,6 +321,7 @@ def __evaluate_biome_dataset__(model, num_gpus, params, save_output=False, write
                 Image.open(data_path + product + '_fixedmask.TIF').save(data_output_path + '%s-mask.png' % product)
 
             if save_output:
+                # Save images and predictions
                 os.makedirs(data_output_path + params.modelID, exist_ok=True) # make folder for model
 
                 # Save predicted mask as 16 bit png file (https://github.com/python-pillow/Pillow/issues/2970)
@@ -332,7 +333,6 @@ def __evaluate_biome_dataset__(model, num_gpus, params, save_output=False, write
                     for i, c in enumerate(params.cls): # cls have to be converted by get_cls beforehand
                         argmaxed_pred[argmaxed_pred == i] = min(c , 2**8 - 1)
                         predicted_mask_copy[:,:,i][argmaxed_pred == i] = c
-                    
 
                     arr2_buffer = np.uint8(argmaxed_pred).tobytes()
                     img2 = Image.new("L", argmaxed_pred.T.shape)
@@ -345,12 +345,11 @@ def __evaluate_biome_dataset__(model, num_gpus, params, save_output=False, write
 
                     tiff.imwrite(data_output_path + params.modelID + f'/{product}-layered_nb_prediction.tiff', data=np.uint8(predicted_mask_copy))
                     #tiff.imwrite(data_output_path + params.modelID + f'/{product}-nb_prediction.tiff', data=arr2_buffer)
-
                 array_buffer = arr.tobytes()
                 img = Image.new("I", arr.T.shape)
                 img.frombytes(array_buffer, 'raw', "I;16")
                 img.save(data_output_path + params.modelID + f'/{product}-prediction.png')
-                save_time.append(time.time() - save_time_start)
+            save_time.append(time.time() - save_time_start)
 
             #Image.fromarray(np.uint16(predicted_mask[:, :, 0] * 65535)).\
             #    save(data_output_path + '%s-model%s-prediction.png' % (product, params.modelID))

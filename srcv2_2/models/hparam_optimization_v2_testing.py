@@ -15,9 +15,27 @@ initializers = ['glorot_normal', "he_normal"]
 learning_rates = [1e-5, 1e-6, 1e-7, 1e-8]
 use_batch_norm = ['True']
 l2regs = [1e-4, 1e-6, 1e-8]
-dropouts = [0, 1e-5, 1e-2, 0.1, 0.4]
+dropouts = [0, 1e-5, 1e-2]
 decays = [0, 1e-6, 1e-4, 1e-2, 0.2]
-band_combinations = [[1, 2, 3, 4, 5, 6, 7]]# [[1, 2, 3, 4, 5, 6, 7, 9, 10, 11], [1, 2, 3, 4, 5, 6, 7, 9], [2, 3, 4, 5], [2, 3, 4], [3]]
+band_combinations = [[1, 2, 3, 4, 5, 6, 7]] # [[1, 2, 3, 4, 5, 6, 7, 9, 10, 11], [1, 2, 3, 4, 5, 6, 7, 9], [2, 3, 4, 5], [2, 3, 4], [3]]
+"""
+Landsat 8 Order MODIS bands:
+
+L8 | MODGA09
+1  |  x      | COASTAL / AEROSOL
+2  |  3      | BLUE
+3  |  4      | GREEN
+4  |  1      | RED
+5  |  2      | NIR
+6  |  6      | SWIR1
+7  |  7      | SWIR2
+8  |  x      | PANCHROMATIC
+9  |  5      | CIRRUS
+10 |  x      | LWIR1
+11 |  x      | LWIR2
+
+Order: 3, 4, 1, 2, 6, 7, 5
+"""
 epochs = [3, 5, 8, 12, 20]# [3, 10, 20, 40, 80, 160, 200, 200, 200, 200, 200, 200, 200, 200]  # Only used to run random search for longer
 dropout_on_last_layer_only=[False, True] # True,
 last_layer_activation_func = 'softmax'
@@ -36,10 +54,11 @@ script = "/home/mxh/RS-Net/SentinelSemanticSegmentation_v2.py"
 for train_dataset in train_datasets:
     cls_list = gt_cls_list if train_dataset == "Biome_gt" else fmask_cls_list
     for overlap in overlaps:
-        params = f"--params=\"train_dataset={train_dataset};overlap={overlap};satellite={satellite}\""
+        params = f"--params=\"train_dataset={train_dataset};overlap_train_set={overlap};overlap={overlap};satellite={satellite}\""
         subprocess.check_call([interpreter,
                             script,
-                            "--make_dataset",  # needed if cls definitions changed from fmask to gt or vice versa    
+                            "--make_dataset",  # needed if cls definitions changed from fmask to gt or vice versa  
+                            # and for different overlaps/train_dataset_overlaps which are interdependent
                             "--satellite", str(satellite), 
                             params])
         for activation_func in activation_functions:
