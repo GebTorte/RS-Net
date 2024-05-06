@@ -9,11 +9,12 @@ import os
 sys.path.insert(1, os.path.join(sys.path[0], '..'))
 from utils import get_cls
 
-activation_functions = ['elu', 'relu'] # , 'relu']
+activation_functions = ['elu', 'relu', "leaky_relu"] # , 'relu']
+leaky_alphas = [0.05, 0.1]
 loss_functions = ['sparse_categorical_crossentropy'] # , 'categorical_crossentropy'] # ['binary_crossentropy']
 initializers = ['glorot_normal', "he_normal"]
 learning_rates = [1e-5, 1e-6, 1e-7, 1e-8]
-use_batch_norm = ['True']
+use_batch_norm = ['True', 'False']
 l2regs = [1e-4, 1e-6, 1e-8]
 dropouts = [0, 1e-5, 1e-2]
 decays = [0, 1e-6, 1e-4, 1e-2, 0.2]
@@ -42,7 +43,7 @@ last_layer_activation_func = 'softmax'
 satellite = "Landsat8"
 gt_cls_list=[['shadow', 'clear', 'thin', 'cloud']]  # [['clear', 'cloud', 'shadow', 'snow', 'water']] # [['clear', 'cloud', 'thin', 'shadow']] 
 fmask_cls_list = [['clear', 'cloud', 'shadow', 'snow', 'water']] # ['clear', 'cloud']
-train_datasets = [ "Biome_fmask", "Biome_gt"]
+train_datasets = ["Biome_gt"] #  "Biome_fmask", 
 # ['clear', 'shadow', 'thin', 'cloud'] # thin only in Biome_gt
 # ['clear', 'cloud', 'shadow', 'snow', 'water']  # this is only possible on BIOME_fmask
 collapse_cls = False
@@ -61,7 +62,7 @@ for train_dataset in train_datasets:
                             # and for different overlaps/train_dataset_overlaps which are interdependent
                             "--satellite", str(satellite), 
                             params])
-        for activation_func in activation_functions:
+        for activation_func in activation_functions: 
             for loss_func in loss_functions:
                 for learning_rate in learning_rates:                  
                     for l2reg in l2regs:
@@ -103,6 +104,7 @@ for train_dataset in train_datasets:
                                                                 ";overlap=" + str(overlap) + \
                                                                     "\""
                                                                 
+                                                                #";leaky_alpha=" + str(leaky_alpha) + \
 
                                                         print('-------------STARTING NEW--------------------------')
                                                         print('Activation function: ' + activation_func)
