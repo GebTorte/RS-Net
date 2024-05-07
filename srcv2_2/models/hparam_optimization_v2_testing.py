@@ -49,7 +49,7 @@ train_datasets = ["Biome_gt"] #  "Biome_fmask",
 # ['clear', 'shadow', 'thin', 'cloud'] # thin only in Biome_gt
 # ['clear', 'cloud', 'shadow', 'snow', 'water']  # this is only possible on BIOME_fmask
 collapse_cls = False
-overlaps = [10, 40] # has to be of even # , 40
+overlaps = [10] # has to be of even # , 40
 
 interpreter = "/home/mxh/anaconda3/envs/tf2+gpu_v2/bin/python3"
 script = "/home/mxh/RS-Net/SentinelSemanticSegmentation_v2.py"
@@ -57,13 +57,13 @@ script = "/home/mxh/RS-Net/SentinelSemanticSegmentation_v2.py"
 for train_dataset in train_datasets:
     cls_list = gt_cls_list if train_dataset == "Biome_gt" else fmask_cls_list
     for overlap in overlaps:
-        params = f"--params=\"train_dataset={train_dataset};overlap_train_set={overlap};overlap={overlap};satellite={satellite}\""
-        subprocess.check_call([interpreter,
-                            script,
-                            "--make_dataset",  # needed if cls definitions changed from fmask to gt or vice versa  
-                            # and for different overlaps/train_dataset_overlaps which are interdependent
-                            "--satellite", str(satellite), 
-                            params])
+        #params = f"--params=\"train_dataset={train_dataset};overlap_train_set={overlap};overlap={overlap};satellite={satellite}\""
+        #subprocess.check_call([interpreter,
+        #                    script,
+        #                    "--make_dataset",  # needed if cls definitions changed from fmask to gt or vice versa  
+        #                    # and for different overlaps/train_dataset_overlaps which are interdependent
+        #                    "--satellite", str(satellite), 
+        #                    params])
         for activation_func in activation_functions: 
             for loss_func in loss_functions:
                 for learning_rate in learning_rates:                  
@@ -101,7 +101,7 @@ for train_dataset in train_datasets:
                                                                 ";last_layer_activation_func=" + str(last_layer_activation_func) + \
                                                                 ";satellite=" + str(satellite) + \
                                                                 ";int_cls=" + str(int_cls) + \
-                                                                ";cls=" + str(cls) + \
+                                                                ";cls=" + str(int_cls) + \
                                                                 ";train_dataset=" + str(train_dataset) + \
                                                                 ";collapse_cls=" + str(collapse_cls) + \
                                                                 ";overlap=" + str(overlap) + \

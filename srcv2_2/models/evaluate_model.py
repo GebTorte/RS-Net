@@ -331,7 +331,7 @@ def __evaluate_biome_dataset__(model, num_gpus, params, save_output=False, write
                 if params.loss_func == "sparse_categorical_crossentropy":
                     argmaxed_pred = np.argmax(predicted_mask, axis=-1)
                     predicted_mask_copy = predicted_mask.copy()
-                    for i, c in enumerate(get_cls(params.satellite, params.test_dataset, params.str_cls)): # cls have to be converted by get_cls beforehand
+                    for i, c in enumerate(get_cls(params.satellite, params.train_dataset, params.cls)): # cls have to be converted by get_cls beforehand
                         argmaxed_pred[argmaxed_pred == i] = min(c , 2**8 - 1)
                         predicted_mask_copy[:,:,i][argmaxed_pred == i] = c
 
@@ -398,7 +398,7 @@ def calculate_sparse_class_evaluation_criteria(params, valid_pixels_mask, predic
 
     argmaxed_pred_mask = np.argmax(predicted_mask, axis=-1)
 
-    enumeration_cls = get_cls(params.satellite, params.test_dataset, params.str_cls)
+    enumeration_cls = get_cls(params.satellite, params.train_dataset, params.cls)
     for i, c in enumerate(enumeration_cls): # cls have to be converted by get_cls beforehand# has to be correct order!
         argmaxed_pred_mask[argmaxed_pred_mask == i] = c  # convert indices of model output to cls
 
@@ -411,10 +411,10 @@ def calculate_sparse_class_evaluation_criteria(params, valid_pixels_mask, predic
     categorical_accuracy = equal_count / npix
 
     #cloudy types / classy types
-    positives_mask = get_cls(params.satellite, params.train_dataset, cls_string=['shadow', 'thin', 'cloud', 'snow', 'water'])
+    positives_mask = get_cls(params.satellite, params.train_dataset, cls_string=[x for x in ['shadow', 'thin', 'cloud', 'snow', 'water'] if x in enumeration_cls])
 
     #non-cloudy types
-    negatives_mask = get_cls(params.satellite, params.train_dataset, cls_string=['fill', 'clear'])
+    negatives_mask = get_cls(params.satellite, params.train_dataset, cls_string=[x for x in ['fill', 'clear'] if x in enumeration_cls])
 
     # this might not run correctly if positives and negatives indices are off!
     # perhaps index-correct the masks before
