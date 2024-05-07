@@ -233,8 +233,11 @@ def __evaluate_biome_dataset__(model, num_gpus, params, save_output=False, write
             #    pass
 
             # Get the masks
-            cls = get_cls('Landsat8', 'Biome_gt', params.cls)
-
+            if params.loss_func == "binary_crossentropy":
+                cls = get_cls('Landsat8', 'Biome_gt', params.cls)
+            elif params.loss_func == "categorical_crossentropy":
+                cls = params.cls # assuming they are already int converted
+           
             # Create the binary masks
             if params.collapse_cls:
                 print("Collapsing CLS in evaluate model.")
@@ -302,6 +305,7 @@ def __evaluate_biome_dataset__(model, num_gpus, params, save_output=False, write
 
             for threshold in thresholds:
                 print("threshold=" + str(threshold) +
+                        ": npix=" + str(evaluation_metrics[product]['threshold_' + str(threshold)]['npix']) +
                         ": tp=" + str(evaluation_metrics[product]['threshold_' + str(threshold)]['tp']) +
                         ": fp=" + str(evaluation_metrics[product]['threshold_' + str(threshold)]['fp']) +
                         ": fn=" + str(evaluation_metrics[product]['threshold_' + str(threshold)]['fn']) +
@@ -331,7 +335,8 @@ def __evaluate_biome_dataset__(model, num_gpus, params, save_output=False, write
                 os.makedirs(data_output_path + params.modelID, exist_ok=True) # make folder for model
 
                 # Save predicted mask as 16 bit png file (https://github.com/python-pillow/Pillow/issues/2970)
-                arr = np.uint16(predicted_mask[:, :, 0] * (2**16-1))
+                #arr = np.uint16(predicted_mask[:, :, 0] * (2**16-1))
+                cloud_arr = np.uint16(predicted_mask[:, :, params.cls.index(255)] * (2**16-1)) # indexed layer of cloud
 
                 if params.loss_func == "sparse_categorical_crossentropy":
                     argmaxed_pred = np.argmax(predicted_mask, axis=-1)
@@ -354,10 +359,10 @@ def __evaluate_biome_dataset__(model, num_gpus, params, save_output=False, write
                     #tiff.imwrite(data_output_path + params.modelID + f'/{product}-layered_nb_prediction.tiff', data=np.uint8(predicted_mask_copy))
                     #tiff.imwrite(data_output_path + params.modelID + f'/{product}-nb_prediction.tiff', data=arr2_buffer)
                 
-                array_buffer = arr.tobytes()
-                img = Image.new("I", arr.T.shape)
+                array_buffer = cloud_arr.tobytes()
+                img = Image.new("I", cloud_arr.T.shape)
                 img.frombytes(array_buffer, 'raw', "I;16")
-                img.save(data_output_path + params.modelID + f'/{product}-prediction.png')
+                img.save(data_output_path + params.modelID + f'/{product}-cloud_prediction.png')
             save_time.append(time.time() - save_time_start)
 
             #Image.fromarray(np.uint16(predicted_mask[:, :, 0] * 65535)).\
@@ -389,7 +394,6 @@ def __evaluate_biome_dataset__(model, num_gpus, params, save_output=False, write
 
 def calculate_sparse_class_evaluation_criteria(params, valid_pixels_mask, predicted_mask, true_mask):
     """
-    DOES NOT WORK FOR tRAINED ON BIOME_FMASK YET!! (true mask has to be class converted in that case)
     """
     print("Sparse Metrics")
     # Count number of actual pixels
@@ -409,8 +413,8 @@ def calculate_sparse_class_evaluation_criteria(params, valid_pixels_mask, predic
     for i, c in enumerate(params.cls): # cls have to be converted by get_cls beforehand# has to be correct order!
         argmaxed_pred_mask[argmaxed_pred_mask == i] = c  # convert indices of model output to cls
 
-    argmaxed_pred_mask_copy = np.uint8(argmaxed_pred_mask)
-    binary_accuracy_mask = argmaxed_pred_mask_copy == true_mask
+    argmaxed_pred_mask = np.uint8(argmaxed_pred_mask)
+    binary_accuracy_mask = argmaxed_pred_mask == true_mask
     binary_accuracy_mask &= valid_pixels_mask # remote invalid pixel
     equal_count=np.sum(binary_accuracy_mask)
 
@@ -428,8 +432,8 @@ def calculate_sparse_class_evaluation_criteria(params, valid_pixels_mask, predic
 
     # this might not run correctly if positives and negatives indices are off!
     # perhaps index-correct the masks before
-    pred_positives = np.isin(argmaxed_pred_mask_copy, positives_mask)
-    pred_negatives = np.isin(argmaxed_pred_mask_copy, negatives_mask)
+    pred_positives = np.isin(argmaxed_pred_mask, positives_mask)
+    pred_negatives = np.isin(argmaxed_pred_mask, negatives_mask)
     true_positives = np.isin(true_mask, positives_mask)
     true_negatives =  np.isin(true_mask, negatives_mask)
 
@@ -466,6 +470,9 @@ def calculate_sparse_class_evaluation_criteria(params, valid_pixels_mask, predic
 
 
 def calculate_class_evaluation_criteria(param_cls, cls, valid_pixels_mask, predicted_mask, true_mask):
+    """
+    deprecated
+    """
     # Count number of actual pixels
     npix = valid_pixels_mask.sum()
 
@@ -640,15 +647,17 @@ def write_csv_files(evaluation_metrics, params):
         string = str(params.modelID) + ','
         for key in params.values().keys():
             if key == 'modelID':
-                pass
+                continue
             elif key == 'test_tiles':
-                pass
-            elif key == 'cls' or key=='int_cls':
-                string += ("".join(str(c) for c in params.values()[key])) + ','
+                continue
+            elif key == 'cls' or key=='int_cls' or key=='str_cls':
+                addition = ("".join(str(c) for c in params.values()[key])) 
             elif key == 'bands':
-                string += ("".join(str(b) for b in params.values()[key])) + ','
+                addition = ("".join(str(b) for b in params.values()[key])) 
             else:
-                string += str(params.values()[key]) + ','
+                addition = str(params.values()[key])
+
+            string += str(addition).replace(",", "|")  + ',' # cant have extra commata in csv
 
         # Initialize variables for calculating mean visualization set values
         categorical_accuracy_sum = accuracy_sum = precision_sum = recall_sum = f_one_score_sum = omission_sum = comission_sum = pixel_jaccard_sum=0

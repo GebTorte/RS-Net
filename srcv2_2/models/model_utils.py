@@ -73,9 +73,13 @@ def get_callbacks(params):
                                        monitor='val_acc',
                                        save_weights_only=True,
                                        save_best_only=params.save_best_only)
+    
+    sparse_model_checkpoint = ModelCheckpoint(params.project_path + f'models/Unet/{params.modelID}.keras',
+                                       monitor='val_sparse_categorical_accuracy',
+                                       save_weights_only=True,
+                                       save_best_only=params.save_best_only)
 
-    tensorboard = TensorBoard(log_dir=params.project_path + "reports/Unet/tensorboard/{}".
-                              format(params.modelID),
+    tensorboard = TensorBoard(log_dir=params.project_path + f"reports/Unet/tensorboard/{params.modelID}",
                               write_graph=True,
                               write_images=True)
 
@@ -86,7 +90,9 @@ def get_callbacks(params):
 
     early_stopping = EarlyStopping(monitor='val_acc', patience=100, verbose=2)
 
-    return csv_logger, model_checkpoint, reduce_lr, tensorboard, early_stopping
+    sparse_early_stopping = EarlyStopping(monitor='val_sparse_categorical_accuracy', patience=100, verbose=2)
+
+    return csv_logger, model_checkpoint, reduce_lr, tensorboard, early_stopping, sparse_model_checkpoint, sparse_early_stopping
 
 
 class ImageSequence(Sequence):
@@ -185,10 +191,8 @@ class ImageSequence(Sequence):
             # Create the binary masks
             if self.params.collapse_cls:
                 mask = extract_collapsed_cls(mask, self.cls)
-
-        
-            # Save the (binary) mask (cropped)
-            self.y[i, :, :, :] = mask[self.clip_pixels:self.params.patch_size - self.clip_pixels,
+                # Save the (binary) mask (cropped)
+                self.y[i, :, :, :] = mask[self.clip_pixels:self.params.patch_size - self.clip_pixels,
                                         self.clip_pixels:self.params.patch_size - self.clip_pixels,
                                         :]
 

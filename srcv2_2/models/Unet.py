@@ -192,12 +192,19 @@ class UnetV2(object):
         print("Model: Training on cls categories: ", self.params.cls)
 
         # Define callbacks
-        csv_logger, model_checkpoint, reduce_lr, tensorboard, early_stopping = get_callbacks(self.params)
-        used_callbacks = [csv_logger, model_checkpoint, tensorboard]
+        csv_logger, model_checkpoint, reduce_lr, tensorboard, early_stopping, sparse_model_checkpoint, sparse_early_stopping= get_callbacks(self.params)
+        used_callbacks = [csv_logger,  tensorboard]
+
         if self.params.reduce_lr:
-            used_callbacks.append(reduce_lr)
-        if self.params.early_stopping:
-            used_callbacks.append(early_stopping)
+                used_callbacks.append(reduce_lr)
+        if self.params.loss_func == "binary_crossentropy":
+            if self.params.early_stopping:
+                used_callbacks.append(early_stopping)
+            used_callbacks.append(model_checkpoint)
+        elif self.params.loss_func == "sparse_categorical_crossentropy":
+            if self.params.early_stopping:
+                used_callbacks.append(sparse_early_stopping)
+            used_callbacks.append(sparse_model_checkpoint)
 
         # Configure optimizer (use Nadam or Adam and 'binary_crossentropy' or jaccard_coef_loss)
         if self.params.optimizer == 'Adam':
@@ -283,10 +290,10 @@ class UnetV2(object):
         self._save_history(history.history)
     
     def _save_history(self, history):
-        np.save(f"{self.params.project_path}reports/Unet/{self.params.modelID}_history.npy", history)
+        np.save(f"{self.params.project_path}reports/Unet/histories/{self.params.modelID}_history.npy", history)
 
     def load_history(self):
-        return np.load(f"{self.params.project_path}reports/Unet/{self.params.modelID}_history.npy", allow_pickle=True).item()
+        return np.load(f"{self.params.project_path}reports/Unet/histories/{self.params.modelID}_history.npy", allow_pickle=True).item()
 
     def _save_params(self):
         # TODO: Jsonify this (json_dumps...)

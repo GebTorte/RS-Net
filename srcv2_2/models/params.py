@@ -51,6 +51,8 @@ class HParams:
                 value = True
             elif value == 'False':
                 value = False
+            elif value == 'None':
+                value = None
             self.__dict__[key] = value
     
     def __getitem__(self, item):
@@ -171,7 +173,7 @@ def get_params(model, satellite):
             'batch_size': 40,
             'steps_per_epoch': None,
             'epochs': 5,
-            'norm_method': 'enhance_contrast',
+            'norm_method': None, # 'enhance_contrast'
             'norm_threshold': 65535,
             'cls': ['cloud', 'thin'],
             'collapse_cls': False,
