@@ -100,7 +100,9 @@ def image_normalizer(img, params, type='enhance_contrast'):
     Clip an image at certain threshold value, and then normalize to values between 0 and 1.
     Threshold is used for contrast enhancement.
     """
-    if type == 'enhance_contrast':  # Enhance contrast of entire image
+    if type == None:
+        return img
+    elif type == 'enhance_contrast':  # Enhance contrast of entire image
         # The Sentinel-2 data has 15 significant bits, but normally maxes out between 10000-20000.
         # Here we clip and normalize to value between 0 and 1
         img_norm = np.clip(img, 0, params.norm_threshold)
