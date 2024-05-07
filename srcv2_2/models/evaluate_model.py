@@ -230,6 +230,7 @@ def __evaluate_biome_dataset__(model, num_gpus, params, save_output=False, write
 
             # Create the binary masks
             if params.collapse_cls:
+                print("Collapsing CLS in evaluate model.")
                 mask_true = extract_collapsed_cls(mask_true, cls)
             else:
                 if params.loss_func == "categorical_crossentropy":
@@ -330,7 +331,7 @@ def __evaluate_biome_dataset__(model, num_gpus, params, save_output=False, write
                 if params.loss_func == "sparse_categorical_crossentropy":
                     argmaxed_pred = np.argmax(predicted_mask, axis=-1)
                     predicted_mask_copy = predicted_mask.copy()
-                    for i, c in enumerate(params.cls): # cls have to be converted by get_cls beforehand
+                    for i, c in enumerate(get_cls(params.satellite, params.test_dataset, params.cls)): # cls have to be converted by get_cls beforehand
                         argmaxed_pred[argmaxed_pred == i] = min(c , 2**8 - 1)
                         predicted_mask_copy[:,:,i][argmaxed_pred == i] = c
 
@@ -379,6 +380,10 @@ def __evaluate_biome_dataset__(model, num_gpus, params, save_output=False, write
         write_csv_files(evaluation_metrics, params)
 
 def calculate_sparse_class_evaluation_criteria(params, valid_pixels_mask, predicted_mask, true_mask):
+    """
+    DOES NOT WORK FOR tRAINED ON BIOME_FMASK YET!! (true mask has to be class converted in that case)
+    """
+    print("Sparse Metrics")
     # Count number of actual pixels
     npix = valid_pixels_mask.sum()
 
@@ -390,10 +395,13 @@ def calculate_sparse_class_evaluation_criteria(params, valid_pixels_mask, predic
         # DOESNT WORK YET...
 
     argmaxed_pred_mask = np.argmax(predicted_mask, axis=-1)
-    for i, c in enumerate(params.cls): # cls have to be converted by get_cls beforehand# has to be correct order!
+
+    enumeration_cls = get_cls(params.satellite, params.test_dataset, params.cls)
+    for i, c in enumerate(enumeration_cls): # cls have to be converted by get_cls beforehand# has to be correct order!
         argmaxed_pred_mask[argmaxed_pred_mask == i] = c  # convert indices of model output to cls
 
-    binary_accuracy_mask = argmaxed_pred_mask == true_mask
+    argmaxed_pred_mask_copy = np.uint8(argmaxed_pred_mask)
+    binary_accuracy_mask = argmaxed_pred_mask_copy == true_mask
     binary_accuracy_mask &= np.asarray(valid_pixels_mask, dtype=bool) # remote invalid pixel
     equal_count=np.sum(binary_accuracy_mask)
 
@@ -401,19 +409,20 @@ def calculate_sparse_class_evaluation_criteria(params, valid_pixels_mask, predic
     categorical_accuracy = equal_count / npix
 
     #cloudy types / classy types
-    positives_mask = get_cls(params.satellite, params.train_dataset, cls_string=['shadow', 'thin', 'cloud'])
+    positives_mask = get_cls(params.satellite, params.train_dataset, cls_string=['shadow', 'thin', 'cloud', 'snow', 'water'])
 
     #non-cloudy types
-    negatives_mask = get_cls(params.satellite, params.train_dataset, cls_string=['fill', 'clear', 'snow', 'water'])
+    negatives_mask = get_cls(params.satellite, params.train_dataset, cls_string=['fill', 'clear'])
 
     # this might not run correctly if positives and negatives indices are off!
     # perhaps index-correct the masks before
     pred_positives = np.isin(argmaxed_pred_mask, positives_mask)
     pred_negatives = np.isin(argmaxed_pred_mask, negatives_mask)
     true_positives = np.isin(true_mask, positives_mask)
+    false_positives =  np.isin(true_mask, negatives_mask)
 
     tp = ((pred_positives & true_positives) & valid_pixels_mask).sum()
-    fp = (pred_positives & np.isin(true_mask, negatives_mask) & valid_pixels_mask).sum()
+    fp = (false_positives & pred_positives & valid_pixels_mask).sum()
     fn = ((pred_negatives & true_positives) & valid_pixels_mask).sum()
     tn = npix - tp - fp - fn
 
@@ -444,8 +453,6 @@ def calculate_sparse_class_evaluation_criteria(params, valid_pixels_mask, predic
 def calculate_class_evaluation_criteria(param_cls, cls, valid_pixels_mask, predicted_mask, true_mask):
     # Count number of actual pixels
     npix = valid_pixels_mask.sum()
-
-    categorical_accuracy = 0
 
     # converted mask_true to predicted values as input
     mask_true_cls_corrected = true_mask.copy()

@@ -9,15 +9,17 @@ import os
 sys.path.insert(1, os.path.join(sys.path[0], '..'))
 from utils import get_cls
 
-activation_functions = ['elu', 'relu', "leaky_relu"] # , 'relu']
+activation_functions = ["leaky_relu", 'elu', 'relu'] # , 'relu'] # 
 leaky_alphas = [0.05, 0.1]
 loss_functions = ['sparse_categorical_crossentropy'] # , 'categorical_crossentropy'] # ['binary_crossentropy']
 initializers = ['glorot_normal', "he_normal"]
-learning_rates = [1e-5, 1e-6, 1e-7, 1e-8]
-use_batch_norm = ['True', 'False']
-l2regs = [1e-4, 1e-6, 1e-8]
-dropouts = [0, 1e-5, 1e-2]
-decays = [0, 1e-6, 1e-4, 1e-2, 0.2]
+learning_rates = [1e-6, 1e-8]
+use_batch_norm = [True, False]
+batch_norm_momentums = [0.1, 0.5, 0.7, 0.95]
+l2regs = [1e-4, 1e-8]
+dropouts = [1e-5, 0,  1e-2]
+decays = [1e-2, 0, 0.2]
+reduce_lr = [True, False]
 band_combinations = [[1, 2, 3, 4, 5, 6, 7]] # [[1, 2, 3, 4, 5, 6, 7, 9, 10, 11], [1, 2, 3, 4, 5, 6, 7, 9], [2, 3, 4, 5], [2, 3, 4], [3]]
 """
 Landsat 8 Order MODIS bands:
@@ -37,7 +39,7 @@ L8 | MODGA09
 
 Order: 3, 4, 1, 2, 6, 7, 5
 """
-epochs = [3, 5, 8, 12, 20]# [3, 10, 20, 40, 80, 160, 200, 200, 200, 200, 200, 200, 200, 200]  # Only used to run random search for longer
+epochs = [3, 5, 8, 12]# [3, 10, 20, 40, 80, 160, 200, 200, 200, 200, 200, 200, 200, 200]  # Only used to run random search for longer
 dropout_on_last_layer_only=[False, True] # True,
 last_layer_activation_func = 'softmax'
 satellite = "Landsat8"
@@ -98,14 +100,17 @@ for train_dataset in train_datasets:
                                                                 ";initialization=" + str(initializer) + \
                                                                 ";last_layer_activation_func=" + str(last_layer_activation_func) + \
                                                                 ";satellite=" + str(satellite) + \
-                                                                ";cls=" + str(int_cls) + \
+                                                                ";int_cls=" + str(int_cls) + \
+                                                                ";cls=" + str(cls) + \
                                                                 ";train_dataset=" + str(train_dataset) + \
                                                                 ";collapse_cls=" + str(collapse_cls) + \
                                                                 ";overlap=" + str(overlap) + \
+                                                                ";overlap_train_set=" +str(overlap) + \
                                                                     "\""
                                                                 
                                                                 #";leaky_alpha=" + str(leaky_alpha) + \
-
+                                                                #";cls=" + str(int_cls) + \
+                                                                
                                                         print('-------------STARTING NEW--------------------------')
                                                         print('Activation function: ' + activation_func)
                                                         print('loss_func: ' + str(loss_func))

@@ -15,7 +15,7 @@ from tensorflow.keras import regularizers
 from tensorflow.keras.layers import Input, Conv2D, MaxPooling2D, UpSampling2D, Concatenate, Dropout, Cropping2D, Activation, BatchNormalization, LeakyReLU
 from tensorflow.keras.optimizers.legacy import Adam, Nadam
 #from tensorflow.keras.utils import multi_gpu_model
-from ..utils import get_model_name
+from ..utils import get_model_name, get_cls
 from srcv2_2.models.model_utils import jaccard_coef, jaccard_coef_thresholded, jaccard_coef_loss, swish, get_callbacks, ImageSequence
 from tensorflow.keras.utils import get_custom_objects  # To use swish activation function
 
@@ -46,10 +46,15 @@ class UnetV2(object):
             self.n_cls = np.size(self.params.cls)
         self.n_bands = np.size(self.params.bands)
 
+        # setting integer classes for sparse_categorical_crossentropy
+        self.params.int_cls = get_cls(self.params.satellite, self.params.train_dataset, cls_string=self.params.cls)
+
+
         # Create the model in keras, if not provided
         if model == None:
             # Try loading a saved model. get_model_name has to be unique
             try:
+                # TODO: load params from json
                 model = tf.keras.saving.load_model(self.params.project_path + 'models/Unet/' + get_model_name(self.params) + '.keras')
                 print(f"Model {get_model_name(self.params)} has been loaded.")
                 return # dont create inference
@@ -200,7 +205,11 @@ class UnetV2(object):
                 sparse_cat_loss = keras.losses.SparseCategoricalCrossentropy() # (labels, logits)
                 self.model.compile(optimizer=Adam(learning_rate=self.params.learning_rate, decay=self.params.decay, amsgrad=True),
                                 loss=sparse_cat_loss,
-                                metrics=[keras.metrics.SparseCategoricalCrossentropy(), jaccard_coef_loss, jaccard_coef,
+                                metrics=[keras.metrics.SparseCategoricalCrossentropy(), 
+                                        keras.metrics.TruePositives(),
+                                        keras.metrics.TrueNegatives(),
+                                        keras.metrics.FalsePositives(),
+                                        keras.metrics.FalseNegatives(), jaccard_coef_loss, jaccard_coef,
                                         jaccard_coef_thresholded, keras.metrics.SparseCategoricalAccuracy()]) 
                                         # drop keras.metrics.Accuracy()
                                         # 'accuracy' will be converted to CategoricalAccuracy by tf in this case

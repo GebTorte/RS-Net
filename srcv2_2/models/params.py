@@ -172,7 +172,7 @@ def get_params(model, satellite):
             'steps_per_epoch': None,
             'epochs': 5,
             'norm_method': 'enhance_contrast',
-            'norm_threshold': 16000,
+            'norm_threshold': 65535,
             'cls': ['cloud', 'thin'],
             'collapse_cls': False,
             'affine_transformation': True,

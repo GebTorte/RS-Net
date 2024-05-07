@@ -43,6 +43,8 @@ notebooks/unzipped/*
 notebooks/unzipped_old/*
 !notebooks/unzipped/.gitkeep
 
+reports/Unet/old/*
+
 src/__pycache__/*
 src/*.pyc
 src/models/__pycache__/*

@@ -416,6 +416,8 @@ def predict_img_v2(model, params, img, n_bands, n_cls, num_gpus):
     del predicted_patches
     # Throw away the inpainting of the zero pixels in the individual patches
     # The summation is done to ensure that all pixels are included. The bands do not perfectly overlap (!)
+    
+    # Taking this out to see difference
     predicted_mask[np.sum(img, axis=2) == 0] = 0
 
     # Threshold the prediction

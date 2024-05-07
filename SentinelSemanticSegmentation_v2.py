@@ -119,7 +119,7 @@ if __name__ == '__main__':
     # If any hyperparameters were overwritten in the commandline, parse them into params
     if args.params:
         params.parse(args.params)
-        print("parsed params: ", params.__dict__)
+        # print("parsed params: ", params.__dict__)
 
     # If you want to use local files (else it uses network drive)
     if args.dev_dataset:
@@ -141,12 +141,9 @@ if __name__ == '__main__':
             # Load the model
             params.modelID = datetime.datetime.now().strftime("%y%m%d%H%M%S")
             if args.model == 'U-net-v2':
-                # TODO: load model, if its name is passed by commandline
                 model = UnetV2(params)
 
-            hist = model.train(params)
-            #training_history[f"hist{hist_index}"] = hist 
-            #hist_index += 1
+            model.train(params)
             # Run model on test data set
             # evaluate_test_set(model, params.test_dataset, params.num_gpus, params)
         else:  # With k-fold cross-validation
@@ -191,17 +188,12 @@ if __name__ == '__main__':
                 params.modelID = params.modelID[0:12] + '-CV' + str(k+1) + 'of' + str(k_folds)  # Used for saving results
                 Unet_model = UnetV2(params, model)  # load previous loops model, if initialized
                 print("Training on fold " + str(k + 1) + " of " + str(k_folds))
-                hist = Unet_model.train() # params) # uses params from self.
+                Unet_model.train() # params) # uses params from self.
                 model = Unet_model.model  # save model to provide it in next loop
-
-                #training_history[f"hist{hist_index}"] = hist 
-                #hist_index += 1
 
                 # leave for --test flag
                 # Run model on test data set and save output
                 # evaluate_test_set(model, params.test_dataset, params.num_gpus, params)
-
-                # save history in reports
 
     if args.test:
         # If a model has been trained, use that one. If not, load a new one.
@@ -211,11 +203,11 @@ if __name__ == '__main__':
                 #loaded_model = tf.keras.saving.load_model(f"../models/Unet/{params.modelID}.keras")
                 model = UnetV2(params, model=loaded_model)  # to implement for V2: load model from file
         # out = model.evaluate(return_dict=True)
-        print("Saving output: ", args.save_output)
+
+        store_flag = False
         if args.save_output:
             store_flag = True
-        else: 
-            store_flag = False
+        print("Saving evaluation image output: ", store_flag)
         evaluate_test_set(model, params.test_dataset, params.num_gpus, params, save_output=store_flag) # todo: implement args.save_output
 
     # Print execution time
