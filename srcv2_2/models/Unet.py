@@ -47,18 +47,16 @@ class UnetV2(object):
         self.n_bands = np.size(self.params.bands)
 
         # setting integer classes for sparse_categorical_crossentropy
-        try:
-            if self.params.int_cls:
-                self.params.str_cls = self.params.cls
-                self.params.cls = self.params.int_cls
-        except AttributeError:
-            # assuming cls are in str form
-            self.params.str_cls = self.params.cls
-            self.params.cls = get_cls(self.params.satellite, self.params.train_dataset, cls_string=self.params.cls)
-            #self.params.int_cls = get_cls(self.params.satellite, self.params.train_dataset, cls_string=self.params.cls)
+        #try:
+        #    if self.params.int_cls:
+        #        self.params.str_cls = self.params.cls
+        #        self.params.cls = self.params.int_cls
+        #except AttributeError:
+        #    # assuming cls are in str form
+        #    self.params.str_cls = self.params.cls
+        #    self.params.cls = get_cls(self.params.satellite, self.params.train_dataset, cls_string=self.params.cls)
+        #    #self.params.int_cls = get_cls(self.params.satellite, self.params.train_dataset, cls_string=self.params.cls)}
 
-        print(self.params.cls)
-        print(self.params.str_cls)
         # Create the model in keras, if not provided
         if model == None:
             # Try loading a saved model. get_model_name has to be unique
@@ -268,8 +266,8 @@ class UnetV2(object):
                         epochs=self.params.epochs,
                         steps_per_epoch=self.params.steps_per_epoch,
                         verbose=1,
-                        workers=8, # 4
-                        max_queue_size=16,
+                        workers=12, # 4
+                        max_queue_size=24,
                         use_multiprocessing=True,
                         shuffle=False,
                         callbacks=used_callbacks,
