@@ -362,6 +362,10 @@ def predict_img_v2(model, params, img, n_bands, n_cls, num_gpus):
     img_shape = np.shape(img)
 
     # Normalize the product
+    # in my case the model was trained on non-normalized img-patches and performed badly on the normalized - therefore commenting out 
+    # OR the params.threshold was too high at 2^16 - 1. When training on BIOME (Landsat8) values are normally between 4-5K and 21-23K.
+    # One might leviate this issue by normalizing the train/val dataset dually in make_dataset.py.
+    # Note: Implemented normalized_dataset flag for params.py and evaluate_model and make_dataset
     img = image_normalizer(img, params, type=params.norm_method)
 
     # Patch the image in patch_size * patch_size pixel patches
@@ -414,10 +418,9 @@ def predict_img_v2(model, params, img, n_bands, n_cls, num_gpus):
     # Stitch the patches back together
     predicted_mask = stitch_v2(predicted_patches, og_shape=og_img_shape, og_dtype=og_img_dtype, n_cls=n_cls,patch_size=params.patch_size, overlap=params.overlap)
     del predicted_patches
+
     # Throw away the inpainting of the zero pixels in the individual patches
     # The summation is done to ensure that all pixels are included. The bands do not perfectly overlap (!)
-    
-    # Taking this out to see difference
     predicted_mask[np.sum(img, axis=2) == 0] = 0
 
     # Threshold the prediction

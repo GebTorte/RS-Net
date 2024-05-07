@@ -11,10 +11,12 @@ import os
 import random
 import shutil
 from PIL import Image
-from ..utils import patch_image, patch_v2
+from ..utils import patch_image, patch_v2, image_normalizer
+
+NON_NORMALIZED_PATH = "raw/"
 
 
-def make_numpy_dataset(params):
+def make_numpy_dataset(params, normalize=True):
     """
     Process a numpy dataset from the raw data, and do training/val data split
     """
@@ -24,9 +26,9 @@ def make_numpy_dataset(params):
         __make_sentinel2_val_dataset__(params)
     elif params.satellite == 'Landsat8':
         if 'Biome' in params.train_dataset:
-            __make_landsat8_biome_dataset__(params)
+            __make_landsat8_biome_dataset__(params, normalize)
             print('Processing validation data set')
-            __make_landsat8_val_dataset__(params)
+            __make_landsat8_val_dataset__(params, normalize)
         elif 'SPARCS' in params.train_dataset:
             __make_landsat8_sparcs_dataset__(params)
             print('Processing validation data set')
@@ -108,7 +110,7 @@ def __make_sentinel2_dataset__(params):
             date_old = f[11:19]
 
 
-def __make_landsat8_biome_dataset__(params):
+def __make_landsat8_biome_dataset__(params, normalize=True):
     """
     Loads the training data into numpy arrays
     """
@@ -168,6 +170,13 @@ def __make_landsat8_biome_dataset__(params):
                 y[:, :, 0] = Image.open(fmask_path + product + "_fmask.png")
             else:
                 raise ValueError('Invalid dataset. Choose Biome_gt, Biome_fmask, SPARCS_gt, or SPARCS_fmask.')
+
+            #TODO: Normalize x,y here. # Note: this is done by ImageSequence Class
+            #if normalize:
+            #    data_path # += NORMALIZE_PATH
+            #    x = image_normalizer(x, params, 'enhance_contrast')
+            #    y = image_normalizer(y, params, 'enhance_contrast')
+
 
             # Patch the image and the mask
             x_patched, _, _, _, _ = patch_v2(x, patch_size, overlap=params.overlap_train_set)
@@ -289,15 +298,18 @@ def __make_sentinel2_val_dataset__(params):
         shutil.move(data_path + 'train/mask/' + f, data_path + 'val/mask/' + f)
 
 
-def __make_landsat8_val_dataset__(params):
+def __make_landsat8_val_dataset__(params, normalize=False):
     """
     Creates validation data set of 10% of the training data set (uses random patches)
     """
     data_path = params.project_path + 'data/processed/'
 
+    #if normalize:
+    #    data_path += NORMALIZE_PATH # also, this would have to be after train/val part
+
     # Create sorted lists of all the training data
-    trn_files = sorted(os.listdir(data_path + 'train/img/'))
-    mask_files = sorted(os.listdir(data_path + 'train/mask/'))  # List all mask files
+    trn_files = sorted(os.listdir(data_path + 'train/img/')) # += NORMALIZE_PATH
+    mask_files = sorted(os.listdir(data_path + 'train/mask/')) # += NORMALIZE_PATH # List all mask files
 
     # Shuffle the list (use the same seed such that images and masks match)
     seed = 1

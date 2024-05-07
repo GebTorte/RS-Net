@@ -10,5 +10,5 @@
         },
         
     },
-    // "terminal.integrated.defaultProfile.linux": "tmux",
+    "terminal.integrated.defaultProfile.linux": "tmux",
 }

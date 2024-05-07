@@ -7,6 +7,7 @@ set_seed(1)
 
 import datetime
 import os
+import sys
 import os.path
 import random
 import threading
@@ -17,6 +18,7 @@ from tensorflow.keras.backend import binary_crossentropy
 from tensorflow.keras.callbacks import ModelCheckpoint, TensorBoard, ReduceLROnPlateau, CSVLogger, EarlyStopping
 from tensorflow.keras.utils import Sequence
 
+sys.path.insert(0, '../')
 from srcv2_2.utils import extract_collapsed_cls, extract_cls_mask, image_normalizer, get_cls
 
 
@@ -88,12 +90,12 @@ def get_callbacks(params):
 
 
 class ImageSequence(Sequence):
-    def __init__(self, params, shuffle, seed, augment_data, validation_generator=False):
+    def __init__(self, params, shuffle, seed, augment_data, validation_generator=False, normalized_path=""):
         # Load the names of the numpy files, each containing one patch
         if validation_generator:
-            self.path = params.project_path + "data/processed/val/"
+            self.path = params.project_path + "data/processed/val/" + normalized_path
         else:
-            self.path = params.project_path + "data/processed/train/"
+            self.path = params.project_path + "data/processed/train/" + normalized_path
         self.x_files = sorted(os.listdir(self.path + "img/"))  # os.listdir loads in arbitrary order, hence use sorted()
         self.x_files = [f for f in self.x_files if '.npy' in f]  # Only use .npy files (e.g. avoid .gitkeep)
         self.y_files = sorted(os.listdir(self.path + "mask/"))  # os.listdir loads in arbitrary order, hence use sorted()
@@ -121,14 +123,18 @@ class ImageSequence(Sequence):
         self.x_all_bands = np.zeros((params.batch_size, params.patch_size, params.patch_size, 10), dtype=np.float32)
         self.x = np.zeros((params.batch_size, params.patch_size, params.patch_size, np.size(params.bands)), dtype=np.float32)
 
-        self.clip_pixels = np.int32(params.overlap / 2)
+        self.clip_pixels = np.int32(params.overlap / 2) # might have to change to training_overlap here
         self.y = np.zeros((params.batch_size, params.patch_size - 2*self.clip_pixels, params.patch_size - 2*self.clip_pixels, 1), dtype=np.float32)
 
         # Load the params object for the normalizer function (not nice!)
         self.params = params
 
         # Convert class names to the actual integers in the masks (convert e.g. 'cloud' to 255 for Landsat8)
-        self.cls = get_cls(self.params.satellite, self.params.train_dataset, self.params.cls)
+        if self.params.loss_func == "sparse_categorical_crossentropy":
+            # cls have then been provided as int already
+            self.cls = self.params.cls 
+        else:
+            self.cls = get_cls(self.params.satellite, self.params.train_dataset, self.params.cls)
 
         # Augment the data
         self.augment_data = augment_data
@@ -180,10 +186,11 @@ class ImageSequence(Sequence):
             if self.params.collapse_cls:
                 mask = extract_collapsed_cls(mask, self.cls)
 
-                # Save the binary mask (cropped)
-                self.y[i, :, :, :] = mask[self.clip_pixels:self.params.patch_size - self.clip_pixels,
-                                          self.clip_pixels:self.params.patch_size - self.clip_pixels,
-                                          :]
+        
+            # Save the (binary) mask (cropped)
+            self.y[i, :, :, :] = mask[self.clip_pixels:self.params.patch_size - self.clip_pixels,
+                                        self.clip_pixels:self.params.patch_size - self.clip_pixels,
+                                        :]
 
         if self.augment_data:
             if self.random.randint(0, 1):

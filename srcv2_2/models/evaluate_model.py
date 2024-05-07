@@ -225,6 +225,13 @@ def __evaluate_biome_dataset__(model, num_gpus, params, save_output=False, write
             # Load the true classification mask
             mask_true = tiff.imread(data_path + product + '_fixedmask.TIF')  # The 30 m is the native resolution
 
+            #try:
+            #    if params.normalized_dataset:
+            #        img = image_normalizer(img, params, 'enhance_contrast')
+            #except AttributeError as e:
+            #    print(e)
+            #    pass
+
             # Get the masks
             cls = get_cls('Landsat8', 'Biome_gt', params.cls)
 
@@ -259,7 +266,7 @@ def __evaluate_biome_dataset__(model, num_gpus, params, save_output=False, write
             evaluation_metrics[product] = {}
 
             threshold_loop_time_start = time.time()
-            mask_true = np.uint8(mask_true)
+            # mask_true = np.uint8(mask_true)
             # Loop over different threshold values
             for j, threshold in enumerate(thresholds):
                 predicted_binary_mask = np.uint8(predicted_mask >= threshold)
@@ -267,12 +274,10 @@ def __evaluate_biome_dataset__(model, num_gpus, params, save_output=False, write
 
                 categorical_accuracy = accuracy= omission= comission= pixel_jaccard= precision= recall= f_one_score= tp= tn = fp = fn = npix = 0
                 if params.collapse_cls:
-                    accuracy, omission, comission, pixel_jaccard, precision, recall, f_one_score, tp, tn, fp, fn, npix = calculate_evaluation_criteria(
-                    valid_pixels_mask, predicted_binary_mask, mask_true)
+                    accuracy, omission, comission, pixel_jaccard, precision, recall, f_one_score, tp, tn, fp, fn, npix = calculate_evaluation_criteria(valid_pixels_mask, predicted_binary_mask, mask_true)
                 else:
                     if params.loss_func == "sparse_categorical_crossentropy":
-                        categorical_accuracy, accuracy, omission, comission, pixel_jaccard, precision, recall, f_one_score, tp, tn, fp, fn, npix = calculate_sparse_class_evaluation_criteria(params, 
-                        valid_pixels_mask, predicted_mask, mask_true)
+                        categorical_accuracy, accuracy, omission, comission, pixel_jaccard, precision, recall, f_one_score, tp, tn, fp, fn, npix = calculate_sparse_class_evaluation_criteria(params, valid_pixels_mask, predicted_mask, mask_true)
                     elif params.loss_func == "categorical_crossentropy":
                         categorical_accuracy, accuracy, omission, comission, pixel_jaccard, precision, recall, f_one_score, tp, tn, fp, fn, npix = calculate_class_evaluation_criteria(params.cls, 
                         cls, valid_pixels_mask, predicted_mask, mask_true)
@@ -326,19 +331,19 @@ def __evaluate_biome_dataset__(model, num_gpus, params, save_output=False, write
                 os.makedirs(data_output_path + params.modelID, exist_ok=True) # make folder for model
 
                 # Save predicted mask as 16 bit png file (https://github.com/python-pillow/Pillow/issues/2970)
-                arr = np.uint16(predicted_mask[:, :, 0] * 2**16)
+                arr = np.uint16(predicted_mask[:, :, 0] * (2**16-1))
 
                 if params.loss_func == "sparse_categorical_crossentropy":
                     argmaxed_pred = np.argmax(predicted_mask, axis=-1)
-                    predicted_mask_copy = predicted_mask.copy()
+                    #predicted_mask_copy = predicted_mask.copy() # this would be the multi-layered output. Too big as tiff though.
                     # get_cls(params.satellite, params.train_dataset, params.cls)
                     for i, c in enumerate(params.cls): # cls have to be converted by get_cls beforehand
-                        argmaxed_pred[argmaxed_pred == i] = min(c , 2**8 - 1)
-                        predicted_mask_copy[:,:,i][argmaxed_pred == i] = c
+                        argmaxed_pred[argmaxed_pred == i] = min(c * 2**8, 2**16 - 1) # as c is uint8
+                        #predicted_mask_copy[:,:,i][argmaxed_pred == i] = c
 
-                    arr2_buffer = np.uint8(argmaxed_pred).tobytes()
-                    img2 = Image.new("L", argmaxed_pred.T.shape)
-                    img2.frombytes(arr2_buffer, 'raw', "L")
+                    arr2_buffer = np.uint16(argmaxed_pred).tobytes()
+                    img2 = Image.new("I", argmaxed_pred.T.shape)
+                    img2.frombytes(arr2_buffer, 'raw', "I;16")
                     img2.save(data_output_path + params.modelID + f'/{product}-nb_prediction.png')
                     
                     # predicted_mask_copy_buffer = np.uint8(predicted_mask_copy).tobytes()
@@ -389,7 +394,7 @@ def calculate_sparse_class_evaluation_criteria(params, valid_pixels_mask, predic
     print("Sparse Metrics")
     # Count number of actual pixels
     npix = valid_pixels_mask.sum()
-
+    valid_pixels_mask = np.asarray(valid_pixels_mask, dtype=bool)
     # converted mask_true to predicted values as input
     #mask_true_cls_corrected = true_mask.copy()
     
@@ -406,7 +411,7 @@ def calculate_sparse_class_evaluation_criteria(params, valid_pixels_mask, predic
 
     argmaxed_pred_mask_copy = np.uint8(argmaxed_pred_mask)
     binary_accuracy_mask = argmaxed_pred_mask_copy == true_mask
-    binary_accuracy_mask &= np.asarray(valid_pixels_mask, dtype=bool) # remote invalid pixel
+    binary_accuracy_mask &= valid_pixels_mask # remote invalid pixel
     equal_count=np.sum(binary_accuracy_mask)
 
     #categorical_accuracy = # of correctly predicted records / total number of records
@@ -423,15 +428,18 @@ def calculate_sparse_class_evaluation_criteria(params, valid_pixels_mask, predic
 
     # this might not run correctly if positives and negatives indices are off!
     # perhaps index-correct the masks before
-    pred_positives = np.isin(argmaxed_pred_mask, positives_mask)
-    pred_negatives = np.isin(argmaxed_pred_mask, negatives_mask)
+    pred_positives = np.isin(argmaxed_pred_mask_copy, positives_mask)
+    pred_negatives = np.isin(argmaxed_pred_mask_copy, negatives_mask)
     true_positives = np.isin(true_mask, positives_mask)
-    false_positives =  np.isin(true_mask, negatives_mask)
+    true_negatives =  np.isin(true_mask, negatives_mask)
+
+    # npix = npix*n_cls ???
 
     tp = ((pred_positives & true_positives) & valid_pixels_mask).sum()
-    fp = (false_positives & pred_positives & valid_pixels_mask).sum()
+    fp = (true_negatives & pred_positives & valid_pixels_mask).sum()
     fn = ((pred_negatives & true_positives) & valid_pixels_mask).sum()
     tn = npix - tp - fp - fn
+
 
     # Calculate metrics
     accuracy = (tp + tn) / npix
@@ -635,7 +643,7 @@ def write_csv_files(evaluation_metrics, params):
                 pass
             elif key == 'test_tiles':
                 pass
-            elif key == 'cls':
+            elif key == 'cls' or key=='int_cls':
                 string += ("".join(str(c) for c in params.values()[key])) + ','
             elif key == 'bands':
                 string += ("".join(str(b) for b in params.values()[key])) + ','

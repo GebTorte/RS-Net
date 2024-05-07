@@ -94,6 +94,10 @@ parser.add_argument('--dev_dataset',
                     action='store_true',
                     help='Very small dataset to be used while developing the project')
 
+parser.add_argument('--normalize_dataset',
+                    action='store_true',
+                    help='Run enhance contrast over train/val dataset')
+
 # ----------------------------------------------------------------------------------------------------------------------
 # Define the arguments for the visualization
 # ----------------------------------------------------------------------------------------------------------------------
@@ -130,6 +134,10 @@ if __name__ == '__main__':
     # important if new training dataset was chosen in params
     if args.make_dataset:
         print("Processing numpy data set")
+        #if args.normalize_dataset:
+        #    normalize_flag = True
+        #else:
+        #    normalize_flag = False   
         make_numpy_dataset(params)
 
     # Check to see if a model should be trained
@@ -185,8 +193,9 @@ if __name__ == '__main__':
                     params.test_tiles[1] = temp
 
                 # Train and evaluate
-                params.modelID = params.modelID[0:12] + '-CV' + str(k+1) + 'of' + str(k_folds)  # Used for saving results
+                params.modelID = params.modelID[0:12] + '-CV' + str(k) + 'of' + str(k_folds)  # Used for saving results
                 Unet_model = UnetV2(params, model)  # load previous loops model, if initialized
+                params.modelID = params.modelID[0:12] + '-CV' + str(k+1) + 'of' + str(k_folds)  # Used for saving results
                 print("Training on fold " + str(k + 1) + " of " + str(k_folds))
                 Unet_model.train() # params) # uses params from self.
                 model = Unet_model.model  # save model to provide it in next loop

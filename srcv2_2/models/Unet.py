@@ -267,7 +267,7 @@ class UnetV2(object):
                         steps_per_epoch=self.params.steps_per_epoch,
                         verbose=1,
                         workers=8, # 4
-                        max_queue_size=16,
+                        max_queue_size=12,
                         use_multiprocessing=True,
                         shuffle=False,
                         callbacks=used_callbacks,
