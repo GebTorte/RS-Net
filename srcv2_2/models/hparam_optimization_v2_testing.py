@@ -43,15 +43,15 @@ epochs = [3, 5, 8, 12]# [3, 10, 20, 40, 80, 160, 200, 200, 200, 200, 200, 200, 2
 dropout_on_last_layer_only=[False, True] # True,
 last_layer_activation_func = 'softmax'
 satellite = "Landsat8"
-gt_cls_list=[['shadow', 'clear', 'thin', 'cloud']]  # [['clear', 'cloud', 'shadow', 'snow', 'water']] # [['clear', 'cloud', 'thin', 'shadow']] 
+gt_cls_list=[['fill','shadow', 'clear', 'thin', 'cloud'], ['shadow', 'clear', 'thin', 'cloud']]  # [['clear', 'cloud', 'shadow', 'snow', 'water']] # [['clear', 'cloud', 'thin', 'shadow']] 
 fmask_cls_list = [['clear', 'cloud', 'shadow', 'snow', 'water']] # ['clear', 'cloud']
 train_datasets = ["Biome_gt"] #  "Biome_fmask", 
 # ['clear', 'shadow', 'thin', 'cloud'] # thin only in Biome_gt
 # ['clear', 'cloud', 'shadow', 'snow', 'water']  # this is only possible on BIOME_fmask
 collapse_cls = False
-overlaps = [10, 40] # has to be of even
+overlaps = [10, 40] # has to be of even # , 40
 
-interpreter = "/home/mxh/anaconda3/envs/tf2+gpu/bin/python"
+interpreter = "/home/mxh/anaconda3/envs/tf2+gpu_v2/bin/python3"
 script = "/home/mxh/RS-Net/SentinelSemanticSegmentation_v2.py"
 # Train the models
 for train_dataset in train_datasets:
@@ -132,7 +132,7 @@ for train_dataset in train_datasets:
 
                                                                             #"--dev_dataset",
                                                                             "--test", # works now, but takes a loong time. # needed for writing csv output.
-                                                                            # "--save_output",
+                                                                            "--save_output",
                                                                             "--satellite", str(satellite), 
                                                                             params])
 

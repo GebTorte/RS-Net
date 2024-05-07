@@ -331,7 +331,7 @@ def __evaluate_biome_dataset__(model, num_gpus, params, save_output=False, write
                 if params.loss_func == "sparse_categorical_crossentropy":
                     argmaxed_pred = np.argmax(predicted_mask, axis=-1)
                     predicted_mask_copy = predicted_mask.copy()
-                    for i, c in enumerate(get_cls(params.satellite, params.test_dataset, params.cls)): # cls have to be converted by get_cls beforehand
+                    for i, c in enumerate(get_cls(params.satellite, params.test_dataset, params.str_cls)): # cls have to be converted by get_cls beforehand
                         argmaxed_pred[argmaxed_pred == i] = min(c , 2**8 - 1)
                         predicted_mask_copy[:,:,i][argmaxed_pred == i] = c
 
@@ -344,8 +344,10 @@ def __evaluate_biome_dataset__(model, num_gpus, params, save_output=False, write
                     #img3 = Image.fromarray(predicted_mask_copy, mode='RGBA')
                     #img3.save(data_output_path + params.modelID + f'/{product}-layered_nb_prediction.png')
 
-                    tiff.imwrite(data_output_path + params.modelID + f'/{product}-layered_nb_prediction.tiff', data=np.uint8(predicted_mask_copy))
+                    #deactivate for now as tiffs use too much space
+                    #tiff.imwrite(data_output_path + params.modelID + f'/{product}-layered_nb_prediction.tiff', data=np.uint8(predicted_mask_copy))
                     #tiff.imwrite(data_output_path + params.modelID + f'/{product}-nb_prediction.tiff', data=arr2_buffer)
+                
                 array_buffer = arr.tobytes()
                 img = Image.new("I", arr.T.shape)
                 img.frombytes(array_buffer, 'raw', "I;16")
@@ -396,7 +398,7 @@ def calculate_sparse_class_evaluation_criteria(params, valid_pixels_mask, predic
 
     argmaxed_pred_mask = np.argmax(predicted_mask, axis=-1)
 
-    enumeration_cls = get_cls(params.satellite, params.test_dataset, params.cls)
+    enumeration_cls = get_cls(params.satellite, params.test_dataset, params.str_cls)
     for i, c in enumerate(enumeration_cls): # cls have to be converted by get_cls beforehand# has to be correct order!
         argmaxed_pred_mask[argmaxed_pred_mask == i] = c  # convert indices of model output to cls
 

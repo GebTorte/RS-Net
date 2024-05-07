@@ -47,9 +47,18 @@ class UnetV2(object):
         self.n_bands = np.size(self.params.bands)
 
         # setting integer classes for sparse_categorical_crossentropy
-        self.params.int_cls = get_cls(self.params.satellite, self.params.train_dataset, cls_string=self.params.cls)
+        try:
+            if self.params.int_cls:
+                self.params.str_cls = self.params.cls
+                self.params.cls = self.params.int_cls
+        except AttributeError:
+            # assuming cls are in str form
+            self.params.str_cls = self.params.cls
+            self.params.cls = get_cls(self.params.satellite, self.params.train_dataset, cls_string=self.params.cls)
+            #self.params.int_cls = get_cls(self.params.satellite, self.params.train_dataset, cls_string=self.params.cls)
 
-
+        print(self.params.cls)
+        print(self.params.str_cls)
         # Create the model in keras, if not provided
         if model == None:
             # Try loading a saved model. get_model_name has to be unique
@@ -203,13 +212,16 @@ class UnetV2(object):
             elif self.params.loss_func == 'sparse_categorical_crossentropy':
                 print("Compiling with Sparse Categorical Crossentropy")
                 sparse_cat_loss = keras.losses.SparseCategoricalCrossentropy() # (labels, logits)
+                """
+                keras.metrics.TruePositives(),
+                keras.metrics.TrueNegatives(),
+                keras.metrics.FalsePositives(),
+                keras.metrics.FalseNegatives(),
+                """
                 self.model.compile(optimizer=Adam(learning_rate=self.params.learning_rate, decay=self.params.decay, amsgrad=True),
                                 loss=sparse_cat_loss,
-                                metrics=[keras.metrics.SparseCategoricalCrossentropy(), 
-                                        keras.metrics.TruePositives(),
-                                        keras.metrics.TrueNegatives(),
-                                        keras.metrics.FalsePositives(),
-                                        keras.metrics.FalseNegatives(), jaccard_coef_loss, jaccard_coef,
+                                metrics=[keras.metrics.SparseCategoricalCrossentropy(),     
+                                        jaccard_coef_loss, jaccard_coef,
                                         jaccard_coef_thresholded, keras.metrics.SparseCategoricalAccuracy()]) 
                                         # drop keras.metrics.Accuracy()
                                         # 'accuracy' will be converted to CategoricalAccuracy by tf in this case
@@ -256,8 +268,8 @@ class UnetV2(object):
                         epochs=self.params.epochs,
                         steps_per_epoch=self.params.steps_per_epoch,
                         verbose=1,
-                        workers=16, # 4
-                        max_queue_size=32,
+                        workers=8, # 4
+                        max_queue_size=16,
                         use_multiprocessing=True,
                         shuffle=False,
                         callbacks=used_callbacks,
