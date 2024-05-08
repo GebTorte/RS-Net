@@ -5,6 +5,9 @@ import tifffile as tiff
 from PIL import Image
 from srcv2_2.utils import CategoryIndexOrder, load_product, get_cls, extract_collapsed_cls, extract_cls_mask, predict_img, predict_img_v2, image_normalizer
 
+POSITIVES = ['shadow', 'thin', 'cloud']
+NEGATIVES = ['clear', 'snow', 'water']
+
 
 def evaluate_test_set(model, dataset, num_gpus, params, save_output=False, write_csv=True):
     if dataset == 'Biome_gt':
@@ -61,7 +64,6 @@ def __evaluate_sparcs_dataset__(model, num_gpus, params, save_output=False, writ
 
         # Load true mask
         mask_true = np.array(Image.open(data_path + product[0:25] + 'mask.png'))
-        mask_true_cls_corrected = np.zeros((np.shape(mask_true)[0], np.shape(mask_true)[0], np.size(params.cls)))
 
         # Pad the image for improved borders
         padding_size = params.overlap
@@ -72,47 +74,23 @@ def __evaluate_sparcs_dataset__(model, num_gpus, params, save_output=False, writ
         #cls = get_cls(params)
         #cls = [5]  # TODO: Currently hardcoded to look at clouds - fix it!
         cls = get_cls(params.satellite, "SPARCS_gt", params.cls)
+        # mask_true_cls_corrected = np.zeros((np.shape(mask_true)[0], np.shape(mask_true)[0], len(cls)))
 
         # Create the binary masks
         if params.collapse_cls:
             mask_true = extract_collapsed_cls(mask_true, cls)
         else:
-            for l, c in enumerate(cls):
-                if c == 1 or c == 6: # skipping combined classes
-                    continue
-
-                y = extract_cls_mask(mask_true, c)
-        
-                # For Sparcs gt combine classes (0,1) (2, 6)
-                """
-                if c == 'shadow':
-                    cls_int.append(0)
-                    cls_int.append(1)
-                elif c == 'water':
-                    cls_int.append(2)
-                    cls_int.append(6)
-                elif c == 'snow':
-                    cls_int.append(3)
-                elif c == 'cloud':
-                    cls_int.append(5)
-                elif c == 'clear':
-                    cls_int.append(4)
-                """
-
-                # ATTENTION: depending on int_cls input order in ImageSequence, model output order may vary...  
-                if c == 0:
-                    y |= extract_cls_mask(mask_true, 1)
-                elif c == 2:
-                    y |= extract_cls_mask(mask_true, 6)
+            for l, c in enumerate(params.cls):
+                y = extract_cls_mask(mask_true, cls)
 
                 # Save the binary masks as one hot representations
-                mask_true_cls_corrected[:,:,l] = y
+                mask_true[:, :, l] = y[:, :, 0]
 
         # Predict the images
-        predicted_mask_padded, _ = predict_img(model, params, img_padded, n_bands, n_cls, num_gpus)
+        predicted_mask_padded, _ = predict_img_v2(model, params, img_padded, n_bands, n_cls, num_gpus)
 
         # Remove padding
-        predicted_mask = predicted_mask_padded[padding_size:-padding_size, padding_size:-padding_size, :]
+        predicted_mask =  predicted_mask_padded[padding_size:-padding_size, padding_size:-padding_size, :]
 
         # Create a nested dict to save evaluation metrics for each product
         evaluation_metrics[product] = {}
@@ -131,7 +109,7 @@ def __evaluate_sparcs_dataset__(model, num_gpus, params, save_output=False, writ
             else:
                 if params.loss_func == "sparse_categorical_crossentropy":
                     categorical_accuracy, accuracy, omission, comission, pixel_jaccard, precision, recall, f_one_score, tp, tn, fp, fn, npix = calculate_sparse_sparcs_class_evaluation_criteria(params, 
-                                                                                                                                                valid_pixels_mask, predicted_mask, mask_true_cls_corrected)
+                                                                                                                                                valid_pixels_mask, predicted_mask, mask_true)
                 elif params.loss_func == "categorical_crossentropy":
                     categorical_accuracy, accuracy, omission, comission, pixel_jaccard, precision, recall, f_one_score, tp, tn, fp, fn, npix = calculate_class_evaluation_criteria(params.cls, 
                     cls, valid_pixels_mask, predicted_mask, mask_true)
@@ -298,7 +276,7 @@ def __evaluate_biome_dataset__(model, num_gpus, params, save_output=False, write
                 #     mask_true[:, :, l] = y[:, :, 0]
 
             prediction_time_start = time.time()
-            predicted_mask, _ = predict_img_v2(model, params, img, n_bands, n_cls, num_gpus) # predict_v2 is bugged!
+            predicted_mask, _ = predict_img_v2(model, params, img, n_bands, n_cls, num_gpus)
             prediction_time.append(time.time() - prediction_time_start)
 
             # Create a nested dict to save evaluation metrics for each product
@@ -316,7 +294,7 @@ def __evaluate_biome_dataset__(model, num_gpus, params, save_output=False, write
                     accuracy, omission, comission, pixel_jaccard, precision, recall, f_one_score, tp, tn, fp, fn, npix = calculate_evaluation_criteria(valid_pixels_mask, predicted_binary_mask, mask_true)
                 else:
                     if params.loss_func == "sparse_categorical_crossentropy":
-                        categorical_accuracy, accuracy, omission, comission, pixel_jaccard, precision, recall, f_one_score, tp, tn, fp, fn, npix = calculate_sparse_class_evaluation_criteria(params, valid_pixels_mask, predicted_mask, mask_true)
+                        categorical_accuracy, accuracy, omission, comission, pixel_jaccard, precision, recall, f_one_score, tp, tn, fp, fn, npix, pred_positives_sum, pred_negatives_sum, true_positives_sum, true_negatives_sum = calculate_sparse_class_evaluation_criteria(params, valid_pixels_mask, predicted_mask, mask_true)
                     elif params.loss_func == "categorical_crossentropy":
                         categorical_accuracy, accuracy, omission, comission, pixel_jaccard, precision, recall, f_one_score, tp, tn, fp, fn, npix = calculate_class_evaluation_criteria(params.cls, 
                         cls, valid_pixels_mask, predicted_mask, mask_true)
@@ -326,6 +304,7 @@ def __evaluate_biome_dataset__(model, num_gpus, params, save_output=False, write
                 # Save the values in the dict
                 evaluation_metrics[product]['threshold_' + str(threshold)]['biome'] = folder  # Save biome type too
                 evaluation_metrics[product]['threshold_' + str(threshold)]['tp'] = tp
+                evaluation_metrics[product]['threshold_' + str(threshold)]['fp'] = fp
                 evaluation_metrics[product]['threshold_' + str(threshold)]['fp'] = fp
                 evaluation_metrics[product]['threshold_' + str(threshold)]['fn'] = fn
                 evaluation_metrics[product]['threshold_' + str(threshold)]['tn'] = tn
@@ -432,43 +411,92 @@ def __evaluate_biome_dataset__(model, num_gpus, params, save_output=False, write
     if write_csv:
         write_csv_files(evaluation_metrics, params)
 
-def calculate_sparse_sparcs_class_evaluation_criteria(params, valid_pixels_mask, predicted_mask, true_mask_cls_corrected):
+def calculate_sparse_sparcs_class_evaluation_criteria(params, valid_pixels_mask, predicted_mask, true_mask):
     """
     ATTENTION: this is only for non-collapse-cls
     """
     print("Sparse Metrics")
+
+    cls = get_cls(params.satellite, params.train_dataset, params.cls)
+
+    true_mask_cls_corrected = true_mask.copy()
+    for i, c in enumerate(cls):
+        true_mask_cls_corrected[true_mask_cls_corrected == i] = c
+    #i = -1
+    #for l, c in enumerate(cls):
+    #    i += 1
+    #    if c == 1 or c == 6: # skipping combined classes
+    #        i-=1
+    #        continue#
+#
+#                y = extract_cls_mask(mask_true, c)
+
+        # For Sparcs gt combine classes (0,1) (2, 6)
+        """
+        if c == 'shadow':
+            cls_int.append(0)
+            cls_int.append(1)
+        elif c == 'water':
+            cls_int.append(2)
+            cls_int.append(6)
+        elif c == 'snow':
+            cls_int.append(3)
+        elif c == 'cloud':
+            cls_int.append(5)
+        elif c == 'clear':
+            cls_int.append(4)
+        """
+
+        # ATTENTION: depending on int_cls input order in ImageSequence, model output order may vary...  
+        #if c == 0:
+        #    y |= extract_cls_mask(mask_true, 1)
+        #elif c == 2:
+        #    y |= extract_cls_mask(mask_true, 6)
+
+        # Save the binary masks as one hot representations
+        #mask_true_cls_corrected[:,:,i] = y
+
     # Count number of actual pixels
     npix = valid_pixels_mask.sum()
     valid_pixels_mask = np.asarray(valid_pixels_mask, dtype=bool)
  
     # TODO: combine classes (0,1) and (2,6) in predicted mask and lAND it with true_mask (cls-corrected one)
             # Create the binary masks
-    cls = get_cls(params.satellite, "SPARCS_gt", params.cls)
+    cls = get_cls(params.satellite, params.train_dataset, params.cls)
     predicted_mask_cls_corrected = predicted_mask.copy()
-    for l, c in enumerate(cls):
-        if c == 1 or c == 6: # skipping combined classes
-            continue
 
-        y = extract_cls_mask(predicted_mask_cls_corrected, c)
+    predicted_mask_cls_corrected = np.argmax(predicted_mask_cls_corrected, axis=-1)
+
+    for i, c in enumerate(cls):
+        predicted_mask_cls_corrected[predicted_mask_cls_corrected == i] = c # ...
+
+    #i = -1
+    #for l, c in enumerate(cls):
+    #    i+=1
+    #    if c == 1 or c == 6: # skipping combined classes
+    #        i-=1
+    #        continue#
+#
+#        y = extract_cls_mask(predicted_mask_cls_corrected, c)#
 
         # For Sparcs gt combine classes (0,1) (2, 6)
 
         # ATTENTION: depending on int_cls input order in ImageSequence, model output order may vary...  
-        if c == 0:
-            y |= extract_cls_mask(predicted_mask_cls_corrected, 1)
-        elif c == 2:
-            y |= extract_cls_mask(predicted_mask_cls_corrected, 6)
+#        if c == 0:
+#            y |= extract_cls_mask(predicted_mask_cls_corrected, 1)
+#        elif c == 2:
+#            y |= extract_cls_mask(predicted_mask_cls_corrected, 6)
 
         # Save the binary masks as one hot representations
-        predicted_mask_cls_corrected[:, :, l] = y
-
-    categorical_accuracy = (predicted_mask_cls_corrected & true_mask_cls_corrected) / npix * (np.shape(predicted_mask_cls_corrected)[-1])
+#        predicted_mask_cls_corrected[:, :, i] = y
+    true_mask_cls_corrected = np.uint8(true_mask_cls_corrected)
+    categorical_accuracy = (predicted_mask_cls_corrected & true_mask_cls_corrected) / npix  # (true mask cls corrected has size(dim3) = 7, predicted mask not )
     
-    positives_mask = get_cls(params.satellite, params.test_dataset, cls_string=['shadow', 'thin', 'cloud', 'snow', 'water'])
+    positives_mask = get_cls(params.satellite, params.train_dataset, cls_string=POSITIVES)
 
     #non-cloudy types
     # [x for x in ['fill', 'clear'] if x in enumeration_cls]
-    negatives_mask = get_cls(params.satellite, params.test_dataset, cls_string=['fill', 'clear'])
+    negatives_mask = get_cls(params.satellite, params.train_dataset, cls_string=NEGATIVES)
 
     # perhaps index-correct the masks before
     pred_positives = np.isin(predicted_mask, positives_mask)
@@ -514,10 +542,6 @@ def calculate_sparse_class_evaluation_criteria(params, valid_pixels_mask, predic
     valid_pixels_mask = np.asarray(valid_pixels_mask, dtype=bool)
     # converted mask_true to predicted values as input
     #mask_true_cls_corrected = true_mask.copy()
-    
-    #for i, c in enumerate(params.cls): # cls have to be converted by get_cls beforehand
-    #    mask_true_cls_corrected[mask_true_cls_corrected == c] = i  # basically argmaxing, since model outputs class to index
-        # DOESNT WORK YET...
 
     argmaxed_pred_mask = np.argmax(predicted_mask, axis=-1)
 
@@ -535,22 +559,22 @@ def calculate_sparse_class_evaluation_criteria(params, valid_pixels_mask, predic
     # if fill is in predicted classes, this value will automatically (falsely) be higher
     categorical_accuracy = equal_count / npix
 
+    # perhaps implement acc,pred,... for every cls type
     #cloudy types / classy types
-    # [x for x in ['shadow', 'thin', 'cloud', 'snow', 'water'] if x in enumeration_cls]
-    
-    positives_mask = get_cls(params.satellite, params.test_dataset, cls_string=['shadow', 'thin', 'cloud', 'snow', 'water'])
+    positives_mask = get_cls(params.satellite, params.train_dataset, cls_string=POSITIVES)
 
     #non-cloudy types
-    # [x for x in ['fill', 'clear'] if x in enumeration_cls]
-    negatives_mask = get_cls(params.satellite, params.test_dataset, cls_string=['fill', 'clear'])
+    negatives_mask = get_cls(params.satellite, params.train_dataset, cls_string=NEGATIVES) # 'fill', removed fill as it should not count into metrics
 
-    # perhaps index-correct the masks before
     pred_positives = np.isin(argmaxed_pred_mask, positives_mask)
     pred_negatives = np.isin(argmaxed_pred_mask, negatives_mask)
     true_positives = np.isin(true_mask, positives_mask)
     true_negatives =  np.isin(true_mask, negatives_mask)
 
-    # npix = npix*n_cls ???
+    pred_positives_sum = pred_positives.sum()
+    pred_negatives_sum = pred_negatives.sum()
+    true_positives_sum = true_positives.sum()
+    true_negatives_sum = true_negatives.sum()
 
     tp = ((pred_positives & true_positives) & valid_pixels_mask).sum()
     fp = (true_negatives & pred_positives & valid_pixels_mask).sum()
@@ -577,7 +601,7 @@ def calculate_sparse_class_evaluation_criteria(params, valid_pixels_mask, predic
     else:
         omission = comission = 0
 
-    return categorical_accuracy, accuracy, omission, comission, pixel_jaccard, precision, recall, f_one_score, tp, tn, fp, fn, npix
+    return categorical_accuracy, accuracy, omission, comission, pixel_jaccard, precision, recall, f_one_score, tp, tn, fp, fn, npix, pred_positives_sum, pred_negatives_sum, true_positives_sum, true_negatives_sum
 
 
 

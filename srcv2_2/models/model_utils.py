@@ -17,6 +17,7 @@ from tensorflow.keras import backend as K
 from tensorflow.keras.backend import binary_crossentropy
 from tensorflow.keras.callbacks import ModelCheckpoint, TensorBoard, ReduceLROnPlateau, CSVLogger, EarlyStopping
 from tensorflow.keras.utils import Sequence
+# from tensorflow.metrics import SparseCategoricalAccuracy
 
 sys.path.insert(0, '../')
 from srcv2_2.utils import extract_collapsed_cls, extract_cls_mask, image_normalizer, get_cls
@@ -76,7 +77,7 @@ def get_callbacks(params):
     
     sparse_model_checkpoint = ModelCheckpoint(params.project_path + f'models/Unet/{params.modelID}.keras',
                                        monitor='val_sparse_categorical_accuracy',
-                                       save_weights_only=True,
+                                       save_weights_only=False,
                                        save_best_only=params.save_best_only)
 
     tensorboard = TensorBoard(log_dir=params.project_path + f"reports/Unet/tensorboard/{params.modelID}",

@@ -284,8 +284,8 @@ class UnetV2(object):
         # Save the weights (append the val score in the name)
         # There is a bug with multi_gpu_model (https://github.com/kuza55/keras-extras/issues/3), hence model.layers[-2]
         # self.model.save_weights(self.params.project_path + 'models/Unet/' + get_model_name(self.params))
-        #self.model.save(self.params.project_path + 'models/Unet/' + self.model_name + '.keras')
-        self.model.save(self.params.project_path + 'models/Unet/' + get_model_name(self.params) + '.keras')
+        # self.model.save(self.params.project_path + 'models/Unet/' + self.model_name + '.keras')
+        # self.model.save(self.params.project_path + 'models/Unet/' + get_model_name(self.params) + '.keras')
         self._save_params()
         self._save_history(history.history)
     
