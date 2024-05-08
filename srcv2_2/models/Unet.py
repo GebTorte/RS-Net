@@ -17,6 +17,7 @@ from tensorflow.keras.optimizers.legacy import Adam, Nadam
 #from tensorflow.keras.utils import multi_gpu_model
 from ..utils import get_model_name, get_cls
 from srcv2_2.models.model_utils import jaccard_coef, jaccard_coef_thresholded, jaccard_coef_loss, swish, get_callbacks, ImageSequence
+from srcv2_2.models.params import HParams
 from tensorflow.keras.utils import get_custom_objects  # To use swish activation function
 
 
@@ -189,7 +190,7 @@ class UnetV2(object):
     def train(self):
         #set training params to params used while training
         # self.training_params = self.params
-        print(f"Model {self.params.modelID}: Training on params: ", self.params.as_string(delimiter="\n"))
+        print(f"Model {self.params.modelID}: Training on params: ", self.params.as_string(delimiter="\n", skip_keys_list=["test_tiles", "project_path", "data_path", "toa_path"]))
 
         # Define callbacks
         csv_logger, model_checkpoint, reduce_lr, tensorboard, early_stopping, sparse_model_checkpoint, sparse_early_stopping= get_callbacks(self.params)
@@ -296,10 +297,23 @@ class UnetV2(object):
         return np.load(f"{self.params.project_path}reports/Unet/histories/{self.params.modelID}_history.npy", allow_pickle=True).item()
 
     def _save_params(self):
+        with open(self.params.project_path + 'models/Unet/' + self.params.modelID + '_params.json', 'w') as f:
+            f.write(self.params.as_string())
         # TODO: Jsonify this (json_dumps...)
-        with open(self.params.project_path + 'models/Unet/' + get_model_name(self.params) + '_params.json', 'w') as f:
-            json.dump(str(self.params.__dict__), f, indent=4)
+        #with open(self.params.project_path + 'models/Unet/' + get_model_name(self.params) + '_params.json', 'w') as f:
+        #    json.dump(str(self.params.__dict__), f, indent=4)
             #f.write(str(self.params.__dict__))
+
+    def _load_params(self):
+        try:
+            with open(self.params.project_path + 'models/Unet/' + self.params.modelID + '_params.json', 'r') as f:
+                txt = f.read().replace('\n', '')
+            loaded_params = HParams().parse(txt, delimiter=";")
+            # self.params = loaded_params
+            return loaded_params
+        except Exception as e:
+            return HParams()
+
 
     def predict(self, img):
         # Predict batches of patches

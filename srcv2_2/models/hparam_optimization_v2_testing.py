@@ -18,7 +18,7 @@ learning_rates = [1e-2, 1e-4, 1e-5, 1e-6, 1e-7, 1e-8]
 img_enhance_funcs = [None, "enhance_contrast"]
 norm_thresholds = [2**16 - 1, 25_000] # 16-bit-int and max_value of 
 use_batch_norm = [True, False]
-batch_norm_momentums = list(reversed([0.1, 0.5, 0.7, 0.95]))
+batch_norm_momentums = list(reversed([0.1, 0.5, 0.7, 0.85]))
 l2regs = [1e-2, 1e-4, 1e-6, 1e-8]
 dropouts = list(reversed([0, 1e-4, 1e-2, 0.1, 0.2]))
 dropout_on_last_layer_only=[False, True] # True,
@@ -48,7 +48,7 @@ epochs = [3, 5, 8, 12]# [3, 10, 20, 40, 80, 160, 200, 200, 200, 200, 200, 200, 2
 last_layer_activation_func = 'softmax'
 satellite = "Landsat8"
 
-BIOME_gt_cls_list=[['shadow', 'clear', 'thin', 'cloud'], ['clear', 'cloud'], ['fill', 'clear', 'cloud']] #['fill','shadow', 'clear', 'thin', 'cloud'],  # [['clear', 'cloud', 'shadow', 'snow', 'water']] # [['clear', 'cloud', 'thin', 'shadow']] 
+BIOME_gt_cls_list=[['shadow', 'clear', 'thin', 'cloud'], ['clear', 'cloud']] #['fill','shadow', 'clear', 'thin', 'cloud'],  # [['clear', 'cloud', 'shadow', 'snow', 'water']] # [['clear', 'cloud', 'thin', 'shadow']] 
 BIOME_fmask_cls_list = [['clear', 'cloud', 'shadow', 'snow', 'water']] # ['clear', 'cloud']
 SPARCS_gt_cls_list = [['shadow', 'snow', 'water', 'cloud', 'clear'], ['clear', 'cloud']]
 train_datasets = ["Biome_gt"] #  "Biome_fmask", # "SPARCS_gt", omitting SPARCS until eval_model_sparcs_dataset is fixed (cls conversion/masking)
@@ -57,7 +57,7 @@ train_datasets = ["Biome_gt"] #  "Biome_fmask", # "SPARCS_gt", omitting SPARCS u
 
 collapse_cls = False
 overlaps = [10, 40] # has to be of even , 40
-train_overlaps = [10, 40] # probably has no effect other than upping training time. Might cause problems with clip_pixels = overlap / 2
+#train_overlaps = list(reversed([0, 10, 40])) # probably has no effect other than upping training time. Might cause problems with clip_pixels = overlap / 2, if overlap != train_overlap
 
 interpreter = "/home/mxh/anaconda3/envs/tf2+gpu_v2/bin/python3"
 script = "/home/mxh/RS-Net/SentinelSemanticSegmentation_v2.py"
