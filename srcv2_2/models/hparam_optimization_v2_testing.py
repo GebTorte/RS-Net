@@ -14,16 +14,16 @@ activation_functions = ['elu', "leaky_relu",] # 'relu'
 leaky_alphas = [0.05, 0.1, 0.2]
 loss_functions = ['sparse_categorical_crossentropy'] # , 'categorical_crossentropy'] # ['binary_crossentropy']
 initializers = ['glorot_normal', 'he_normal']
-learning_rates = [1e-5, 1e-6, 1e-7, 1e-8]
+learning_rates = [1e-2, 1e-4, 1e-5, 1e-6, 1e-7, 1e-8]
 img_enhance_funcs = [None, "enhance_contrast"]
 norm_thresholds = [2**16 - 1, 25_000] # 16-bit-int and max_value of 
 use_batch_norm = [True, False]
-batch_norm_momentums = [0.1, 0.5, 0.7, 0.95]
+batch_norm_momentums = list(reversed([0.1, 0.5, 0.7, 0.95]))
 l2regs = [1e-2, 1e-4, 1e-6, 1e-8]
 dropouts = list(reversed([0, 1e-4, 1e-2, 0.1, 0.2]))
 dropout_on_last_layer_only=[False, True] # True,
 decays = list(reversed([0, 0.2, 1e-2]))
-reduce_lr = [False, True]
+reduce_lr = [True, False]
 early_stoppings = [False, True]
 band_combinations = [[1, 2, 3, 4, 5, 6, 7]] # [[1, 2, 3, 4, 5, 6, 7, 9, 10, 11], [1, 2, 3, 4, 5, 6, 7, 9], [2, 3, 4, 5], [2, 3, 4], [3]]
 """
@@ -68,17 +68,17 @@ for train_dataset in train_datasets:
     split_flag = True
     ## for train_overlap in train_overlaps:
     for overlap in overlaps:
-        params = f"--params=\"train_dataset={train_dataset};overlap={overlap};satellite={satellite};split_dataset={split_flag}\""  # ;overlap_train_set={overlap}
+        # params = f"--params=\"train_dataset={train_dataset};overlap={overlap};satellite={satellite};split_dataset={split_flag}\""  # ;overlap_train_set={overlap}
         params = HParams(train_dataset=train_dataset, test_dataset=train_dataset,overlap=overlap, overlap_train_set=0, satellite=satellite, split_dataset=split_flag)
         subprocess.check_call([interpreter,
                             script,
                             "--make_dataset",  # needed if cls definitions changed from fmask to gt or vice versa  
-                            # and for different overlaps/train_dataset_overlaps which are interdependent
+                            # and for different overlaps/train_dataset_overlaps which can be interdependent, depending on implementation
                             "--satellite", str(satellite),
                             "--params="+params.as_string()])
         for activation_func in activation_functions: 
-            leaky_alphas = leaky_alphas if activation_func == "leaky_relu" else [0.1] # dummy val
-            for leaky_alpha in leaky_alphas:
+            leaky_alphas_dummy = leaky_alphas if activation_func == "leaky_relu" else [0.1] # dummy val
+            for leaky_alpha in leaky_alphas_dummy:
                 for loss_func in loss_functions:
                     for learning_rate in learning_rates:                  
                         for l2reg in l2regs:
@@ -86,15 +86,15 @@ for train_dataset in train_datasets:
                                 for decay in decays:
                                     for d_bool in dropout_on_last_layer_only:
                                         for use_bn in use_batch_norm:
-                                            batch_norm_momentums = batch_norm_momentums if use_bn else [0.7] # dummy val
-                                            for bn_momentum in batch_norm_momentums:
+                                            batch_norm_momentums_dummy = batch_norm_momentums if use_bn else [0.7] # dummy val
+                                            for bn_momentum in batch_norm_momentums_dummy:
                                                 for epoch_no in epochs:                                
                                                     for bands in band_combinations:
                                                         for initializer in initializers:
                                                             for early_stop in early_stoppings:
                                                                 for img_enhancer in img_enhance_funcs:
-                                                                    norm_thresholds = norm_thresholds if img_enhancer == "enhance_contrast" else [2**16-1] # dummy val
-                                                                    for norm_threshold in norm_thresholds:
+                                                                    norm_thresholds_dummy = norm_thresholds if img_enhancer == "enhance_contrast" else [2**16-1] # dummy val
+                                                                    for norm_threshold in norm_thresholds_dummy:
                                                                         for cls in cls_list:
                                                                             if loss_func == "sparse_categorical_crossentropy":
                                                                                 int_cls = get_cls(satellite, train_dataset, cls)
