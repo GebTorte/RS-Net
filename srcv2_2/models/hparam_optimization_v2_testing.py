@@ -134,7 +134,7 @@ for train_dataset in train_datasets:
                                                                                                 str_cls=cls,
                                                                                                 int_cls=int_cls,
                                                                                                 train_dataset=train_dataset,
-                                                                                                test_dataset="Biome_gt",
+                                                                                                test_dataset=train_dataset, # atm only train=test implemented
                                                                                                 collapse_cls=collapse_cls,
                                                                                                 overlap=overlap,
                                                                                                 overlap_train_set=0,

@@ -15,10 +15,11 @@ class HParams:
     def get_config(self):
         return {'__dict__', self.__dict__} # (self.__dict__)
 
-    def as_string(self, delimiter=";", eq="=", stop_at=-1) -> str:
+    def as_string(self, delimiter=";", eq="=", stop_at=-1, skip_keys_list=["test_tiles", "project_path", "data_path", "toa_path"]) -> str:
         self_string = ""
         for key, value in self.__dict__.items():
-            self_string += key + eq + str(value) + delimiter
+            if key not in skip_keys_list:
+                self_string += key + eq + str(value) + delimiter
         return self_string[:stop_at] # leaving out last delimiter
 
     def parse(self, params):

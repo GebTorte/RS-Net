@@ -61,7 +61,7 @@ def __evaluate_sparcs_dataset__(model, num_gpus, params, save_output=False, writ
 
         # Load true mask
         mask_true = np.array(Image.open(data_path + product[0:25] + 'mask.png'))
-        mask_true_copy = mask_true.copy()
+        mask_true_cls_corrected = np.zeros((np.shape(mask_true)[0], np.shape(mask_true)[0], np.size(params.cls)))
 
         # Pad the image for improved borders
         padding_size = params.overlap
@@ -76,7 +76,6 @@ def __evaluate_sparcs_dataset__(model, num_gpus, params, save_output=False, writ
         # Create the binary masks
         if params.collapse_cls:
             mask_true = extract_collapsed_cls(mask_true, cls)
-
         else:
             for l, c in enumerate(cls):
                 if c == 1 or c == 6: # skipping combined classes
@@ -107,7 +106,7 @@ def __evaluate_sparcs_dataset__(model, num_gpus, params, save_output=False, writ
                     y |= extract_cls_mask(mask_true, 6)
 
                 # Save the binary masks as one hot representations
-                mask_true[:, :, l] = y[:, :, 0]
+                mask_true_cls_corrected[:,:,l] = y
 
         # Predict the images
         predicted_mask_padded, _ = predict_img(model, params, img_padded, n_bands, n_cls, num_gpus)
@@ -132,7 +131,7 @@ def __evaluate_sparcs_dataset__(model, num_gpus, params, save_output=False, writ
             else:
                 if params.loss_func == "sparse_categorical_crossentropy":
                     categorical_accuracy, accuracy, omission, comission, pixel_jaccard, precision, recall, f_one_score, tp, tn, fp, fn, npix = calculate_sparse_sparcs_class_evaluation_criteria(params, 
-                                                                                                                                                valid_pixels_mask, predicted_mask, mask_true)
+                                                                                                                                                valid_pixels_mask, predicted_mask, mask_true_cls_corrected)
                 elif params.loss_func == "categorical_crossentropy":
                     categorical_accuracy, accuracy, omission, comission, pixel_jaccard, precision, recall, f_one_score, tp, tn, fp, fn, npix = calculate_class_evaluation_criteria(params.cls, 
                     cls, valid_pixels_mask, predicted_mask, mask_true)
@@ -461,7 +460,7 @@ def calculate_sparse_sparcs_class_evaluation_criteria(params, valid_pixels_mask,
             y |= extract_cls_mask(predicted_mask_cls_corrected, 6)
 
         # Save the binary masks as one hot representations
-        predicted_mask_cls_corrected[:, :, l] = y[:, :, 0]
+        predicted_mask_cls_corrected[:, :, l] = y
 
     categorical_accuracy = (predicted_mask_cls_corrected & true_mask_cls_corrected) / npix * (np.shape(predicted_mask_cls_corrected)[-1])
     
