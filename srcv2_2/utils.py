@@ -353,6 +353,7 @@ def extract_cls_mask(mask, c):
 
     # Make a binary mask for the specific class
     y[y == c] = 1
+    #y[y != c] = 0
     y[y != 1] = 0
     return y
 

@@ -61,6 +61,7 @@ def __evaluate_sparcs_dataset__(model, num_gpus, params, save_output=False, writ
 
         # Load true mask
         mask_true = np.array(Image.open(data_path + product[0:25] + 'mask.png'))
+        mask_true_copy = mask_true.copy()
 
         # Pad the image for improved borders
         padding_size = params.overlap
@@ -107,7 +108,6 @@ def __evaluate_sparcs_dataset__(model, num_gpus, params, save_output=False, writ
 
                 # Save the binary masks as one hot representations
                 mask_true[:, :, l] = y[:, :, 0]
-
 
         # Predict the images
         predicted_mask_padded, _ = predict_img(model, params, img_padded, n_bands, n_cls, num_gpus)
@@ -433,15 +433,37 @@ def __evaluate_biome_dataset__(model, num_gpus, params, save_output=False, write
     if write_csv:
         write_csv_files(evaluation_metrics, params)
 
-def calculate_sparse_sparcs_class_evaluation_criteria(params, valid_pixels_mask, predicted_mask, true_mask):
+def calculate_sparse_sparcs_class_evaluation_criteria(params, valid_pixels_mask, predicted_mask, true_mask_cls_corrected):
     """
+    ATTENTION: this is only for non-collapse-cls
     """
     print("Sparse Metrics")
     # Count number of actual pixels
     npix = valid_pixels_mask.sum()
     valid_pixels_mask = np.asarray(valid_pixels_mask, dtype=bool)
  
-    categorical_accuracy = (predicted_mask & true_mask) / npix * (np.size(params.cls)) # assuming output classes have been re-combined
+    # TODO: combine classes (0,1) and (2,6) in predicted mask and lAND it with true_mask (cls-corrected one)
+            # Create the binary masks
+    cls = get_cls(params.satellite, "SPARCS_gt", params.cls)
+    predicted_mask_cls_corrected = predicted_mask.copy()
+    for l, c in enumerate(cls):
+        if c == 1 or c == 6: # skipping combined classes
+            continue
+
+        y = extract_cls_mask(predicted_mask_cls_corrected, c)
+
+        # For Sparcs gt combine classes (0,1) (2, 6)
+
+        # ATTENTION: depending on int_cls input order in ImageSequence, model output order may vary...  
+        if c == 0:
+            y |= extract_cls_mask(predicted_mask_cls_corrected, 1)
+        elif c == 2:
+            y |= extract_cls_mask(predicted_mask_cls_corrected, 6)
+
+        # Save the binary masks as one hot representations
+        predicted_mask_cls_corrected[:, :, l] = y[:, :, 0]
+
+    categorical_accuracy = (predicted_mask_cls_corrected & true_mask_cls_corrected) / npix * (np.shape(predicted_mask_cls_corrected)[-1])
     
     positives_mask = get_cls(params.satellite, params.test_dataset, cls_string=['shadow', 'thin', 'cloud', 'snow', 'water'])
 

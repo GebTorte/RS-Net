@@ -45,7 +45,7 @@ L8 | MODGA09
 
 Order: 3, 4, 1, 2, 6, 7, 5
 """
-epochs = [3, 5, 8, 12]# [3, 10, 20, 40, 80, 160, 200, 200, 200, 200, 200, 200, 200, 200]  # Only used to run random search for longer
+epochs = [2, 3, 5, 8, 12]# [3, 10, 20, 40, 80, 160, 200, 200, 200, 200, 200, 200, 200, 200]  # Only used to run random search for longer
 last_layer_activation_func = 'softmax'
 satellite = "Landsat8"
 BIOME_gt_cls_list=[['fill','shadow', 'clear', 'thin', 'cloud'], ['shadow', 'clear', 'thin', 'cloud'], ['clear', 'cloud'], ['fill', 'clear', 'cloud']] #['fill','shadow', 'clear', 'thin', 'cloud'],  # [['clear', 'cloud', 'shadow', 'snow', 'water']] # [['clear', 'cloud', 'thin', 'shadow']] 
