@@ -51,16 +51,13 @@ satellite = "Landsat8"
 BIOME_gt_cls_list=[['fill','shadow', 'clear', 'thin', 'cloud'], ['shadow', 'clear', 'thin', 'cloud'], ['clear', 'cloud'], ['fill', 'clear', 'cloud']] #['fill','shadow', 'clear', 'thin', 'cloud'],  # [['clear', 'cloud', 'shadow', 'snow', 'water']] # [['clear', 'cloud', 'thin', 'shadow']] 
 BIOME_fmask_cls_list = [['clear', 'cloud', 'shadow', 'snow', 'water']] # ['clear', 'cloud']
 SPARCS_gt_cls_list = [['shadow', 'snow', 'water', 'cloud', 'clear'], ['clear', 'cloud']]
-train_datasets = ["SPARCS_gt","Biome_gt"] #  "Biome_fmask", 
+train_datasets = ["Biome_gt"] #  "Biome_fmask", # "SPARCS_gt", omitting SPARCS until eval_model_sparcs_dataset is fixed (cls conversion/masking)
 # ['clear', 'shadow', 'thin', 'cloud'] # thin only in Biome_gt
 # ['clear', 'cloud', 'shadow', 'snow', 'water']  # this is only possible on BIOME_fmask
+
 collapse_cls = False
 overlaps = [10, 40] # has to be of even , 40
-train_overlaps = [10, 40]
-
-# possibly trying without NORMALIZATION 
-# normalized_dataset = False ";normalized_dataset=" + str(normalized_dataset) + \ 
-#"--normalize_dataset" if normalized_dataset else ""
+train_overlaps = [10, 40] # probably has no effect other than upping training time. Might cause problems with clip_pixels = overlap / 2
 
 interpreter = "/home/mxh/anaconda3/envs/tf2+gpu_v2/bin/python3"
 script = "/home/mxh/RS-Net/SentinelSemanticSegmentation_v2.py"
@@ -72,7 +69,7 @@ for train_dataset in train_datasets:
     ## for train_overlap in train_overlaps:
     for overlap in overlaps:
         params = f"--params=\"train_dataset={train_dataset};overlap={overlap};satellite={satellite};split_dataset={split_flag}\""  # ;overlap_train_set={overlap}
-        params = HParams(train_dataset=train_dataset, overlap=overlap, overlap_train_set=0, satellite=satellite, split_dataset=split_flag)
+        params = HParams(train_dataset=train_dataset, test_dataset=train_dataset,overlap=overlap, overlap_train_set=0, satellite=satellite, split_dataset=split_flag)
         subprocess.check_call([interpreter,
                             script,
                             "--make_dataset",  # needed if cls definitions changed from fmask to gt or vice versa  
