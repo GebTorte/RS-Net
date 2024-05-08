@@ -129,18 +129,20 @@ class ImageSequence(Sequence):
         self.x_all_bands = np.zeros((params.batch_size, params.patch_size, params.patch_size, 10), dtype=np.float32)
         self.x = np.zeros((params.batch_size, params.patch_size, params.patch_size, np.size(params.bands)), dtype=np.float32)
 
-        self.clip_pixels = np.int32(params.overlap / 2) # might have to change to training_overlap here
+        self.clip_pixels = np.int32(params.overlap / 2) # might have to change to training_overlap here, if train data generator
         self.y = np.zeros((params.batch_size, params.patch_size - 2*self.clip_pixels, params.patch_size - 2*self.clip_pixels, 1), dtype=np.float32)
 
         # Load the params object for the normalizer function (not nice!)
         self.params = params
 
         # Convert class names to the actual integers in the masks (convert e.g. 'cloud' to 255 for Landsat8)
-        if self.params.loss_func == "sparse_categorical_crossentropy":
-            # cls have then been provided as int already
-            self.cls = self.params.cls 
-        else:
-            self.cls = get_cls(self.params.satellite, self.params.train_dataset, self.params.cls)
+        #if self.params.loss_func == "sparse_categorical_crossentropy":
+        #    # cls have then been provided as int already
+        #    self.cls = self.params.cls 
+        #else:
+
+        #provide the cls as integers
+        self.cls = get_cls(self.params.satellite, self.params.train_dataset, self.params.cls)
 
         # Augment the data
         self.augment_data = augment_data
@@ -191,7 +193,8 @@ class ImageSequence(Sequence):
             # Create the binary masks
             if self.params.collapse_cls:
                 mask = extract_collapsed_cls(mask, self.cls)
-                # Save the (binary) mask (cropped)
+            
+                # Save the (binary) mask (cropped) ( this will crop too much if indented once less)
                 self.y[i, :, :, :] = mask[self.clip_pixels:self.params.patch_size - self.clip_pixels,
                                         self.clip_pixels:self.params.patch_size - self.clip_pixels,
                                         :]

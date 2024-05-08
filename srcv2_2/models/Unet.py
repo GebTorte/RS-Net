@@ -188,15 +188,15 @@ class UnetV2(object):
 
     def train(self):
         #set training params to params used while training
-        self.training_params = self.params
-        print("Model: Training on cls categories: ", self.params.cls)
+        # self.training_params = self.params
+        print(f"Model {self.params.modelID}: Training on params: ", self.params.as_string(delimiter="\n"))
 
         # Define callbacks
         csv_logger, model_checkpoint, reduce_lr, tensorboard, early_stopping, sparse_model_checkpoint, sparse_early_stopping= get_callbacks(self.params)
         used_callbacks = [csv_logger,  tensorboard]
 
         if self.params.reduce_lr:
-                used_callbacks.append(reduce_lr)
+            used_callbacks.append(reduce_lr)
         if self.params.loss_func == "binary_crossentropy":
             if self.params.early_stopping:
                 used_callbacks.append(early_stopping)

@@ -36,6 +36,9 @@ def __evaluate_sparcs_dataset__(model, num_gpus, params, save_output=False, writ
     # Define thresholds and initialize evaluation metrics dict
     thresholds = [0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5,
                   0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95]
+    
+    if "categorical_crossentropy" in params.loss_func:
+        thresholds = [params.threshold] # dummy threshold
 
     evaluation_metrics = {}
     evaluating_product_no = 1  # Used in print statement later
@@ -66,18 +69,45 @@ def __evaluate_sparcs_dataset__(model, num_gpus, params, save_output=False, writ
 
         # Get the masks
         #cls = get_cls(params)
-        cls = [5]  # TODO: Currently hardcoded to look at clouds - fix it!
+        #cls = [5]  # TODO: Currently hardcoded to look at clouds - fix it!
+        cls = get_cls(params.satellite, "SPARCS_gt", params.cls)
 
         # Create the binary masks
         if params.collapse_cls:
             mask_true = extract_collapsed_cls(mask_true, cls)
 
         else:
-            for l, c in enumerate(params.cls):
-                y = extract_cls_mask(mask_true, cls)
+            for l, c in enumerate(cls):
+                if c == 1 or c == 6: # skipping combined classes
+                    continue
+
+                y = extract_cls_mask(mask_true, c)
+        
+                # For Sparcs gt combine classes (0,1) (2, 6)
+                """
+                if c == 'shadow':
+                    cls_int.append(0)
+                    cls_int.append(1)
+                elif c == 'water':
+                    cls_int.append(2)
+                    cls_int.append(6)
+                elif c == 'snow':
+                    cls_int.append(3)
+                elif c == 'cloud':
+                    cls_int.append(5)
+                elif c == 'clear':
+                    cls_int.append(4)
+                """
+
+                # ATTENTION: depending on int_cls input order in ImageSequence, model output order may vary...  
+                if c == 0:
+                    y |= extract_cls_mask(mask_true, 1)
+                elif c == 2:
+                    y |= extract_cls_mask(mask_true, 6)
 
                 # Save the binary masks as one hot representations
                 mask_true[:, :, l] = y[:, :, 0]
+
 
         # Predict the images
         predicted_mask_padded, _ = predict_img(model, params, img_padded, n_bands, n_cls, num_gpus)
@@ -96,8 +126,16 @@ def __evaluate_sparcs_dataset__(model, num_gpus, params, save_output=False, writ
         for j, threshold in enumerate(thresholds):
             predicted_binary_mask = np.uint8(predicted_mask >= threshold)
 
-            accuracy, omission, comission, pixel_jaccard, precision, recall, f_one_score, tp, tn, fp, fn, npix = calculate_evaluation_criteria(
-                valid_pixels_mask, predicted_binary_mask, mask_true)
+            categorical_accuracy = accuracy= omission= comission= pixel_jaccard= precision= recall= f_one_score= tp= tn = fp = fn = npix = 0
+            if params.collapse_cls:
+                accuracy, omission, comission, pixel_jaccard, precision, recall, f_one_score, tp, tn, fp, fn, npix = calculate_evaluation_criteria(valid_pixels_mask, predicted_binary_mask, mask_true)
+            else:
+                if params.loss_func == "sparse_categorical_crossentropy":
+                    categorical_accuracy, accuracy, omission, comission, pixel_jaccard, precision, recall, f_one_score, tp, tn, fp, fn, npix = calculate_sparse_sparcs_class_evaluation_criteria(params, 
+                                                                                                                                                valid_pixels_mask, predicted_mask, mask_true)
+                elif params.loss_func == "categorical_crossentropy":
+                    categorical_accuracy, accuracy, omission, comission, pixel_jaccard, precision, recall, f_one_score, tp, tn, fp, fn, npix = calculate_class_evaluation_criteria(params.cls, 
+                    cls, valid_pixels_mask, predicted_mask, mask_true)
 
             # Create an additional nesting in the dict for each threshold value
             evaluation_metrics[product]['threshold_' + str(threshold)] = {}
@@ -108,6 +146,7 @@ def __evaluate_sparcs_dataset__(model, num_gpus, params, save_output=False, writ
             evaluation_metrics[product]['threshold_' + str(threshold)]['fn'] = fn
             evaluation_metrics[product]['threshold_' + str(threshold)]['tn'] = tn
             evaluation_metrics[product]['threshold_' + str(threshold)]['npix'] = npix
+            evaluation_metrics[product]['threshold_' + str(threshold)]['categorical_accuracy'] = categorical_accuracy
             evaluation_metrics[product]['threshold_' + str(threshold)]['accuracy'] = accuracy
             evaluation_metrics[product]['threshold_' + str(threshold)]['precision'] = precision
             evaluation_metrics[product]['threshold_' + str(threshold)]['recall'] = recall
@@ -126,6 +165,7 @@ def __evaluate_sparcs_dataset__(model, num_gpus, params, save_output=False, writ
                   ": fp=" + str(evaluation_metrics[product]['threshold_' + str(threshold)]['fp']) +
                   ": fn=" + str(evaluation_metrics[product]['threshold_' + str(threshold)]['fn']) +
                   ": tn=" + str(evaluation_metrics[product]['threshold_' + str(threshold)]['tn']) +
+                  ": Categorical-Accuracy=" + str(evaluation_metrics[product]['threshold_' + str(threshold)]['categorical_accuracy']) +
                   ": Accuracy=" + str(evaluation_metrics[product]['threshold_' + str(threshold)]['accuracy']) +
                   ": precision=" + str(evaluation_metrics[product]['threshold_' + str(threshold)]['precision']) +
                   ": recall=" + str(evaluation_metrics[product]['threshold_' + str(threshold)]['recall']) +
@@ -233,10 +273,7 @@ def __evaluate_biome_dataset__(model, num_gpus, params, save_output=False, write
             #    pass
 
             # Get the masks
-            if params.loss_func == "binary_crossentropy":
-                cls = get_cls('Landsat8', 'Biome_gt', params.cls)
-            elif params.loss_func == "categorical_crossentropy":
-                cls = params.cls # assuming they are already int converted
+            cls = get_cls('Landsat8', 'Biome_gt', params.cls)
            
             # Create the binary masks
             if params.collapse_cls:
@@ -336,20 +373,21 @@ def __evaluate_biome_dataset__(model, num_gpus, params, save_output=False, write
 
                 # Save predicted mask as 16 bit png file (https://github.com/python-pillow/Pillow/issues/2970)
                 #arr = np.uint16(predicted_mask[:, :, 0] * (2**16-1))
-                cloud_arr = np.uint16(predicted_mask[:, :, params.cls.index(255)] * (2**16-1)) # indexed layer of cloud
+                
 
                 if params.loss_func == "sparse_categorical_crossentropy":
                     argmaxed_pred = np.argmax(predicted_mask, axis=-1)
                     #predicted_mask_copy = predicted_mask.copy() # this would be the multi-layered output. Too big as tiff though.
                     # get_cls(params.satellite, params.train_dataset, params.cls)
                     for i, c in enumerate(params.cls): # cls have to be converted by get_cls beforehand
-                        argmaxed_pred[argmaxed_pred == i] = min(c * 2**8, 2**16 - 1) # as c is uint8
+                        argmaxed_pred[argmaxed_pred == i] = min(c, 2**8 - 1) # as c is uint8
                         #predicted_mask_copy[:,:,i][argmaxed_pred == i] = c
 
-                    arr2_buffer = np.uint16(argmaxed_pred).tobytes()
-                    img2 = Image.new("I", argmaxed_pred.T.shape)
-                    img2.frombytes(arr2_buffer, 'raw', "I;16")
-                    img2.save(data_output_path + params.modelID + f'/{product}-nb_prediction.png')
+                    img = Image.fromarray(argmaxed_pred)
+                    #arr2_buffer = np.uint16(argmaxed_pred).tobytes()
+                    #img2 = Image.new("RGB", argmaxed_pred.T.shape)
+                    #img2.frombytes(arr2_buffer, 'raw', "I;16")
+                    img.save(data_output_path + params.modelID + f'/{product}-nb_prediction.png')
                     
                     # predicted_mask_copy_buffer = np.uint8(predicted_mask_copy).tobytes()
                     #img3 = Image.fromarray(predicted_mask_copy, mode='RGBA')
@@ -358,10 +396,13 @@ def __evaluate_biome_dataset__(model, num_gpus, params, save_output=False, write
                     #deactivate for now as tiffs use too much space
                     #tiff.imwrite(data_output_path + params.modelID + f'/{product}-layered_nb_prediction.tiff', data=np.uint8(predicted_mask_copy))
                     #tiff.imwrite(data_output_path + params.modelID + f'/{product}-nb_prediction.tiff', data=arr2_buffer)
-                
-                array_buffer = cloud_arr.tobytes()
-                img = Image.new("I", cloud_arr.T.shape)
-                img.frombytes(array_buffer, 'raw', "I;16")
+
+                cloud_arr = np.uint8(predicted_mask[:, :, params.str_cls.index('cloud')] * (2**8-1)) # indexed layer of cloud, assuming cloud is in predicted classes
+                #array_buffer = cloud_arr.tobytes()
+
+                img = Image.fromarray(cloud_arr)
+                #img = Image.new("L", cloud_arr.T.shape)
+                #img.frombytes(array_buffer, 'raw', "L")
                 img.save(data_output_path + params.modelID + f'/{product}-cloud_prediction.png')
             save_time.append(time.time() - save_time_start)
 
@@ -392,6 +433,57 @@ def __evaluate_biome_dataset__(model, num_gpus, params, save_output=False, write
     if write_csv:
         write_csv_files(evaluation_metrics, params)
 
+def calculate_sparse_sparcs_class_evaluation_criteria(params, valid_pixels_mask, predicted_mask, true_mask):
+    """
+    """
+    print("Sparse Metrics")
+    # Count number of actual pixels
+    npix = valid_pixels_mask.sum()
+    valid_pixels_mask = np.asarray(valid_pixels_mask, dtype=bool)
+ 
+    categorical_accuracy = (predicted_mask & true_mask) / npix * (np.size(params.cls)) # assuming output classes have been re-combined
+    
+    positives_mask = get_cls(params.satellite, params.test_dataset, cls_string=['shadow', 'thin', 'cloud', 'snow', 'water'])
+
+    #non-cloudy types
+    # [x for x in ['fill', 'clear'] if x in enumeration_cls]
+    negatives_mask = get_cls(params.satellite, params.test_dataset, cls_string=['fill', 'clear'])
+
+    # perhaps index-correct the masks before
+    pred_positives = np.isin(predicted_mask, positives_mask)
+    pred_negatives = np.isin(predicted_mask, negatives_mask)
+    true_positives = np.isin(true_mask, positives_mask)
+    true_negatives =  np.isin(true_mask, negatives_mask)
+
+    # npix = npix*n_cls ???
+
+    tp = ((pred_positives & true_positives) & valid_pixels_mask).sum()
+    fp = (true_negatives & pred_positives & valid_pixels_mask).sum()
+    fn = ((pred_negatives & true_positives) & valid_pixels_mask).sum()
+    tn = npix - tp - fp - fn
+
+    # Calculate metrics
+    accuracy = (tp + tn) / npix
+    if tp != 0:
+        precision = tp / (tp + fp)
+        recall = tp / (tp + fn)
+        f_one_score = 2 * (precision * recall) / (precision + recall)
+        # See https://en.wikipedia.org/wiki/Jaccard_index#Similarity_of_asymmetric_binary_attributes
+        pixel_jaccard = tp / (tp + fp + fn)
+    else:
+        precision = recall = f_one_score = pixel_jaccard = 0
+
+    # Metrics from Foga 2017 paper
+    # if fp!=0: # accunting for runtime division by 0 (tn was 0)
+    if fp != 0 and tn != 0:
+        omission = fp / (tp + fp)
+        comission = fp / (tn + fn)
+
+    else:
+        omission = comission = 0
+
+    return categorical_accuracy, accuracy, omission, comission, pixel_jaccard, precision, recall, f_one_score, tp, tn, fp, fn, npix
+
 def calculate_sparse_class_evaluation_criteria(params, valid_pixels_mask, predicted_mask, true_mask):
     """
     """
@@ -410,7 +502,7 @@ def calculate_sparse_class_evaluation_criteria(params, valid_pixels_mask, predic
 
     # enumeration_cls = get_cls(params.satellite, params.train_dataset, params.cls)
     
-    for i, c in enumerate(params.cls): # cls have to be converted by get_cls beforehand# has to be correct order!
+    for i, c in enumerate(get_cls(params.satellite, params.test_dataset, params.cls)): # cls have to be converted by get_cls beforehand# has to be correct order!
         argmaxed_pred_mask[argmaxed_pred_mask == i] = c  # convert indices of model output to cls
 
     argmaxed_pred_mask = np.uint8(argmaxed_pred_mask)
@@ -419,18 +511,18 @@ def calculate_sparse_class_evaluation_criteria(params, valid_pixels_mask, predic
     equal_count=np.sum(binary_accuracy_mask)
 
     #categorical_accuracy = # of correctly predicted records / total number of records
+    # if fill is in predicted classes, this value will automatically (falsely) be higher
     categorical_accuracy = equal_count / npix
 
     #cloudy types / classy types
     # [x for x in ['shadow', 'thin', 'cloud', 'snow', 'water'] if x in enumeration_cls]
     
-    positives_mask = get_cls(params.satellite, params.train_dataset, cls_string=['shadow', 'thin', 'cloud', 'snow', 'water'])
+    positives_mask = get_cls(params.satellite, params.test_dataset, cls_string=['shadow', 'thin', 'cloud', 'snow', 'water'])
 
     #non-cloudy types
     # [x for x in ['fill', 'clear'] if x in enumeration_cls]
-    negatives_mask = get_cls(params.satellite, params.train_dataset, cls_string=['fill', 'clear'])
+    negatives_mask = get_cls(params.satellite, params.test_dataset, cls_string=['fill', 'clear'])
 
-    # this might not run correctly if positives and negatives indices are off!
     # perhaps index-correct the masks before
     pred_positives = np.isin(argmaxed_pred_mask, positives_mask)
     pred_negatives = np.isin(argmaxed_pred_mask, negatives_mask)
@@ -443,7 +535,6 @@ def calculate_sparse_class_evaluation_criteria(params, valid_pixels_mask, predic
     fp = (true_negatives & pred_positives & valid_pixels_mask).sum()
     fn = ((pred_negatives & true_positives) & valid_pixels_mask).sum()
     tn = npix - tp - fp - fn
-
 
     # Calculate metrics
     accuracy = (tp + tn) / npix

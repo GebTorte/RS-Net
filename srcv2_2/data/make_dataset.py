@@ -207,7 +207,7 @@ def __make_landsat8_sparcs_dataset__(params):
     os.makedirs(params.project_path + 'data/processed/val/mask')
 
     # Define paths
-    raw_data_path = "./data/raw/SPARCS_dataset/"
+    raw_data_path = "./data/raw/SPARCS_dataset/l8cloudmasks/sending/"
     toa_data_path = "./data/processed/SPARCS_TOA/"
     fmask_path = "./data/output/SPARCS/"
     processed_data_path = params.project_path + 'data/processed/'

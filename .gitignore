@@ -33,6 +33,8 @@ models/Unet/*
 
 reports/Unet/csvlogger/*
 !reports/Unet/csvlogger/.gitkeep
+reports/Unet/histories/*
+!reports/Unet/histories/.gitkeep
 reports/Unet/tensorboard/*
 !reports/Unet/tensorboard/.gitkeep
 

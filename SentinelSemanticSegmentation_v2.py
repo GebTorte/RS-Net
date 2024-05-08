@@ -123,7 +123,6 @@ if __name__ == '__main__':
     # If any hyperparameters were overwritten in the commandline, parse them into params
     if args.params:
         params.parse(args.params)
-        # print("parsed params: ", params.__dict__)
 
     # If you want to use local files (else it uses network drive)
     if args.dev_dataset:
