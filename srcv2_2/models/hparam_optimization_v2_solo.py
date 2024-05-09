@@ -30,8 +30,9 @@ L8 | MODGA09
 Order: 3, 4, 1, 2, 6, 7, 5
 """
 
-
+CLS=['fill', 'shadow', 'clear', 'thin', 'cloud']
 SATELLITE = "Landsat8"
+TRAIN_DATASET = "Biome_gt"
 
 interpreter = "/home/mxh/anaconda3/envs/tf2+gpu_v2/bin/python3"
 script = "/home/mxh/RS-Net/SentinelSemanticSegmentation_v2.py"
@@ -39,30 +40,30 @@ script = "/home/mxh/RS-Net/SentinelSemanticSegmentation_v2.py"
 params = HParams(activation_func="elu",
                 leaky_alpha=0.1,
                 loss_func="sparse_categorical_crossentropy",
-                learning_rate=3e-6,
+                learning_rate=1e-7,
                 reduce_lr=True, # False
                 patience=1,
                 L2reg=1e-4,
-                dropout=0.1,
+                dropout=0,
                 decay=0.1,
                 bands=[1, 2, 3, 4, 5, 6, 7],
-                epochs=4,
+                epochs=3,
                 norm_method="enhance_contrast",
                 use_batch_norm=True,
                 batch_norm_momentum=0.7,
-                dropout_on_last_layer_only=False,
+                dropout_on_last_layer_only=True,
                 initialization="glorot_normal",
                 last_layer_activation_func='softmax',
                 satellite=SATELLITE,
-                cls=['shadow', 'clear', 'thin', 'cloud'],
-                str_cls=['shadow', 'clear', 'thin', 'cloud'],
-                int_cls=[64, 128, 192, 255],
-                train_dataset="Biome_gt",
-                test_dataset="Biome_gt", # atm only train=test implemented
+                cls=CLS,
+                str_cls=CLS,
+                int_cls=get_cls(SATELLITE, TRAIN_DATASET,  CLS),
+                train_dataset=TRAIN_DATASET,
+                test_dataset=TRAIN_DATASET, # atm only train=test implemented
                 collapse_cls=False,
                 overlap=10,
-                overlap_train_set=10, # 0
-                norm_threshold=25_000,
+                overlap_train_set=0, # 40
+                norm_threshold=2**16-1,
                 split_dataset=True)
 
 

@@ -16,7 +16,7 @@ from tensorflow.keras.layers import Input, Conv2D, MaxPooling2D, UpSampling2D, C
 from tensorflow.keras.optimizers.legacy import Adam, Nadam
 #from tensorflow.keras.utils import multi_gpu_model
 from ..utils import get_model_name, get_cls
-from srcv2_2.models.model_utils import jaccard_coef, jaccard_coef_thresholded, jaccard_coef_loss, jaccard_coef_loss_sparse_categorical, swish, get_callbacks, ImageSequence
+from srcv2_2.models.model_utils import jaccard_coef, jaccard_coef_thresholded, jaccard_coef_loss, swish, get_callbacks, ImageSequence #, jaccard_coef_loss_sparse_categorical
 from srcv2_2.models.params import HParams
 from tensorflow.keras.utils import get_custom_objects  # To use swish activation function
 from tensorflow.keras.callbacks import ModelCheckpoint, TensorBoard, ReduceLROnPlateau, CSVLogger, EarlyStopping
@@ -223,11 +223,12 @@ class UnetV2(object):
                 sparse_cat_loss = keras.losses.SparseCategoricalCrossentropy() 
                 self.model.compile(optimizer=Adam(learning_rate=self.params.learning_rate, decay=self.params.decay, amsgrad=True),
                                 loss=sparse_cat_loss,
-                                metrics=[keras.metrics.SparseCategoricalCrossentropy(),     
-                                        jaccard_coef_loss_sparse_categorical, jaccard_coef,
-                                        jaccard_coef_thresholded, keras.metrics.SparseCategoricalAccuracy(), keras.metrics.SparseTopKCategoricalAccuracy()]) 
+                                metrics=[keras.metrics.SparseCategoricalCrossentropy(), jaccard_coef,
+                                        jaccard_coef_thresholded, keras.metrics.SparseCategoricalAccuracy(), keras.metrics.SparseTopKCategoricalAccuracy(k=5)]) 
                                         # drop keras.metrics.Accuracy()
                                         # 'accuracy' will be converted to CategoricalAccuracy by tf in this case
+
+                                        # jaccard_coef_loss_sparse_categorical
             elif self.params.loss_func == 'categorical_crossentropy':
                 print("Compiling with Categorical Crossentropy")
                 probability = 1/self.n_cls
@@ -271,7 +272,7 @@ class UnetV2(object):
                         epochs=self.params.epochs,
                         steps_per_epoch=self.params.steps_per_epoch,
                         verbose=1,
-                        workers=8, # 4
+                        workers=9, # 4
                         max_queue_size=12,
                         use_multiprocessing=True,
                         shuffle=False,

@@ -67,13 +67,13 @@ def jaccard_coef_loss(y_true, y_pred):
     # From https://github.com/ternaus/kaggle_dstl_submission/blob/master/src/unet_crops.py
     return -K.log(jaccard_coef(y_true, y_pred)) + binary_crossentropy(y_pred, y_true)
 
-@keras.saving.register_keras_serializable()
-def jaccard_coef_loss_sparse_categorical(y_true, y_pred):
-    """
-    Calculates the loss as a function of the Jaccard index and binary crossentropy
-    """
-    # From https://github.com/ternaus/kaggle_dstl_submission/blob/master/src/unet_crops.py
-    return -K.log(jaccard_coef(y_true, y_pred)) + sparse_categorical_crossentropy(y_pred, y_true)
+#@keras.saving.register_keras_serializable()
+#def jaccard_coef_loss_sparse_categorical(y_true, y_pred):
+#    """
+#    Calculates the loss as a function of the Jaccard index and categporical crossentropy
+#    """
+#    # From https://github.com/ternaus/kaggle_dstl_submission/blob/master/src/unet_crops.py
+#    return -K.log(jaccard_coef(y_true, y_pred)) + sparse_categorical_crossentropy(y_pred, y_true, ignore_class=0)
 
 
 

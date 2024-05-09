@@ -416,6 +416,7 @@ def __evaluate_biome_dataset__(model, num_gpus, params, save_output=False, write
 
 def calculate_sparse_sparcs_class_evaluation_criteria(params, valid_pixels_mask, predicted_mask, true_mask):
     """
+    deprecated
     ATTENTION: this is only for non-collapse-cls
     """
     print("Sparse Metrics")
@@ -629,6 +630,7 @@ def calculate_sparse_class_evaluation_criteria_v2(params, valid_pixels_mask, pre
 
 def calculate_sparse_class_evaluation_criteria(params, valid_pixels_mask, predicted_mask, mask_true):
     """
+    Here be bugs
     """
     print("Sparse Metrics")
     # Count number of actual pixels
@@ -650,15 +652,13 @@ def calculate_sparse_class_evaluation_criteria(params, valid_pixels_mask, predic
 
     binary_accuracy_mask = argmaxed_pred_mask == mask_true # &?
     binary_accuracy_mask &= valid_pixels_mask
-    if 'fill' not in params.cls:
-        binary_accuracy_mask &= ~fill_and_valid_pixels_mask # remote invalid and fill pixel
+    binary_accuracy_mask &= ~fill_and_valid_pixels_mask # remote invalid and fill pixel
     equal_count=binary_accuracy_mask.sum()
 
     #categorical_accuracy = # of correctly predicted records / total number of records
-    if 'fill' not in params.cls:
-        categorical_accuracy = equal_count / max((npix - fill_and_valid_pixels_mask.sum()), fill_and_valid_pixels_mask.sum())
-    else:
-        categorical_accuracy = equal_count / npix
+
+    categorical_accuracy = equal_count / max((npix - fill_and_valid_pixels_mask.sum()), fill_and_valid_pixels_mask.sum())
+
     # categorical_accuracy = max(categorical_accuracy, 1e-4) # avoid floating point disasters
 
     # perhaps implement acc,pred,... for every cls type
@@ -677,7 +677,8 @@ def calculate_sparse_class_evaluation_criteria(params, valid_pixels_mask, predic
     tp = ((pred_positives & true_positives) & valid_pixels_mask).sum() 
     fp = (true_negatives & pred_positives & valid_pixels_mask).sum() 
     fn = ((pred_negatives & true_positives) & valid_pixels_mask).sum() 
-    tn = npix - tp - fp - fn
+    tn = (pred_negatives & true_negatives & valid_pixels_mask).sum()
+    #tn = npix - tp - fp - fn
 
     # Calculate metrics
     accuracy = (tp + tn) / npix
