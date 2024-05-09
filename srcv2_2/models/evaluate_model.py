@@ -291,10 +291,11 @@ def __evaluate_biome_dataset__(model, num_gpus, params, save_output=False, write
 
                 categorical_accuracy = accuracy= omission= comission= pixel_jaccard= precision= recall= f_one_score= tp= tn = fp = fn = npix = 0
                 if params.collapse_cls:
-                    accuracy, omission, comission, pixel_jaccard, precision, recall, f_one_score, tp, tn, fp, fn, npix = calculate_evaluation_criteria(valid_pixels_mask, predicted_binary_mask, mask_true)
+                    accuracy, omission, comission, pixel_jaccard, precision, recall, f_one_score, tp, tn, fp, fn, npix = calculate_evaluation_criteria(valid_pixels_mask.copy(), predicted_binary_mask.copy(), mask_true.copy())
                 else:
                     if params.loss_func == "sparse_categorical_crossentropy":
-                        categorical_accuracy, accuracy, omission, comission, pixel_jaccard, precision, recall, f_one_score, tp, tn, fp, fn, npix, pred_positives_sum, pred_negatives_sum, true_positives_sum, true_negatives_sum = calculate_sparse_class_evaluation_criteria(params, valid_pixels_mask, predicted_mask, mask_true)
+                        categorical_accuracy, accuracy, omission, comission, pixel_jaccard, precision, recall, f_one_score, tp, tn, fp, fn, npix = calculate_sparse_class_evaluation_criteria(params, 
+                                valid_pixels_mask.copy(), predicted_mask.copy(), mask_true.copy())
                     elif params.loss_func == "categorical_crossentropy":
                         categorical_accuracy, accuracy, omission, comission, pixel_jaccard, precision, recall, f_one_score, tp, tn, fp, fn, npix = calculate_class_evaluation_criteria(params.cls, 
                         cls, valid_pixels_mask, predicted_mask, mask_true)
@@ -357,11 +358,11 @@ def __evaluate_biome_dataset__(model, num_gpus, params, save_output=False, write
                     argmaxed_pred = np.argmax(predicted_mask, axis=-1)
                     #predicted_mask_copy = predicted_mask.copy() # this would be the multi-layered output. Too big as tiff though.
                     # get_cls(params.satellite, params.train_dataset, params.cls)
-                    for i, c in enumerate(params.cls): # cls have to be converted by get_cls beforehand
+                    for i, c in enumerate(get_cls(params.satellite, params.test_dataset, params.cls)): # cls have to be converted by get_cls beforehand
                         argmaxed_pred[argmaxed_pred == i] = min(c, 2**8 - 1) # as c is uint8
                         #predicted_mask_copy[:,:,i][argmaxed_pred == i] = c
 
-                    img = Image.fromarray(argmaxed_pred)
+                    img = Image.fromarray(np.uint8(argmaxed_pred))
                     #arr2_buffer = np.uint16(argmaxed_pred).tobytes()
                     #img2 = Image.new("RGB", argmaxed_pred.T.shape)
                     #img2.frombytes(arr2_buffer, 'raw', "I;16")
@@ -374,14 +375,16 @@ def __evaluate_biome_dataset__(model, num_gpus, params, save_output=False, write
                     #deactivate for now as tiffs use too much space
                     #tiff.imwrite(data_output_path + params.modelID + f'/{product}-layered_nb_prediction.tiff', data=np.uint8(predicted_mask_copy))
                     #tiff.imwrite(data_output_path + params.modelID + f'/{product}-nb_prediction.tiff', data=arr2_buffer)
+                try:
+                    cloud_arr = np.uint8(predicted_mask[:, :, params.cls.index('cloud')] * (2**8-1)) # indexed layer of cloud, assuming cloud is in predicted classes
+                    #array_buffer = cloud_arr.tobytes()
 
-                cloud_arr = np.uint8(predicted_mask[:, :, params.str_cls.index('cloud')] * (2**8-1)) # indexed layer of cloud, assuming cloud is in predicted classes
-                #array_buffer = cloud_arr.tobytes()
-
-                img = Image.fromarray(cloud_arr)
-                #img = Image.new("L", cloud_arr.T.shape)
-                #img.frombytes(array_buffer, 'raw', "L")
-                img.save(data_output_path + params.modelID + f'/{product}-cloud_prediction.png')
+                    img = Image.fromarray(cloud_arr)
+                    #img = Image.new("L", cloud_arr.T.shape)
+                    #img.frombytes(array_buffer, 'raw', "L")
+                    img.save(data_output_path + params.modelID + f'/{product}-cloud_prediction.png')
+                except:
+                    pass
             save_time.append(time.time() - save_time_start)
 
             #Image.fromarray(np.uint16(predicted_mask[:, :, 0] * 65535)).\
@@ -533,27 +536,46 @@ def calculate_sparse_sparcs_class_evaluation_criteria(params, valid_pixels_mask,
 
     return categorical_accuracy, accuracy, omission, comission, pixel_jaccard, precision, recall, f_one_score, tp, tn, fp, fn, npix
 
-def calculate_sparse_class_evaluation_criteria(params, valid_pixels_mask, predicted_mask, true_mask):
+def calculate_sparse_class_evaluation_criteria_v2(params, valid_pixels_mask, predicted_mask, mask_true):
     """
+    deprecated
     """
     print("Sparse Metrics")
     # Count number of actual pixels
     npix = valid_pixels_mask.sum()
     valid_pixels_mask = np.asarray(valid_pixels_mask, dtype=bool)
+    invalid_pixels_mask = ~valid_pixels_mask
+    #n_invalid_pix = invalid_pixels_mask.sum()
     # converted mask_true to predicted values as input
     #mask_true_cls_corrected = true_mask.copy()
 
     argmaxed_pred_mask = np.argmax(predicted_mask, axis=-1)
 
-    # enumeration_cls = get_cls(params.satellite, params.train_dataset, params.cls)
+    cls = get_cls(params.satellite, params.test_dataset, params.cls)
     
-    for i, c in enumerate(get_cls(params.satellite, params.test_dataset, params.cls)): # cls have to be converted by get_cls beforehand# has to be correct order!
-        argmaxed_pred_mask[argmaxed_pred_mask == i] = c  # convert indices of model output to cls
+    #for i, c in enumerate(get_cls(params.satellite, params.test_dataset, params.cls)): # cls have to be converted by get_cls beforehand# has to be correct order!
+    #    argmaxed_pred_mask[argmaxed_pred_mask == i] = c  # convert indices of model output to cls
 
-    argmaxed_pred_mask = np.uint8(argmaxed_pred_mask)
-    binary_accuracy_mask = argmaxed_pred_mask == true_mask
+    # all layers, since true mask contains 
+    true_mask_cls = get_cls(params.satellite, params.test_dataset, POSITIVES + NEGATIVES + ['fill']) 
+
+    drop_indices = []
+    valid_indices = []
+    mask_true_index_corrected = mask_true # & valid_pixels_mask
+    for i, c in enumerate(cls): # cls have to be converted by get_cls beforehand# has to be correct order!
+        drop_indices.append(true_mask_cls.index(c))
+        valid_indices.append(cls.index())
+        mask_true_index_corrected[mask_true_index_corrected == c] = i 
+
+    drop_indices = set(drop_indices + valid_indices)
+
+    mask_true_index_corrected = np.delete(mask_true_index_corrected, ) # delete invalid axes from mask true (before scale up to 3d)
+    # valid_argmaxed_pred_mask = np.uint8(argmaxed_pred_mask) & valid_pixels_mask
+    #valid_true_mask = np.uint8(mask_true) & valid_pixels_mask
+
+    binary_accuracy_mask = argmaxed_pred_mask == mask_true_index_corrected # &?
     binary_accuracy_mask &= valid_pixels_mask # remote invalid pixel
-    equal_count=np.sum(binary_accuracy_mask)
+    equal_count=binary_accuracy_mask.sum()
 
     #categorical_accuracy = # of correctly predicted records / total number of records
     # if fill is in predicted classes, this value will automatically (falsely) be higher
@@ -561,24 +583,24 @@ def calculate_sparse_class_evaluation_criteria(params, valid_pixels_mask, predic
 
     # perhaps implement acc,pred,... for every cls type
     #cloudy types / classy types
-    positives_mask = get_cls(params.satellite, params.train_dataset, cls_string=POSITIVES)
+    positives = get_cls(params.satellite, params.train_dataset, cls_string=POSITIVES)
 
     #non-cloudy types
-    negatives_mask = get_cls(params.satellite, params.train_dataset, cls_string=NEGATIVES) # 'fill', removed fill as it should not count into metrics
+    negatives = get_cls(params.satellite, params.train_dataset, cls_string=NEGATIVES) # 'fill', removed fill as it should not count into metrics
 
-    pred_positives = np.isin(argmaxed_pred_mask, positives_mask)
-    pred_negatives = np.isin(argmaxed_pred_mask, negatives_mask)
-    true_positives = np.isin(true_mask, positives_mask)
-    true_negatives =  np.isin(true_mask, negatives_mask)
+    pred_positives = np.isin(argmaxed_pred_mask, positives)
+    pred_negatives = np.isin(argmaxed_pred_mask, negatives)
+    true_positives = np.isin(mask_true, positives)
+    true_negatives =  np.isin(mask_true, negatives)
 
-    pred_positives_sum = pred_positives.sum()
-    pred_negatives_sum = pred_negatives.sum()
-    true_positives_sum = true_positives.sum()
-    true_negatives_sum = true_negatives.sum()
+    #pred_positives_sum = pred_positives.sum()
+    #pred_negatives_sum = pred_negatives.sum()
+    #true_positives_sum = true_positives.sum()
+    #true_negatives_sum = true_negatives.sum()
 
-    tp = ((pred_positives & true_positives) & valid_pixels_mask).sum()
-    fp = (true_negatives & pred_positives & valid_pixels_mask).sum()
-    fn = ((pred_negatives & true_positives) & valid_pixels_mask).sum()
+    tp = ((pred_positives & true_positives) & valid_pixels_mask).sum() 
+    fp = (true_negatives & pred_positives & valid_pixels_mask).sum() 
+    fn = ((pred_negatives & true_positives) & valid_pixels_mask).sum() 
     tn = npix - tp - fp - fn
 
     # Calculate metrics
@@ -601,7 +623,83 @@ def calculate_sparse_class_evaluation_criteria(params, valid_pixels_mask, predic
     else:
         omission = comission = 0
 
-    return categorical_accuracy, accuracy, omission, comission, pixel_jaccard, precision, recall, f_one_score, tp, tn, fp, fn, npix, pred_positives_sum, pred_negatives_sum, true_positives_sum, true_negatives_sum
+    return categorical_accuracy, accuracy, omission, comission, pixel_jaccard, precision, recall, f_one_score, tp, tn, fp, fn, npix
+
+
+
+def calculate_sparse_class_evaluation_criteria(params, valid_pixels_mask, predicted_mask, mask_true):
+    """
+    """
+    print("Sparse Metrics")
+    # Count number of actual pixels
+    npix = valid_pixels_mask.sum()
+    valid_pixels_mask = np.asarray(valid_pixels_mask, dtype=bool)
+    invalid_pixels_mask = ~valid_pixels_mask
+    fill_pixels_mask = mask_true == get_cls(params.satellite, params.test_dataset, ['fill'])[0]
+    #n_invalid_pix = invalid_pixels_mask.sum()
+    # converted mask_true to predicted values as input
+    #mask_true_cls_corrected = true_mask.copy()
+
+    argmaxed_pred_mask = np.argmax(predicted_mask, axis=-1)
+
+    enumeration_cls = get_cls(params.satellite, params.train_dataset, params.cls)
+    
+    for i, c in enumerate(enumeration_cls): # cls have to be converted by get_cls beforehand# has to be correct order!
+        argmaxed_pred_mask[argmaxed_pred_mask == i] = c  # convert indices of model output to cls
+
+    binary_accuracy_mask = argmaxed_pred_mask == mask_true # &?
+    binary_accuracy_mask &= valid_pixels_mask
+    if 'fill' not in params.cls:
+        binary_accuracy_mask &= ~fill_pixels_mask # remote invalid and fill pixel
+    equal_count=binary_accuracy_mask.sum()
+
+    #categorical_accuracy = # of correctly predicted records / total number of records
+    # if fill is in predicted classes, this value will automatically (falsely) be higher
+    categorical_accuracy = equal_count / npix
+
+    # perhaps implement acc,pred,... for every cls type
+    #cloudy types / classy types
+    positives = get_cls(params.satellite, params.train_dataset, cls_string=POSITIVES)
+
+    #non-cloudy types
+    negatives = get_cls(params.satellite, params.train_dataset, cls_string=NEGATIVES) # 'fill', removed fill as it should not count into metrics
+
+    pred_positives = np.isin(argmaxed_pred_mask, positives)
+    pred_negatives = np.isin(argmaxed_pred_mask, negatives)
+    true_positives = np.isin(mask_true, positives)
+    true_negatives =  np.isin(mask_true, negatives)
+
+    #pred_positives_sum = pred_positives.sum()
+    #pred_negatives_sum = pred_negatives.sum()
+    #true_positives_sum = true_positives.sum()
+    #true_negatives_sum = true_negatives.sum()
+
+    tp = ((pred_positives & true_positives) & valid_pixels_mask).sum() 
+    fp = (true_negatives & pred_positives & valid_pixels_mask).sum() 
+    fn = ((pred_negatives & true_positives) & valid_pixels_mask).sum() 
+    tn = npix - tp - fp - fn
+
+    # Calculate metrics
+    accuracy = (tp + tn) / npix
+    if tp != 0:
+        precision = tp / (tp + fp)
+        recall = tp / (tp + fn)
+        f_one_score = 2 * (precision * recall) / (precision + recall)
+        # See https://en.wikipedia.org/wiki/Jaccard_index#Similarity_of_asymmetric_binary_attributes
+        pixel_jaccard = tp / (tp + fp + fn)
+    else:
+        precision = recall = f_one_score = pixel_jaccard = 0
+
+    # Metrics from Foga 2017 paper
+    # if fp!=0: # accunting for runtime division by 0 (tn was 0)
+    if fp != 0 and tn != 0:
+        omission = fp / (tp + fp)
+        comission = fp / (tn + fn)
+
+    else:
+        omission = comission = 0
+
+    return categorical_accuracy, accuracy, omission, comission, pixel_jaccard, precision, recall, f_one_score, tp, tn, fp, fn, npix
 
 
 

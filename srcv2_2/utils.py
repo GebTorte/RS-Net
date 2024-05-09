@@ -346,7 +346,9 @@ def extract_cls_mask(mask, c):
     """
     # Copy the mask for every iteration (if you set "y=mask", then mask will be overwritten!
     # https://stackoverflow.com/questions/19951816/python-changes-to-my-copy-variable-affect-the-original-variable
+    
     y = np.copy(mask)
+    #y = mask
     # Remember to zeroize class 1
     if c != 1:
         y[y == 1] = 0

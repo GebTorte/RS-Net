@@ -87,7 +87,7 @@ def get_callbacks(params):
     csv_logger = CSVLogger(params.project_path + 'reports/Unet/csvlogger/' + params.modelID + '.log')
 
     reduce_lr = ReduceLROnPlateau(monitor='val_loss', factor=0.2, verbose=2,
-                                  patience=16, min_lr=1e-10)
+                                  patience=16, min_lr=1e-10) # might have to set patience lower (according to num epochs perhaps)
 
     early_stopping = EarlyStopping(monitor='val_acc', patience=100, verbose=2)
 
