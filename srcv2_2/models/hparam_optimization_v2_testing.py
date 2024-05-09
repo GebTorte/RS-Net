@@ -11,20 +11,20 @@ from utils import get_cls
 from params import HParams
 
 activation_functions = ['elu', "leaky_relu",] # 'relu'
-leaky_alphas = [0.05, 0.1, 0.2]
+leaky_alphas = [0.05, 0.2]
 loss_functions = ['sparse_categorical_crossentropy'] # , 'categorical_crossentropy'] # ['binary_crossentropy']
 initializers = ['glorot_normal', 'he_normal']
-learning_rates = [1e-6, 1e-7, 1e-8]
+learning_rates = [1e-6, 5e-6] # , 1e-7, 1e-8]
 img_enhance_funcs = [None, "enhance_contrast"]
 norm_thresholds = [2**16 - 1, 25_000] # 16-bit-int and max_value of 
 use_batch_norm = [True, False]
-batch_norm_momentums = list(reversed([0.1, 0.5, 0.7, 0.85]))
-l2regs = [1e-3, 1e-4, 1e-6, 1e-8]
-dropouts = list(reversed([0, 1e-4, 1e-2, 0.1, 0.2]))
+batch_norm_momentums = list(reversed([0.3, 0.7]))
+l2regs = [1e-2, 1e-4, 1e-6]
+dropouts = list(reversed([0, 1e-2, 0.1]))
 dropout_on_last_layer_only=[False, True] # True,
-decays = list(reversed([0, 0.2, 1e-2, 1e-1]))
-reduce_lrs = [True, False]
-early_stoppings = [False, True]
+decays = list(reversed([0, 1e-2, 1e-1]))
+reduce_lrs = [False] # True
+early_stoppings = [False] # , True
 band_combinations = [[1, 2, 3, 4, 5, 6, 7]] # [[1, 2, 3, 4, 5, 6, 7, 9, 10, 11], [1, 2, 3, 4, 5, 6, 7, 9], [2, 3, 4, 5], [2, 3, 4], [3]]
 """
 Landsat 8 Order MODIS bands:
@@ -44,7 +44,7 @@ L8 | MODGA09
 
 Order: 3, 4, 1, 2, 6, 7, 5
 """
-epochs = [2, 3, 5, 8, 12]# [3, 10, 20, 40, 80, 160, 200, 200, 200, 200, 200, 200, 200, 200]  # Only used to run random search for longer
+epochs = [2, 3, 5]# [3, 10, 20, 40, 80, 160, 200, 200, 200, 200, 200, 200, 200, 200]  # Only used to run random search for longer
 last_layer_activation_func = 'softmax'
 satellite = "Landsat8"
 
@@ -58,7 +58,7 @@ train_datasets = ["Biome_gt"] #  "Biome_fmask", # "SPARCS_gt", omitting SPARCS u
 
 collapse_cls = False
 overlaps = [10, 40] # has to be of even , 40
-train_overlaps = [0, 10, 40] # probably has no effect other than upping training time. Might cause problems with clip_pixels = overlap / 2, if overlap != train_overlap
+train_overlaps = [40, 0, 10] # probably has no effect other than upping training time. Might cause problems with clip_pixels = overlap / 2, if overlap != train_overlap
 
 interpreter = "/home/mxh/anaconda3/envs/tf2+gpu_v2/bin/python3"
 script = "/home/mxh/RS-Net/SentinelSemanticSegmentation_v2.py"
@@ -149,7 +149,7 @@ for train_dataset in train_datasets:
                                                                                                     #"--dev_dataset",
                                                                                                     "--test", # works now, but takes a loong time. # needed for writing csv output.
                                                                                                     
-                                                                                                    # "--save_output", # every model has like 3G output
+                                                                                                    "--save_output", # every model has like 3G output
                                                                                                     
                                                                                                     "--satellite", str(satellite), 
 

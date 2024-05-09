@@ -16,9 +16,10 @@ from tensorflow.keras.layers import Input, Conv2D, MaxPooling2D, UpSampling2D, C
 from tensorflow.keras.optimizers.legacy import Adam, Nadam
 #from tensorflow.keras.utils import multi_gpu_model
 from ..utils import get_model_name, get_cls
-from srcv2_2.models.model_utils import jaccard_coef, jaccard_coef_thresholded, jaccard_coef_loss, swish, get_callbacks, ImageSequence
+from srcv2_2.models.model_utils import jaccard_coef, jaccard_coef_thresholded, jaccard_coef_loss, jaccard_coef_loss_sparse_categorical, swish, get_callbacks, ImageSequence
 from srcv2_2.models.params import HParams
 from tensorflow.keras.utils import get_custom_objects  # To use swish activation function
+from tensorflow.keras.callbacks import ModelCheckpoint, TensorBoard, ReduceLROnPlateau, CSVLogger, EarlyStopping
 
 
 class UnetV2(object):
@@ -190,19 +191,21 @@ class UnetV2(object):
     def train(self):
         #set training params to params used while training
         # self.training_params = self.params
+        print()
         print(f"Model {self.params.modelID}: Training on params: ", self.params.as_string(delimiter="\n", skip_keys_list=["test_tiles", "project_path", "data_path", "toa_path"]))
+        print()
 
         # Define callbacks
         csv_logger, model_checkpoint, reduce_lr, tensorboard, early_stopping, sparse_model_checkpoint, sparse_early_stopping= get_callbacks(self.params)
         used_callbacks = [csv_logger,  tensorboard]
-
+        
         if self.params.reduce_lr:
-            used_callbacks.append(reduce_lr)
+                used_callbacks.append(reduce_lr)
         if self.params.loss_func == "binary_crossentropy":
             if self.params.early_stopping:
                 used_callbacks.append(early_stopping)
             used_callbacks.append(model_checkpoint)
-        elif self.params.loss_func == "sparse_categorical_crossentropy":
+        elif self.params.loss_func == "sparse_categorical_crossentropy" or self.params.loss_func == "categorical_crossentropy":
             if self.params.early_stopping:
                 used_callbacks.append(sparse_early_stopping)
             used_callbacks.append(sparse_model_checkpoint)
@@ -217,18 +220,12 @@ class UnetV2(object):
             # SIS: Multi Class Prediction loss func
             elif self.params.loss_func == 'sparse_categorical_crossentropy':
                 print("Compiling with Sparse Categorical Crossentropy")
-                sparse_cat_loss = keras.losses.SparseCategoricalCrossentropy() # (labels, logits)
-                """
-                keras.metrics.TruePositives(),
-                keras.metrics.TrueNegatives(),
-                keras.metrics.FalsePositives(),
-                keras.metrics.FalseNegatives(),
-                """
+                sparse_cat_loss = keras.losses.SparseCategoricalCrossentropy() 
                 self.model.compile(optimizer=Adam(learning_rate=self.params.learning_rate, decay=self.params.decay, amsgrad=True),
                                 loss=sparse_cat_loss,
                                 metrics=[keras.metrics.SparseCategoricalCrossentropy(),     
-                                        jaccard_coef_loss, jaccard_coef,
-                                        jaccard_coef_thresholded, keras.metrics.SparseCategoricalAccuracy()]) 
+                                        jaccard_coef_loss_sparse_categorical, jaccard_coef,
+                                        jaccard_coef_thresholded, keras.metrics.SparseCategoricalAccuracy(), keras.metrics.SparseTopKCategoricalAccuracy()]) 
                                         # drop keras.metrics.Accuracy()
                                         # 'accuracy' will be converted to CategoricalAccuracy by tf in this case
             elif self.params.loss_func == 'categorical_crossentropy':
@@ -274,8 +271,8 @@ class UnetV2(object):
                         epochs=self.params.epochs,
                         steps_per_epoch=self.params.steps_per_epoch,
                         verbose=1,
-                        workers=9, # 4
-                        max_queue_size=14,
+                        workers=8, # 4
+                        max_queue_size=12,
                         use_multiprocessing=True,
                         shuffle=False,
                         callbacks=used_callbacks,

@@ -78,6 +78,7 @@ class HParams:
 
 @keras.saving.register_keras_serializable()
 def get_params(model, satellite):
+    # TODO: convert all this to objects of HParam
     if model == 'U-net' and satellite == 'Sentinel-2':
         hparams = {
             'learning_rate': 0.001,
@@ -163,6 +164,7 @@ def get_params(model, satellite):
             'dropout_on_last_layer_only': True,
             'early_stopping': False,
             'reduce_lr': False,
+            'patience': 12,
             'save_best_only': False,
             'use_ensemble_learning': False,
             'ensemble_method': 'Bagging',

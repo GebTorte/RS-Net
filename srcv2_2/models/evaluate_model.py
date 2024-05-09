@@ -5,8 +5,8 @@ import tifffile as tiff
 from PIL import Image
 from srcv2_2.utils import CategoryIndexOrder, load_product, get_cls, extract_collapsed_cls, extract_cls_mask, predict_img, predict_img_v2, image_normalizer
 
-POSITIVES = ['shadow', 'thin', 'cloud']
-NEGATIVES = ['clear', 'snow', 'water']
+POSITIVES = ['shadow', 'thin', 'cloud', 'snow', 'water']
+NEGATIVES = ['clear']
 
 
 def evaluate_test_set(model, dataset, num_gpus, params, save_output=False, write_csv=True):
@@ -635,7 +635,8 @@ def calculate_sparse_class_evaluation_criteria(params, valid_pixels_mask, predic
     npix = valid_pixels_mask.sum()
     valid_pixels_mask = np.asarray(valid_pixels_mask, dtype=bool)
     invalid_pixels_mask = ~valid_pixels_mask
-    fill_pixels_mask = mask_true == get_cls(params.satellite, params.test_dataset, ['fill'])[0]
+    
+    fill_and_valid_pixels_mask = mask_true == get_cls(params.satellite, params.test_dataset, ['fill'])[0] & valid_pixels_mask
     #n_invalid_pix = invalid_pixels_mask.sum()
     # converted mask_true to predicted values as input
     #mask_true_cls_corrected = true_mask.copy()
@@ -650,12 +651,15 @@ def calculate_sparse_class_evaluation_criteria(params, valid_pixels_mask, predic
     binary_accuracy_mask = argmaxed_pred_mask == mask_true # &?
     binary_accuracy_mask &= valid_pixels_mask
     if 'fill' not in params.cls:
-        binary_accuracy_mask &= ~fill_pixels_mask # remote invalid and fill pixel
+        binary_accuracy_mask &= ~fill_and_valid_pixels_mask # remote invalid and fill pixel
     equal_count=binary_accuracy_mask.sum()
 
     #categorical_accuracy = # of correctly predicted records / total number of records
-    # if fill is in predicted classes, this value will automatically (falsely) be higher
-    categorical_accuracy = equal_count / npix
+    if 'fill' not in params.cls:
+        categorical_accuracy = equal_count / max((npix - fill_and_valid_pixels_mask.sum()), fill_and_valid_pixels_mask.sum())
+    else:
+        categorical_accuracy = equal_count / npix
+    # categorical_accuracy = max(categorical_accuracy, 1e-4) # avoid floating point disasters
 
     # perhaps implement acc,pred,... for every cls type
     #cloudy types / classy types
@@ -664,15 +668,11 @@ def calculate_sparse_class_evaluation_criteria(params, valid_pixels_mask, predic
     #non-cloudy types
     negatives = get_cls(params.satellite, params.train_dataset, cls_string=NEGATIVES) # 'fill', removed fill as it should not count into metrics
 
+    # The following are disregarding fill by default. As it is not in negatives nor positives
     pred_positives = np.isin(argmaxed_pred_mask, positives)
     pred_negatives = np.isin(argmaxed_pred_mask, negatives)
-    true_positives = np.isin(mask_true, positives)
+    true_positives =  np.isin(mask_true, positives)
     true_negatives =  np.isin(mask_true, negatives)
-
-    #pred_positives_sum = pred_positives.sum()
-    #pred_negatives_sum = pred_negatives.sum()
-    #true_positives_sum = true_positives.sum()
-    #true_negatives_sum = true_negatives.sum()
 
     tp = ((pred_positives & true_positives) & valid_pixels_mask).sum() 
     fp = (true_negatives & pred_positives & valid_pixels_mask).sum() 
@@ -877,7 +877,6 @@ def write_csv_files(evaluation_metrics, params):
         # params.threshold = str(threshold[-3:])
 
         # Write params values
-        f = open(params.project_path + 'reports/Unet/' + file_name, 'a')
         string = str(params.modelID) + ','
         for key in params.values().keys():
             if key == 'modelID':
@@ -894,7 +893,7 @@ def write_csv_files(evaluation_metrics, params):
             string += str(addition).replace(",", "|")  + ',' # cant have extra commata in csv
 
         # Initialize variables for calculating mean visualization set values
-        categorical_accuracy_sum = accuracy_sum = precision_sum = recall_sum = f_one_score_sum = omission_sum = comission_sum = pixel_jaccard_sum=0
+        categorical_accuracy_sum = accuracy_sum = precision_sum = recall_sum = f_one_score_sum = omission_sum = comission_sum = pixel_jaccard_sum=0.0
 
         # Write visualization set values
         for product in list(evaluation_metrics):
@@ -906,7 +905,7 @@ def write_csv_files(evaluation_metrics, params):
 
                 # Extract values for calculating mean values of entire visualization set
                 if 'categorical_accuracy' in key: # this has to be run before accuracy summation, as the accuracy if statement holds for categorical_accuracy aswell...
-                    categorical_accuracy_sum += evaluation_metrics[product][threshold][key]    
+                    categorical_accuracy_sum = categorical_accuracy_sum + evaluation_metrics[product][threshold][key]    
                 elif 'accuracy' in key:
                     accuracy_sum += evaluation_metrics[product][threshold][key]
                 elif 'precision' in key:
@@ -929,6 +928,8 @@ def write_csv_files(evaluation_metrics, params):
                   str(omission_sum / n_products) + ',' + str(comission_sum / n_products) + ',' + \
                   str(pixel_jaccard_sum / n_products)+ ',' + str(categorical_accuracy_sum / n_products)
 
+        
+        f = open(params.project_path + 'reports/Unet/' + file_name, 'a')
         # Write string and close csv file
         f.write(string + '\n')
         f.close()

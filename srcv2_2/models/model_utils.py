@@ -14,7 +14,7 @@ import threading
 import numpy as np
 import tensorflow.keras as keras
 from tensorflow.keras import backend as K
-from tensorflow.keras.backend import binary_crossentropy
+from tensorflow.keras.backend import binary_crossentropy, sparse_categorical_crossentropy
 from tensorflow.keras.callbacks import ModelCheckpoint, TensorBoard, ReduceLROnPlateau, CSVLogger, EarlyStopping
 from tensorflow.keras.utils import Sequence
 # from tensorflow.metrics import SparseCategoricalAccuracy
@@ -68,6 +68,16 @@ def jaccard_coef_loss(y_true, y_pred):
     return -K.log(jaccard_coef(y_true, y_pred)) + binary_crossentropy(y_pred, y_true)
 
 @keras.saving.register_keras_serializable()
+def jaccard_coef_loss_sparse_categorical(y_true, y_pred):
+    """
+    Calculates the loss as a function of the Jaccard index and binary crossentropy
+    """
+    # From https://github.com/ternaus/kaggle_dstl_submission/blob/master/src/unet_crops.py
+    return -K.log(jaccard_coef(y_true, y_pred)) + sparse_categorical_crossentropy(y_pred, y_true)
+
+
+
+@keras.saving.register_keras_serializable()
 def get_callbacks(params):
     # Must use save_weights_only=True in model_checkpoint (BUG: https://github.com/fchollet/keras/issues/8123)
     model_checkpoint = ModelCheckpoint(params.project_path + 'models/Unet/unet_tmp.hdf5',
@@ -87,7 +97,7 @@ def get_callbacks(params):
     csv_logger = CSVLogger(params.project_path + 'reports/Unet/csvlogger/' + params.modelID + '.log')
 
     reduce_lr = ReduceLROnPlateau(monitor='val_loss', factor=0.2, verbose=2,
-                                  patience=16, min_lr=1e-10) # might have to set patience lower (according to num epochs perhaps)
+                                  patience=params.patience, min_lr=1e-10) # might have to set patience lower (according to num epochs perhaps)
 
     early_stopping = EarlyStopping(monitor='val_acc', patience=100, verbose=2)
 
