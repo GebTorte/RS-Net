@@ -64,8 +64,14 @@ class UnetV2(object):
             # Try loading a saved model. get_model_name has to be unique
             try:
                 # TODO: load params from json
-                model = tf.keras.saving.load_model(self.params.project_path + 'models/Unet/' + get_model_name(self.params) + '.keras')
-                print(f"Model {get_model_name(self.params)} has been loaded.")
+                model = tf.keras.saving.load_model(self.params.project_path + 'models/Unet/' + self.params.modelID + '.keras') # get_model_name(self.params)
+                print(f"Model {self.params.modelID} has been loaded.")
+
+                try:
+                    self.params = self._load_params()
+                    print("Params have been loaded:", self.params.as_string())
+                except:
+                    print("Params were not loaded.")
                 return # dont create inference
             except:
                 print("No model was loaded.")
@@ -294,23 +300,20 @@ class UnetV2(object):
     def load_history(self):
         return np.load(f"{self.params.project_path}reports/Unet/histories/{self.params.modelID}_history.npy", allow_pickle=True).item()
 
-    def _save_params(self):
-        with open(self.params.project_path + 'models/Unet/' + self.params.modelID + '_params.json', 'w') as f:
-            f.write(self.params.as_string())
+    def _save_params(self , postfix=".txt", delimiter=";"):
+        with open(self.params.project_path + 'models/Unet/' + self.params.modelID + '_params' + postfix, 'w') as f:
+            f.write(self.params.as_string(delimiter=delimiter))
         # TODO: Jsonify this (json_dumps...)
         #with open(self.params.project_path + 'models/Unet/' + get_model_name(self.params) + '_params.json', 'w') as f:
         #    json.dump(str(self.params.__dict__), f, indent=4)
             #f.write(str(self.params.__dict__))
 
-    def _load_params(self):
-        try:
-            with open(self.params.project_path + 'models/Unet/' + self.params.modelID + '_params.json', 'r') as f:
-                txt = f.read().replace('\n', '')
-            loaded_params = HParams().parse(txt, delimiter=";")
-            # self.params = loaded_params
-            return loaded_params
-        except Exception as e:
-            return HParams()
+    def _load_params(self, postfix=".txt", delimiter=";"):
+        with open(self.params.project_path + 'models/Unet/' + self.params.modelID + '_params' + postfix, 'r') as f:
+            txt = f.read().replace('\n', '')
+        loaded_params = HParams().parse(txt, delimiter=delimiter)
+        # self.params = loaded_params
+        return loaded_params
 
 
     def predict(self, img):
