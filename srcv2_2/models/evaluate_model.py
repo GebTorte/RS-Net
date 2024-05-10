@@ -634,11 +634,14 @@ def calculate_sparse_class_evaluation_criteria(params, valid_pixels_mask, predic
     """
     print("Sparse Metrics")
     # Count number of actual pixels
-    npix = valid_pixels_mask.sum()
     valid_pixels_mask = np.asarray(valid_pixels_mask, dtype=bool)
+    npix = valid_pixels_mask.sum()
     invalid_pixels_mask = ~valid_pixels_mask
     
-    fill_and_valid_pixels_mask = mask_true == get_cls(params.satellite, params.test_dataset, ['fill'])[0] & valid_pixels_mask
+    #fill_pixel_mask = mask_true == get_cls(params.satellite, params.test_dataset, ['fill'])[0] 
+    #fill_and_valid_pixels_mask = fill_pixel_mask & valid_pixels_mask
+
+    # npix = valid_pixels_mask.sum() - fill_and_valid_pixels_mask.sum()
     #n_invalid_pix = invalid_pixels_mask.sum()
     # converted mask_true to predicted values as input
     #mask_true_cls_corrected = true_mask.copy()
@@ -650,16 +653,13 @@ def calculate_sparse_class_evaluation_criteria(params, valid_pixels_mask, predic
     for i, c in enumerate(enumeration_cls): # cls have to be converted by get_cls beforehand# has to be correct order!
         argmaxed_pred_mask[argmaxed_pred_mask == i] = c  # convert indices of model output to cls
 
-    binary_accuracy_mask = argmaxed_pred_mask == mask_true # &?
+    binary_accuracy_mask = argmaxed_pred_mask == mask_true
     binary_accuracy_mask &= valid_pixels_mask
-    binary_accuracy_mask &= ~fill_and_valid_pixels_mask # remote invalid and fill pixel
+    # binary_accuracy_mask &= ~fill_pixel_mask # remove fill pixel
     equal_count=binary_accuracy_mask.sum()
 
-    #categorical_accuracy = # of correctly predicted records / total number of records
-
-    categorical_accuracy = equal_count / max((npix - fill_and_valid_pixels_mask.sum()), fill_and_valid_pixels_mask.sum())
-
-    # categorical_accuracy = max(categorical_accuracy, 1e-4) # avoid floating point disasters
+    # categorical_accuracy = # of correctly predicted records / total number of records
+    categorical_accuracy = equal_count /  npix #max(npix, fill_and_valid_pixels_mask.sum()) , valid_pixels_mask.sum()) # - fill_and_valid_pixels_mask.sum(
 
     # perhaps implement acc,pred,... for every cls type
     #cloudy types / classy types
