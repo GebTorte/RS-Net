@@ -202,7 +202,8 @@ class UnetV2(object):
         print()
 
         # Define callbacks
-        csv_logger, model_checkpoint, reduce_lr, tensorboard, early_stopping, sparse_model_checkpoint, sparse_early_stopping= get_callbacks(self.params)
+        csv_logger, model_checkpoint, reduce_lr, tensorboard, early_stopping, \
+        sparse_model_checkpoint, sparse_early_stopping, sparse_model_weights_checkpoint= get_callbacks(self.params)
         used_callbacks = [csv_logger,  tensorboard]
         
         if self.params.reduce_lr:
@@ -215,6 +216,7 @@ class UnetV2(object):
             if self.params.early_stopping:
                 used_callbacks.append(sparse_early_stopping)
             used_callbacks.append(sparse_model_checkpoint)
+            used_callbacks.append(sparse_model_weights_checkpoint)
 
         # Configure optimizer (use Nadam or Adam and 'binary_crossentropy' or jaccard_coef_loss)
         if self.params.optimizer == 'Adam':

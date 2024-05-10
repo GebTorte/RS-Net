@@ -90,6 +90,11 @@ def get_callbacks(params):
                                        save_weights_only=False,
                                        save_best_only=params.save_best_only)
 
+    sparse_model_weights_checkpoint = ModelCheckpoint(params.project_path + f'models/Unet/{params.modelID}.h5',
+                                       monitor='val_sparse_categorical_accuracy',
+                                       save_weights_only=True,
+                                       save_best_only=params.save_best_only)
+
     tensorboard = TensorBoard(log_dir=params.project_path + f"reports/Unet/tensorboard/{params.modelID}",
                               write_graph=True,
                               write_images=True)
@@ -103,7 +108,7 @@ def get_callbacks(params):
 
     sparse_early_stopping = EarlyStopping(monitor='val_sparse_categorical_accuracy', patience=100, verbose=2)
 
-    return csv_logger, model_checkpoint, reduce_lr, tensorboard, early_stopping, sparse_model_checkpoint, sparse_early_stopping
+    return csv_logger, model_checkpoint, reduce_lr, tensorboard, early_stopping, sparse_model_checkpoint, sparse_early_stopping, sparse_model_weights_checkpoint
 
 
 class ImageSequence(Sequence):
