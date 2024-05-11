@@ -361,7 +361,7 @@ def extract_cls_mask(mask, c):
 
 def predict_img_v2(model, params, img, n_bands, n_cls, num_gpus):
     """
-    Run prediction on an full image
+    Run prediction on a full image
     """
     # Find dimensions
     img_shape = np.shape(img)
