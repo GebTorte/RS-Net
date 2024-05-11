@@ -12,6 +12,9 @@ class HParams:
     def __init__(self, **kwargs):
         self.__dict__.update(kwargs)
 
+    def update(self, **kwargs):
+        self.__dict__.update(kwargs)
+
     def get_config(self):
         return {'__dict__', self.__dict__} # (self.__dict__)
 
@@ -150,9 +153,13 @@ def get_params(model, satellite):
         }
         return HParams(**hparams)
     elif (model == 'U-net-v2' or model =='U-net')and (satellite == 'Landsat8' or satellite =='MODIS'):
-        hparams = {
-            'modelNick': 'Unet-MOD09GA',
-            'modelID': '180609113139',
+        hparams = HParams(
+            modelNick= 'Unet-v2-MOD09GA',
+            plateau_patience = 2,
+            early_patience = 3,
+        )
+        hparams_dict = {
+            'modelID': '_',
             'num_gpus': 1,
             'optimizer': 'Adam',
             'loss_func': 'categorical_crossentropy',
@@ -199,7 +206,7 @@ def get_params(model, satellite):
             'split_dataset': True,
             'test_tiles': __data_split__('Biome_gt') # Biome_gt # Chose test_dataset value
         }
-        return HParams(**hparams)
+        return hparams.update(**hparams_dict)
 
 def __data_split__(dataset):
     if 'Biome' in dataset:
