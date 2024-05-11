@@ -258,13 +258,15 @@ def __evaluate_biome_dataset__(model, num_gpus, params, save_output=False, write
                 mask_true = extract_collapsed_cls(mask_true, cls)
             else:
                 if params.loss_func == "categorical_crossentropy":
-                    cio = CategoryIndexOrder.CLOUD # dummy object 
-                    for l, c in enumerate(params.cls):  # depending on params.cls and cls being correctly ordered
-                        try:
-                            mask_true[mask_true == cls[l]] = cio.get_model_index_for_string(params.cls, c)
-                        except IndexError as e: # index out of cls range. -> skipping this cls
-                            print(f"IndexError on l={l}, c={c}, cls={str(cls)}", e)
-                            continue
+                    # model outputs in cls order, if not otherwise (logits, labels) designed
+                    pass
+                    #cio = CategoryIndexOrder.CLOUD # dummy object 
+                    #for l, c in enumerate(params.cls):  # depending on params.cls and cls being correctly ordered
+                    #    try:
+                    #        mask_true[mask_true == cls[l]] = cio.get_model_index_for_string(params.cls, c)
+                    #    except IndexError as e: # index out of cls range. -> skipping this cls
+                    #        print(f"IndexError on l={l}, c={c}, cls={str(cls)}", e)
+                    #        continue
                 elif params.loss_func == "sparse_categorical_crossentropy":
                     pass
                     
@@ -276,7 +278,7 @@ def __evaluate_biome_dataset__(model, num_gpus, params, save_output=False, write
                 #     mask_true[:, :, l] = y[:, :, 0]
 
             prediction_time_start = time.time()
-            predicted_mask, _ = predict_img_v2(model, params, img, n_bands, n_cls, num_gpus)
+            predicted_mask, _ = predict_img_v2(model, params, img, n_bands, n_cls, num_gpus) # predict img_v2
             prediction_time.append(time.time() - prediction_time_start)
 
             # Create a nested dict to save evaluation metrics for each product
@@ -293,12 +295,9 @@ def __evaluate_biome_dataset__(model, num_gpus, params, save_output=False, write
                 if params.collapse_cls:
                     accuracy, omission, comission, pixel_jaccard, precision, recall, f_one_score, tp, tn, fp, fn, npix = calculate_evaluation_criteria(valid_pixels_mask.copy(), predicted_binary_mask.copy(), mask_true.copy())
                 else:
-                    if params.loss_func == "sparse_categorical_crossentropy":
-                        categorical_accuracy, accuracy, omission, comission, pixel_jaccard, precision, recall, f_one_score, tp, tn, fp, fn, npix = calculate_sparse_class_evaluation_criteria(params, 
+                    if params.loss_func == "sparse_categorical_crossentropy" or params.loss_func == "categorical_crossentropy":
+                        iou, dice_coeff, categorical_accuracy, accuracy, omission, comission, pixel_jaccard, precision, recall, f_one_score, tp, tn, fp, fn, npix = calculate_sparse_class_evaluation_criteria(params, 
                                 valid_pixels_mask.copy(), predicted_mask.copy(), mask_true.copy())
-                    elif params.loss_func == "categorical_crossentropy":
-                        categorical_accuracy, accuracy, omission, comission, pixel_jaccard, precision, recall, f_one_score, tp, tn, fp, fn, npix = calculate_class_evaluation_criteria(params.cls, 
-                        cls, valid_pixels_mask, predicted_mask, mask_true)
 
                 # Create an additional nesting in the dict for each threshold value
                 evaluation_metrics[product]['threshold_' + str(threshold)] = {}
@@ -318,6 +317,8 @@ def __evaluate_biome_dataset__(model, num_gpus, params, save_output=False, write
                 evaluation_metrics[product]['threshold_' + str(threshold)]['comission'] = comission
                 evaluation_metrics[product]['threshold_' + str(threshold)]['pixel_jaccard'] = pixel_jaccard
                 evaluation_metrics[product]['threshold_' + str(threshold)]['categorical_accuracy'] = categorical_accuracy
+                evaluation_metrics[product]['threshold_' + str(threshold)]['iou'] = iou
+                evaluation_metrics[product]['threshold_' + str(threshold)]['dice_coeff'] = dice_coeff
 
             for threshold in thresholds:
                 print("threshold=" + str(threshold) +
@@ -327,6 +328,8 @@ def __evaluate_biome_dataset__(model, num_gpus, params, save_output=False, write
                         ": fn=" + str(evaluation_metrics[product]['threshold_' + str(threshold)]['fn']) +
                         ": tn=" + str(evaluation_metrics[product]['threshold_' + str(threshold)]['tn']) +
                         ": Categorical-accuracy=" + str(evaluation_metrics[product]['threshold_' + str(threshold)]['categorical_accuracy']) +
+                        ": IoU=" + str(evaluation_metrics[product]['threshold_' + str(threshold)]['iou']) +
+                        ": Dice Coefficient=" +   str(evaluation_metrics[product]['threshold_' + str(threshold)]['dice_coeff']) +
                         ": Accuracy=" + str(evaluation_metrics[product]['threshold_' + str(threshold)]['accuracy']) +
                         ": precision=" + str(evaluation_metrics[product]['threshold_' + str(threshold)]['precision'])+
                         ": recall=" + str(evaluation_metrics[product]['threshold_' + str(threshold)]['recall']) +
@@ -626,7 +629,27 @@ def calculate_sparse_class_evaluation_criteria_v2(params, valid_pixels_mask, pre
 
     return categorical_accuracy, accuracy, omission, comission, pixel_jaccard, precision, recall, f_one_score, tp, tn, fp, fn, npix
 
+def calculate_dice_coefficient(y_true, y_pred, cls):
+    dice_scores = []
+    for c in cls:
+        true_cls = (y_true == c)
+        pred_cls = (y_pred == c)
+        intersection = np.sum(true_cls * pred_cls)
+        union = np.sum(true_cls | pred_cls) #  np.sum(true_cls) + np.sum(pred_cls)
+        dice_coefficient = (2. * intersection) / union
+        dice_scores.append(dice_coefficient)
+    return np.mean(dice_scores)
 
+def calculate_iou(y_true, y_pred, cls):
+    iou_scores = []
+    for c in cls:
+        true_cls = (y_true == c)
+        pred_cls = (y_pred == c)
+        intersection = true_cls & pred_cls
+        union = true_cls | pred_cls
+        iou_score = np.sum(intersection) / np.sum(union)
+        iou_scores.append(iou_score)
+    return np.mean(iou_scores)
 
 def calculate_sparse_class_evaluation_criteria(params, valid_pixels_mask, predicted_mask, mask_true):
     """
@@ -659,7 +682,7 @@ def calculate_sparse_class_evaluation_criteria(params, valid_pixels_mask, predic
     equal_count=binary_accuracy_mask.sum()
 
     # categorical_accuracy = # of correctly predicted records / total number of records
-    categorical_accuracy = equal_count /  npix #max(npix, fill_and_valid_pixels_mask.sum()) , valid_pixels_mask.sum()) # - fill_and_valid_pixels_mask.sum(
+    categorical_accuracy = equal_count / npix # (npix - fill_and_valid_pixels_mask.sum()) #, valid_pixels_mask.sum()) # - fill_and_valid_pixels_mask.sum(
 
     # perhaps implement acc,pred,... for every cls type
     #cloudy types / classy types
@@ -700,8 +723,10 @@ def calculate_sparse_class_evaluation_criteria(params, valid_pixels_mask, predic
     else:
         omission = comission = 0
 
-    return categorical_accuracy, accuracy, omission, comission, pixel_jaccard, precision, recall, f_one_score, tp, tn, fp, fn, npix
+    iou = calculate_iou(mask_true.copy(), argmaxed_pred_mask.copy(), enumeration_cls)
+    dice_coeff = calculate_dice_coefficient(mask_true.copy(), argmaxed_pred_mask.copy(), enumeration_cls)
 
+    return iou, dice_coeff, categorical_accuracy, accuracy, omission, comission, pixel_jaccard, precision, recall, f_one_score, tp, tn, fp, fn, npix
 
 
 def calculate_class_evaluation_criteria(param_cls, cls, valid_pixels_mask, predicted_mask, true_mask):
@@ -869,13 +894,14 @@ def write_csv_files(evaluation_metrics, params):
                 string += key + '_' + str(i) + ','
 
         # Create headers for averaged metrics
-        f.write(string + 'mean_accuracy,mean_precision,mean_recall,mean_f_one_score,mean_omission,mean_comission,mean_pixel_jaccard,mean_categorical_accuracy\n')
+        f.write(string + 'mean_accuracy,mean_precision,mean_recall,mean_f_one_score,mean_omission,mean_comission,mean_pixel_jaccard,mean_categorical_accuracy,mean_iou,mean_dice_coefficient\n')
         f.close()
 
     # Write a new line for each threshold value
     for threshold in list(evaluation_metrics[list(evaluation_metrics)[0]]):  # Use first product to list thresholds
         # Update the params threshold value before writing
         # params.threshold = str(threshold[-3:])
+        f = open(params.project_path + 'reports/Unet/' + file_name, 'a')
 
         # Write params values
         string = str(params.modelID) + ','
@@ -894,7 +920,7 @@ def write_csv_files(evaluation_metrics, params):
             string += str(addition).replace(",", "|")  + ',' # cant have extra commata in csv
 
         # Initialize variables for calculating mean visualization set values
-        categorical_accuracy_sum = accuracy_sum = precision_sum = recall_sum = f_one_score_sum = omission_sum = comission_sum = pixel_jaccard_sum=0.0
+        dice_coeff_sum = iou_sum = categorical_accuracy_sum = accuracy_sum = precision_sum = recall_sum = f_one_score_sum = omission_sum = comission_sum = pixel_jaccard_sum=0.0
 
         # Write visualization set values
         for product in list(evaluation_metrics):
@@ -921,16 +947,20 @@ def write_csv_files(evaluation_metrics, params):
                     comission_sum += evaluation_metrics[product][threshold][key]
                 elif 'pixel_jaccard' in key:
                     pixel_jaccard_sum += evaluation_metrics[product][threshold][key]
+                elif 'dice_coeff' in key:
+                    dice_coeff_sum += evaluation_metrics[product][threshold][key]
+                elif 'iou' in key:
+                    iou_sum += evaluation_metrics[product][threshold][key]
 
         # Add mean values to string
         n_products = np.size(list(evaluation_metrics))
         string += str(accuracy_sum / n_products) + ',' + str(precision_sum / n_products) + ',' + \
                   str(recall_sum / n_products) + ',' + str(f_one_score_sum / n_products) + ',' + \
                   str(omission_sum / n_products) + ',' + str(comission_sum / n_products) + ',' + \
-                  str(pixel_jaccard_sum / n_products)+ ',' + str(categorical_accuracy_sum / n_products)
+                  str(pixel_jaccard_sum / n_products)+ ',' + str(categorical_accuracy_sum / n_products) + ',' + \
+                  str(iou_sum / n_products) + ','+ str(dice_coeff_sum / n_products) 
 
         
-        f = open(params.project_path + 'reports/Unet/' + file_name, 'a')
         # Write string and close csv file
         f.write(string + '\n')
         f.close()
