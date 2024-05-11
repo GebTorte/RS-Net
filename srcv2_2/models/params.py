@@ -206,7 +206,8 @@ def get_params(model, satellite):
             'split_dataset': True,
             'test_tiles': __data_split__('Biome_gt') # Biome_gt # Chose test_dataset value
         }
-        return hparams.update(**hparams_dict)
+        hparams.update(**hparams_dict)
+        return hparams
 
 def __data_split__(dataset):
     if 'Biome' in dataset:
