@@ -76,6 +76,9 @@ def jaccard_coef_loss(y_true, y_pred):
 #    return -K.log(jaccard_coef(y_true, y_pred)) + sparse_categorical_crossentropy(y_pred, y_true, ignore_class=0)
 
 
+@keras.saving.register_keras_serializable()
+def learning_rate_scheduler(epoch, lr):
+    return lr*0.9
 
 @keras.saving.register_keras_serializable()
 def get_callbacks(params):
@@ -101,12 +104,12 @@ def get_callbacks(params):
 
     csv_logger = CSVLogger(params.project_path + 'reports/Unet/csvlogger/' + params.modelID + '.log')
 
-    reduce_lr = ReduceLROnPlateau(monitor='val_loss', factor=0.2, verbose=2,
-                                  patience=params.patience, min_lr=1e-10) # might have to set patience lower (according to num epochs perhaps)
+    reduce_lr = ReduceLROnPlateau(monitor='val_loss', factor=0.5, verbose=2,
+                                  patience=params.plateau_patience, min_lr=1e-10) # might have to set patience lower (according to num epochs perhaps)
 
     early_stopping = EarlyStopping(monitor='val_acc', patience=100, verbose=2)
 
-    sparse_early_stopping = EarlyStopping(monitor='val_sparse_categorical_accuracy', patience=100, verbose=2)
+    sparse_early_stopping = EarlyStopping(monitor='val_sparse_categorical_accuracy', patience=params.early_patience, verbose=2)
 
     return csv_logger, model_checkpoint, reduce_lr, tensorboard, early_stopping, sparse_model_checkpoint, sparse_early_stopping, sparse_model_weights_checkpoint
 

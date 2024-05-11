@@ -203,7 +203,7 @@ class UnetV2(object):
 
         # Define callbacks
         csv_logger, model_checkpoint, reduce_lr, tensorboard, early_stopping, \
-        sparse_model_checkpoint, sparse_early_stopping, sparse_model_weights_checkpoint= get_callbacks(self.params)
+            sparse_model_checkpoint, sparse_early_stopping, sparse_model_weights_checkpoint= get_callbacks(self.params)
         used_callbacks = [csv_logger,  tensorboard]
         
         if self.params.reduce_lr:
@@ -280,8 +280,8 @@ class UnetV2(object):
                         epochs=self.params.epochs,
                         steps_per_epoch=self.params.steps_per_epoch,
                         verbose=1,
-                        workers=9, # 4
-                        max_queue_size=12,
+                        workers=10, # 4
+                        max_queue_size=15,
                         use_multiprocessing=True,
                         shuffle=False,
                         callbacks=used_callbacks,
