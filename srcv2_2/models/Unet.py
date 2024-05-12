@@ -293,6 +293,7 @@ class UnetV2(object):
         # self.model.save_weights(self.params.project_path + 'models/Unet/' + get_model_name(self.params))
         # self.model.save(self.params.project_path + 'models/Unet/' + self.model_name + '.keras')
         # self.model.save(self.params.project_path + 'models/Unet/' + get_model_name(self.params) + '.keras')
+        # model saving is done by checkpoint now
         self._save_params()
         self._save_history(history.history)
     

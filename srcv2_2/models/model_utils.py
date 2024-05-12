@@ -92,16 +92,8 @@ def get_callbacks(params):
                                        monitor='val_acc',
                                        save_weights_only=False,
                                        save_best_only=False)
-    
-    sparse_model_checkpoint = ModelCheckpoint(params.project_path + f'models/Unet/{params.modelID}.keras',
-                                       monitor='val_sparse_categorical_accuracy',
-                                       save_weights_only=False,
-                                       save_best_only=False)
 
-    sparse_model_weights_checkpoint = ModelCheckpoint(params.project_path + f'models/Unet/{params.modelID}.h5',
-                                       monitor='val_sparse_categorical_accuracy',
-                                       save_weights_only=True,
-                                       save_best_only=params.save_best_only)
+    early_stopping = EarlyStopping(monitor='val_acc', patience=100, verbose=2)
 
     tensorboard = TensorBoard(log_dir=params.project_path + f"reports/Unet/tensorboard/{params.modelID}",
                               write_graph=True,
@@ -111,8 +103,16 @@ def get_callbacks(params):
 
     reduce_lr = ReduceLROnPlateau(monitor='val_loss', factor=0.2, verbose=2,
                                   patience=params.plateau_patience, min_lr=1e-10) # might have to set patience lower (according to num epochs perhaps)
+        
+    sparse_model_checkpoint = ModelCheckpoint(params.project_path + f'models/Unet/{params.modelID}.keras',
+                                       monitor='val_sparse_categorical_accuracy',
+                                       save_weights_only=False,
+                                       save_best_only=False)
 
-    early_stopping = EarlyStopping(monitor='val_acc', patience=100, verbose=2)
+    sparse_model_weights_checkpoint = ModelCheckpoint(params.project_path + f'models/Unet/{params.modelID}.h5',
+                                       monitor='val_sparse_categorical_accuracy',
+                                       save_weights_only=True,
+                                       save_best_only=params.save_best_only)
 
     sparse_early_stopping = EarlyStopping(monitor='val_sparse_categorical_accuracy', patience=params.early_patience, verbose=2)
 
