@@ -631,23 +631,23 @@ def calculate_sparse_class_evaluation_criteria_v2(params, valid_pixels_mask, pre
 
     return categorical_accuracy, accuracy, omission, comission, pixel_jaccard, precision, recall, f_one_score, tp, tn, fp, fn, npix
 
-def calculate_categorical_accuracy(y_true, y_pred, valid_pixel_mask, cls, npix):
+def calculate_categorical_accuracy(y_true, y_pred, valid_pixel_mask, cls, npix, fill_val=0):
     """
     y_true and y_pred contain classes from cls
     """
     cat_accs = []
     for c in cls:
-        if c == 0: # pass on fill pixel
+        if c == fill_val: # pass on fill pixel
             continue
         true_cls = (y_true == c) & valid_pixel_mask
         pred_cls = (y_pred == c) & valid_pixel_mask
         cat_accs.append(np.sum(true_cls==pred_cls))
     return np.mean(cat_accs) / (npix * len(cat_accs))
 
-def calculate_dice_coefficient(y_true, y_pred, valid_pixel_mask, cls):
+def calculate_dice_coefficient(y_true, y_pred, valid_pixel_mask, cls, fill_val=0):
     dice_scores = []
     for c in cls:
-        if c == 0:
+        if c == fill_val:
             continue
         true_cls = (y_true == c) & valid_pixel_mask
         pred_cls = (y_pred == c) & valid_pixel_mask
@@ -657,10 +657,10 @@ def calculate_dice_coefficient(y_true, y_pred, valid_pixel_mask, cls):
         dice_scores.append(dice_coefficient)
     return np.mean(dice_scores)
 
-def calculate_iou(y_true, y_pred, valid_pixel_mask, cls):
+def calculate_iou(y_true, y_pred, valid_pixel_mask, cls, fill_val=0):
     iou_scores = []
     for c in cls:
-        if c == 0:
+        if c == fill_val:
             continue
         true_cls = (y_true == c)& valid_pixel_mask
         pred_cls = (y_pred == c)& valid_pixel_mask
@@ -670,7 +670,7 @@ def calculate_iou(y_true, y_pred, valid_pixel_mask, cls):
         iou_scores.append(iou_score)
     return np.mean(iou_scores)
 
-def calculate_categorical_cross_entropy(y_true, y_pred, cls):
+def calculate_categorical_cross_entropy(y_true, y_pred, cls, fill_val=0):
     """
     y_true of cls
     y_pred of probabilities
@@ -680,7 +680,7 @@ def calculate_categorical_cross_entropy(y_true, y_pred, cls):
     one_hot = np.zeros(shape=(shp[0], shp[1], len(cls)))
 
     for i, c in enumerate(cls):
-        if c == 0:
+        if c == fill_val:
             continue
         one_hot[:,:,i] = (y_true == c).astype(np.uint8)
 
@@ -703,6 +703,12 @@ def calculate_sparse_class_evaluation_criteria(params, valid_pixels_mask, predic
 
 
     enumeration_cls = get_cls(params.satellite, params.train_dataset, params.cls)
+
+    # get fill pixel value
+    fill_lst = get_cls(params.satellite, params.test_dataset, ['fill'])
+    fill_val = -1 # non uint8 value
+    if len(fill_lst) > 0: # not of NaN type, as sparcs_gt doesnt have fill values
+        fill_val = fill_lst[0]
     
     #fill_pixel_mask = mask_true == get_cls(params.satellite, params.test_dataset, ['fill'])[0] 
     #fill_and_valid_pixels_mask = fill_pixel_mask & valid_pixels_mask
@@ -764,10 +770,11 @@ def calculate_sparse_class_evaluation_criteria(params, valid_pixels_mask, predic
     else:
         omission = comission = 0
 
-    iou = calculate_iou(mask_true.copy(), argmaxed_cls_pred_mask.copy(), valid_pixels_mask, enumeration_cls)
-    dice_coeff = calculate_dice_coefficient(mask_true.copy(), argmaxed_cls_pred_mask.copy(), valid_pixels_mask,enumeration_cls)
-    categorical_accuracy = calculate_categorical_accuracy(mask_true.copy(), argmaxed_cls_pred_mask.copy(), valid_pixels_mask, enumeration_cls, npix)
-    categorical_cross_entropy = calculate_categorical_cross_entropy(mask_true.copy(), predicted_mask.copy(), enumeration_cls)
+    # passing copies just to be safe. In many cases not needed tho.
+    iou = calculate_iou(mask_true.copy(), argmaxed_cls_pred_mask.copy(), valid_pixels_mask, enumeration_cls, fill_val=fill_val)
+    dice_coeff = calculate_dice_coefficient(mask_true.copy(), argmaxed_cls_pred_mask.copy(), valid_pixels_mask,enumeration_cls, fill_val=fill_val)
+    categorical_accuracy = calculate_categorical_accuracy(mask_true.copy(), argmaxed_cls_pred_mask.copy(), valid_pixels_mask, enumeration_cls, npix, fill_val=fill_val)
+    categorical_cross_entropy = calculate_categorical_cross_entropy(mask_true.copy(), predicted_mask.copy(), enumeration_cls, fill_val=fill_val)
 
     return categorical_cross_entropy, iou, dice_coeff, categorical_accuracy, accuracy, omission, comission, pixel_jaccard, precision, recall, f_one_score, tp, tn, fp, fn, npix
 
