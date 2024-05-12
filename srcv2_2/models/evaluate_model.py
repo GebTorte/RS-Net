@@ -637,14 +637,18 @@ def calculate_categorical_accuracy(y_true, y_pred, valid_pixel_mask, cls, npix):
     """
     cat_accs = []
     for c in cls:
+        if c == 0: # pass on fill pixel
+            continue
         true_cls = (y_true == c) & valid_pixel_mask
         pred_cls = (y_pred == c) & valid_pixel_mask
         cat_accs.append(np.sum(true_cls==pred_cls))
-    return np.mean(cat_accs) / (npix * len(cls))
+    return np.mean(cat_accs) / (npix * len(cat_accs))
 
-def calculate_dice_coefficient(y_true, y_pred, valid_pixel_mask,cls):
+def calculate_dice_coefficient(y_true, y_pred, valid_pixel_mask, cls):
     dice_scores = []
     for c in cls:
+        if c == 0:
+            continue
         true_cls = (y_true == c) & valid_pixel_mask
         pred_cls = (y_pred == c) & valid_pixel_mask
         intersection = np.sum(true_cls * pred_cls)
@@ -653,9 +657,11 @@ def calculate_dice_coefficient(y_true, y_pred, valid_pixel_mask,cls):
         dice_scores.append(dice_coefficient)
     return np.mean(dice_scores)
 
-def calculate_iou(y_true, y_pred, valid_pixel_mask,cls):
+def calculate_iou(y_true, y_pred, valid_pixel_mask, cls):
     iou_scores = []
     for c in cls:
+        if c == 0:
+            continue
         true_cls = (y_true == c)& valid_pixel_mask
         pred_cls = (y_pred == c)& valid_pixel_mask
         intersection = true_cls & pred_cls
@@ -672,7 +678,10 @@ def calculate_categorical_cross_entropy(y_true, y_pred, cls):
     # one hot encode y_true
     shp = np.shape(y_true)
     one_hot = np.zeros(shape=(shp[0], shp[1], len(cls)))
+
     for i, c in enumerate(cls):
+        if c == 0:
+            continue
         one_hot[:,:,i] = (y_true == c).astype(np.uint8)
 
     # ensure probabilities per pixel sum up to 1
@@ -687,10 +696,13 @@ def calculate_sparse_class_evaluation_criteria(params, valid_pixels_mask, predic
     Here be bugs
     """
     print("Sparse Metrics")
-    # Count number of actual pixels
+    # Count number of actual pixels # should not be needed for only bands 1-7
     valid_pixels_mask = np.asarray(valid_pixels_mask, dtype=bool)
     npix = valid_pixels_mask.sum()
     #invalid_pixels_mask = ~valid_pixels_mask
+
+
+    enumeration_cls = get_cls(params.satellite, params.train_dataset, params.cls)
     
     #fill_pixel_mask = mask_true == get_cls(params.satellite, params.test_dataset, ['fill'])[0] 
     #fill_and_valid_pixels_mask = fill_pixel_mask & valid_pixels_mask
@@ -699,22 +711,20 @@ def calculate_sparse_class_evaluation_criteria(params, valid_pixels_mask, predic
     #n_invalid_pix = invalid_pixels_mask.sum()
     # converted mask_true to predicted values as input
     #mask_true_cls_corrected = true_mask.copy()
-
-    argmaxed_pred_mask = np.argmax(predicted_mask, axis=-1)
-
-    enumeration_cls = get_cls(params.satellite, params.train_dataset, params.cls)
-    
+    argmaxed_pred_mask =  np.argmax(predicted_mask, axis=-1)
+    argmaxed_cls_pred_mask = argmaxed_pred_mask.copy()
     for i, c in enumerate(enumeration_cls): # cls have to be converted by get_cls beforehand# has to be correct order!
-        argmaxed_pred_mask[argmaxed_pred_mask == i] = c  # convert indices of model output to cls
+        argmaxed_cls_pred_mask[argmaxed_cls_pred_mask == i] = c  # convert indices of model output to cls
 
-    binary_accuracy_mask = argmaxed_pred_mask == mask_true
+    binary_accuracy_mask = argmaxed_cls_pred_mask == mask_true
     binary_accuracy_mask &= valid_pixels_mask
     # binary_accuracy_mask &= ~fill_pixel_mask # remove fill pixel
     equal_count=binary_accuracy_mask.sum()
 
     # categorical_accuracy = # of correctly predicted records / total number of records
     categorical_accuracy = equal_count / npix # (npix - fill_and_valid_pixels_mask.sum()) #, valid_pixels_mask.sum()) # - fill_and_valid_pixels_mask.sum(
-
+    print("old categorical_accuracy (with fill pxl?!): ", categorical_accuracy)
+    
     # perhaps implement acc,pred,... for every cls type
     #cloudy types / classy types
     positives = get_cls(params.satellite, params.train_dataset, cls_string=POSITIVES)
@@ -723,8 +733,8 @@ def calculate_sparse_class_evaluation_criteria(params, valid_pixels_mask, predic
     negatives = get_cls(params.satellite, params.train_dataset, cls_string=NEGATIVES) # 'fill', removed fill as it should not count into metrics
 
     # The following are disregarding fill by default. As it is not in negatives nor positives
-    pred_positives = np.isin(argmaxed_pred_mask, positives)
-    pred_negatives = np.isin(argmaxed_pred_mask, negatives)
+    pred_positives = np.isin(argmaxed_cls_pred_mask, positives)
+    pred_negatives = np.isin(argmaxed_cls_pred_mask, negatives)
     true_positives =  np.isin(mask_true, positives)
     true_negatives =  np.isin(mask_true, negatives)
 
@@ -754,9 +764,9 @@ def calculate_sparse_class_evaluation_criteria(params, valid_pixels_mask, predic
     else:
         omission = comission = 0
 
-    iou = calculate_iou(mask_true.copy(), argmaxed_pred_mask.copy(), valid_pixels_mask, enumeration_cls)
-    dice_coeff = calculate_dice_coefficient(mask_true.copy(), argmaxed_pred_mask.copy(), valid_pixels_mask,enumeration_cls)
-    # categorical_accuracy = calculate_categorical_accuracy(mask_true.copy(), argmaxed_pred_mask.copy(), valid_pixels_mask,enumeration_cls, npix)
+    iou = calculate_iou(mask_true.copy(), argmaxed_cls_pred_mask.copy(), valid_pixels_mask, enumeration_cls)
+    dice_coeff = calculate_dice_coefficient(mask_true.copy(), argmaxed_cls_pred_mask.copy(), valid_pixels_mask,enumeration_cls)
+    categorical_accuracy = calculate_categorical_accuracy(mask_true.copy(), argmaxed_cls_pred_mask.copy(), valid_pixels_mask, enumeration_cls, npix)
     categorical_cross_entropy = calculate_categorical_cross_entropy(mask_true.copy(), predicted_mask.copy(), enumeration_cls)
 
     return categorical_cross_entropy, iou, dice_coeff, categorical_accuracy, accuracy, omission, comission, pixel_jaccard, precision, recall, f_one_score, tp, tn, fp, fn, npix
