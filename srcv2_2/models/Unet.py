@@ -63,7 +63,6 @@ class UnetV2(object):
         if model == None:
             # Try loading a saved model. get_model_name has to be unique
             try:
-                # TODO: load params from json
                 model = tf.keras.saving.load_model(self.params.project_path + 'models/Unet/' + self.params.modelID + '.keras') # get_model_name(self.params)
                 print(f"Model {self.params.modelID} has been loaded.")
 
@@ -101,7 +100,7 @@ class UnetV2(object):
 
     def __create_inference__(self):
         # Note about BN and dropout: https://stackoverflow.com/questions/46316687/how-to-include-batch-normalization-in-non-sequential-keras-model
-        # get_custom_objects().update({'swish': Activation(swish)})
+        get_custom_objects().update({'swish': Activation(swish)})
         if self.params.activation_func == "leaky_relu":
             activation_func = LeakyReLU(alpha=self.params.leaky_alpha)
         else:
@@ -202,7 +201,7 @@ class UnetV2(object):
         print()
 
         # Define callbacks
-        csv_logger, model_checkpoint, reduce_lr, tensorboard, early_stopping, \
+        csv_logger, model_checkpoint,model_checkpoint_saving, reduce_lr, tensorboard, early_stopping, \
             sparse_model_checkpoint, sparse_early_stopping, sparse_model_weights_checkpoint= get_callbacks(self.params)
         used_callbacks = [csv_logger,  tensorboard]
         
@@ -212,6 +211,7 @@ class UnetV2(object):
             if self.params.early_stopping:
                 used_callbacks.append(early_stopping)
             used_callbacks.append(model_checkpoint)
+            used_callbacks.append(model_checkpoint_saving)
         elif self.params.loss_func == "sparse_categorical_crossentropy" or self.params.loss_func == "categorical_crossentropy":
             if self.params.early_stopping:
                 used_callbacks.append(sparse_early_stopping)
@@ -221,7 +221,7 @@ class UnetV2(object):
         # Configure optimizer (use Nadam or Adam and 'binary_crossentropy' or jaccard_coef_loss)
         if self.params.optimizer == 'Adam':
             if self.params.loss_func == 'binary_crossentropy':
-                self.model.compile(optimizer=Adam(lr=self.params.learning_rate, decay=self.params.decay, amsgrad=True),
+                self.model.compile(optimizer=Adam(learning_rate=self.params.learning_rate, decay=self.params.decay, amsgrad=True),
                                    loss='binary_crossentropy',
                                    metrics=['binary_crossentropy', jaccard_coef_loss, jaccard_coef,
                                             jaccard_coef_thresholded, 'accuracy'])

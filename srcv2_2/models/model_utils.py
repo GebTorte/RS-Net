@@ -87,11 +87,16 @@ def get_callbacks(params):
                                        monitor='val_acc',
                                        save_weights_only=True,
                                        save_best_only=params.save_best_only)
+
+    model_checkpoint_saving = ModelCheckpoint(params.project_path + f'models/Unet/{params.modelID}.keras',
+                                       monitor='val_acc',
+                                       save_weights_only=False,
+                                       save_best_only=False)
     
     sparse_model_checkpoint = ModelCheckpoint(params.project_path + f'models/Unet/{params.modelID}.keras',
                                        monitor='val_sparse_categorical_accuracy',
                                        save_weights_only=False,
-                                       save_best_only=params.save_best_only)
+                                       save_best_only=False)
 
     sparse_model_weights_checkpoint = ModelCheckpoint(params.project_path + f'models/Unet/{params.modelID}.h5',
                                        monitor='val_sparse_categorical_accuracy',
@@ -104,14 +109,14 @@ def get_callbacks(params):
 
     csv_logger = CSVLogger(params.project_path + 'reports/Unet/csvlogger/' + params.modelID + '.log')
 
-    reduce_lr = ReduceLROnPlateau(monitor='val_loss', factor=0.5, verbose=2,
+    reduce_lr = ReduceLROnPlateau(monitor='val_loss', factor=0.2, verbose=2,
                                   patience=params.plateau_patience, min_lr=1e-10) # might have to set patience lower (according to num epochs perhaps)
 
     early_stopping = EarlyStopping(monitor='val_acc', patience=100, verbose=2)
 
     sparse_early_stopping = EarlyStopping(monitor='val_sparse_categorical_accuracy', patience=params.early_patience, verbose=2)
 
-    return csv_logger, model_checkpoint, reduce_lr, tensorboard, early_stopping, sparse_model_checkpoint, sparse_early_stopping, sparse_model_weights_checkpoint
+    return csv_logger, model_checkpoint, model_checkpoint_saving, reduce_lr, tensorboard, early_stopping, sparse_model_checkpoint, sparse_early_stopping, sparse_model_weights_checkpoint
 
 
 class ImageSequence(Sequence):

@@ -207,7 +207,8 @@ if __name__ == '__main__':
         # If a model has been trained, use that one. If not, load a new one.
         if not args.train: # then no model has been trained in current step, so load the saved one
             if args.model == 'U-net-v2':
-                loaded_model = tf.keras.saving.load_model(f"./models/Unet/{get_model_name(params)}.keras")
+                loaded_model = tf.keras.saving.load_model(f"./models/Unet/{params.modelID}.keras")
+                # {get_model_name(params)}
                 #loaded_model = tf.keras.saving.load_model(f"../models/Unet/{params.modelID}.keras")
                 model = UnetV2(params, model=loaded_model)  # to implement for V2: load model from file
         # out = model.evaluate(return_dict=True)

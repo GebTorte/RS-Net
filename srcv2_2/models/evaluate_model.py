@@ -199,10 +199,12 @@ def __evaluate_biome_dataset__(model, num_gpus, params, save_output=False, write
     if params.loss_func == "binary_crossentropy":
         thresholds = [0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5,
                   0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95]
+        thresholds = [params.threshold]
     elif params.loss_func =="categorical_crossentropy": # for categorical argmaxing, thresholding seems to be irrelevant
         thresholds = [params.threshold]
     else:
-        thresholds = [0.5]
+        thresholds = [1/n_cls, 1/(n_cls-1), 0.5, 0.9] # n_cls might be one to big, if fill is in params
+        # softmax normalizes to between 0-1 anyway
 
     evaluation_metrics = {}
     evaluating_product_no = 1  # Used in print statement later
@@ -278,7 +280,7 @@ def __evaluate_biome_dataset__(model, num_gpus, params, save_output=False, write
                 #     mask_true[:, :, l] = y[:, :, 0]
 
             prediction_time_start = time.time()
-            predicted_mask, _ = predict_img_v2(model, params, img, n_bands, n_cls, num_gpus) # predict img_v2
+            predicted_mask, _ = predict_img(model, params, img, n_bands, n_cls, num_gpus) # predict img_v2
             prediction_time.append(time.time() - prediction_time_start)
 
             # Create a nested dict to save evaluation metrics for each product
@@ -296,7 +298,7 @@ def __evaluate_biome_dataset__(model, num_gpus, params, save_output=False, write
                     accuracy, omission, comission, pixel_jaccard, precision, recall, f_one_score, tp, tn, fp, fn, npix = calculate_evaluation_criteria(valid_pixels_mask.copy(), predicted_binary_mask.copy(), mask_true.copy())
                 else:
                     if params.loss_func == "sparse_categorical_crossentropy" or params.loss_func == "categorical_crossentropy":
-                        categorical_cross_entropy, iou, dice_coeff, categorical_accuracy, accuracy, omission, comission, pixel_jaccard, precision, recall, f_one_score, tp, tn, fp, fn, npix = calculate_sparse_class_evaluation_criteria(params, 
+                        categorical_cross_entropy, iou, dice_coeff, categorical_accuracy, accuracy, omission, comission, pixel_jaccard, precision, recall, f_one_score, tp, tn, fp, fn, npix = calculate_sparse_class_evaluation_criteria(threshold, params, 
                                 valid_pixels_mask.copy(), predicted_mask.copy(), mask_true.copy())
 
                 # Create an additional nesting in the dict for each threshold value
@@ -364,7 +366,7 @@ def __evaluate_biome_dataset__(model, num_gpus, params, save_output=False, write
                     #predicted_mask_copy = predicted_mask.copy() # this would be the multi-layered output. Too big as tiff though.
                     # get_cls(params.satellite, params.train_dataset, params.cls)
                     for i, c in enumerate(get_cls(params.satellite, params.test_dataset, params.cls)): # cls have to be converted by get_cls beforehand
-                        argmaxed_pred[argmaxed_pred == i] = min(c, 2**8 - 1) # as c is uint8
+                        argmaxed_pred[argmaxed_pred == i] = min(c, 255) # as c is uint8
                         #predicted_mask_copy[:,:,i][argmaxed_pred == i] = c
 
                     img = Image.fromarray(np.uint8(argmaxed_pred))
@@ -381,7 +383,7 @@ def __evaluate_biome_dataset__(model, num_gpus, params, save_output=False, write
                     #tiff.imwrite(data_output_path + params.modelID + f'/{product}-layered_nb_prediction.tiff', data=np.uint8(predicted_mask_copy))
                     #tiff.imwrite(data_output_path + params.modelID + f'/{product}-nb_prediction.tiff', data=arr2_buffer)
                 try:
-                    cloud_arr = np.uint8(predicted_mask[:, :, params.cls.index('cloud')] * (2**8-1)) # indexed layer of cloud, assuming cloud is in predicted classes
+                    cloud_arr = np.uint8(predicted_mask[:, :, params.cls.index('cloud')] * 255) # indexed layer of cloud, assuming cloud is in predicted classes
                     #array_buffer = cloud_arr.tobytes()
 
                     img = Image.fromarray(cloud_arr)
@@ -631,18 +633,19 @@ def calculate_sparse_class_evaluation_criteria_v2(params, valid_pixels_mask, pre
 
     return categorical_accuracy, accuracy, omission, comission, pixel_jaccard, precision, recall, f_one_score, tp, tn, fp, fn, npix
 
-def calculate_categorical_accuracy(y_true, y_pred, valid_pixel_mask, cls, npix, fill_val=0):
+def calculate_categorical_accuracy(y_true, y_pred, valid_pixel_mask, fill_pixel_mask, cls, npix, fill_val=0):
     """
     y_true and y_pred contain classes from cls
     """
-    cat_accs = []
+    hits = []
     for c in cls:
         if c == fill_val: # pass on fill pixel
             continue
         true_cls = (y_true == c) & valid_pixel_mask
         pred_cls = (y_pred == c) & valid_pixel_mask
-        cat_accs.append(np.sum(true_cls==pred_cls))
-    return np.mean(cat_accs) / (npix * len(cat_accs))
+        hits.append(np.sum(true_cls & pred_cls)) # where both are true
+    return np.sum(hits) / (np.sum(~fill_pixel_mask & valid_pixel_mask)) 
+    #(npix * len(hits)) # hits are - by definition - less than npix/4, so we have to correct for that
 
 def calculate_dice_coefficient(y_true, y_pred, valid_pixel_mask, cls, fill_val=0):
     dice_scores = []
@@ -675,32 +678,39 @@ def calculate_categorical_cross_entropy(y_true, y_pred, cls, fill_val=0):
     y_true of cls
     y_pred of probabilities
     """
-    # one hot encode y_true
-    shp = np.shape(y_true)
-    one_hot = np.zeros(shape=(shp[0], shp[1], len(cls)))
+    try:
 
-    for i, c in enumerate(cls):
-        if c == fill_val:
-            continue
-        one_hot[:,:,i] = (y_true == c).astype(np.uint8)
+        # one hot encode y_true
+        shp = np.shape(y_true)
+        one_hot = np.zeros(shape=(shp[0], shp[1], len(cls)))
 
-    # ensure probabilities per pixel sum up to 1
-    y_pred /= np.sum(y_pred, axis=-1, keepdims=True)
+        for i, c in enumerate(cls):
+            if c == fill_val:
+                continue
+            one_hot[y_true == c,i] = 1
 
-    epsilon = 1e-15  # Small constant to avoid division by zero
-    y_pred = np.clip(y_pred, epsilon, 1 - epsilon)  # Clip values to avoid log(0)
-    return -np.mean(np.sum(one_hot * np.log(y_pred), axis=-1))
+        # ensure probabilities per pixel sum up to 1
+        # this should already be the case, as last layer activation funtion is softmax
+        # y_pred /= np.sum(y_pred, axis=-1, keepdims=True)
 
-def calculate_sparse_class_evaluation_criteria(params, valid_pixels_mask, predicted_mask, mask_true):
+        epsilon = 1e-15  # Small constant to avoid division by zero
+        y_pred = np.clip(y_pred, epsilon, 1 - epsilon)  # Clip values to avoid log(0)
+
+        res = -np.mean(np.sum(one_hot * np.log(y_pred), axis=-1))
+    except:
+        res = 0
+    return res
+
+def calculate_sparse_class_evaluation_criteria(threshold, params, valid_pixels_mask, predicted_mask, mask_true):
     """
     Here be bugs
+
+    Note: As this function and its sub-functions is rather unoptimized, the threshold loop might take a long time.
     """
-    print("Sparse Metrics")
     # Count number of actual pixels # should not be needed for only bands 1-7
     valid_pixels_mask = np.asarray(valid_pixels_mask, dtype=bool)
     npix = valid_pixels_mask.sum()
     #invalid_pixels_mask = ~valid_pixels_mask
-
 
     enumeration_cls = get_cls(params.satellite, params.train_dataset, params.cls)
 
@@ -710,15 +720,26 @@ def calculate_sparse_class_evaluation_criteria(params, valid_pixels_mask, predic
     if len(fill_lst) > 0: # not of NaN type, as sparcs_gt doesnt have fill values
         fill_val = fill_lst[0]
     
-    #fill_pixel_mask = mask_true == get_cls(params.satellite, params.test_dataset, ['fill'])[0] 
-    #fill_and_valid_pixels_mask = fill_pixel_mask & valid_pixels_mask
+    fill_pixel_mask = mask_true == fill_val 
+    print("Fill pixel: ",np.sum(fill_pixel_mask))
+    fill_and_valid_pixels_mask = fill_pixel_mask & valid_pixels_mask
 
     # npix = valid_pixels_mask.sum() - fill_and_valid_pixels_mask.sum()
     #n_invalid_pix = invalid_pixels_mask.sum()
     # converted mask_true to predicted values as input
     #mask_true_cls_corrected = true_mask.copy()
-    argmaxed_pred_mask =  np.argmax(predicted_mask, axis=-1)
+
+
+    argmaxed_pred_mask = np.argmax(predicted_mask, axis=-1)
+
     argmaxed_cls_pred_mask = argmaxed_pred_mask.copy()
+
+    # threshold predicted mask:
+    threshold_mask = np.max(predicted_mask, axis=-1) < threshold # only evaluate the predictions with prob. above threshold
+    #thresholded_predicted_mask = predicted_mask.copy()
+    #predicted_mask[~thresholded_mask] = 0.0 # zeroize non-thresholded values
+    argmaxed_cls_pred_mask[threshold_mask] = -1 # non-uint8 value / non argmax value / non-class value
+
     for i, c in enumerate(enumeration_cls): # cls have to be converted by get_cls beforehand# has to be correct order!
         argmaxed_cls_pred_mask[argmaxed_cls_pred_mask == i] = c  # convert indices of model output to cls
 
@@ -728,15 +749,15 @@ def calculate_sparse_class_evaluation_criteria(params, valid_pixels_mask, predic
     equal_count=binary_accuracy_mask.sum()
 
     # categorical_accuracy = # of correctly predicted records / total number of records
-    categorical_accuracy = equal_count / npix # (npix - fill_and_valid_pixels_mask.sum()) #, valid_pixels_mask.sum()) # - fill_and_valid_pixels_mask.sum(
-    print("old categorical_accuracy (with fill pxl?!): ", categorical_accuracy)
+    categorical_accuracy = equal_count / max(npix - fill_and_valid_pixels_mask.sum(), equal_count) #, valid_pixels_mask.sum()) # - fill_and_valid_pixels_mask.sum(
+    print(f"Threshold: {threshold}, old categorical_accuracy: ", categorical_accuracy)
     
     # perhaps implement acc,pred,... for every cls type
     #cloudy types / classy types
     positives = get_cls(params.satellite, params.train_dataset, cls_string=POSITIVES)
 
     #non-cloudy types
-    negatives = get_cls(params.satellite, params.train_dataset, cls_string=NEGATIVES) # 'fill', removed fill as it should not count into metrics
+    negatives = get_cls(params.satellite, params.train_dataset, cls_string=NEGATIVES)
 
     # The following are disregarding fill by default. As it is not in negatives nor positives
     pred_positives = np.isin(argmaxed_cls_pred_mask, positives)
@@ -772,9 +793,9 @@ def calculate_sparse_class_evaluation_criteria(params, valid_pixels_mask, predic
 
     # passing copies just to be safe. In many cases not needed tho.
     iou = calculate_iou(mask_true.copy(), argmaxed_cls_pred_mask.copy(), valid_pixels_mask, enumeration_cls, fill_val=fill_val)
-    dice_coeff = calculate_dice_coefficient(mask_true.copy(), argmaxed_cls_pred_mask.copy(), valid_pixels_mask,enumeration_cls, fill_val=fill_val)
-    categorical_accuracy = calculate_categorical_accuracy(mask_true.copy(), argmaxed_cls_pred_mask.copy(), valid_pixels_mask, enumeration_cls, npix, fill_val=fill_val)
-    categorical_cross_entropy = calculate_categorical_cross_entropy(mask_true.copy(), predicted_mask.copy(), enumeration_cls, fill_val=fill_val)
+    dice_coeff = np.nan #calculate_dice_coefficient(mask_true.copy(), argmaxed_cls_pred_mask.copy(), valid_pixels_mask,enumeration_cls, fill_val=fill_val)
+    categorical_accuracy = calculate_categorical_accuracy(mask_true.copy(), argmaxed_cls_pred_mask.copy(), valid_pixels_mask, fill_pixel_mask, enumeration_cls, npix, fill_val=fill_val)
+    categorical_cross_entropy = np.nan # calculate_categorical_cross_entropy(mask_true.copy(), predicted_mask.copy(), enumeration_cls, fill_val=fill_val)
 
     return categorical_cross_entropy, iou, dice_coeff, categorical_accuracy, accuracy, omission, comission, pixel_jaccard, precision, recall, f_one_score, tp, tn, fp, fn, npix
 
@@ -954,7 +975,7 @@ def write_csv_files(evaluation_metrics, params):
         f = open(params.project_path + 'reports/Unet/' + file_name, 'a')
 
         # Write params values
-        string = str(params.modelID) + ','
+        string = str(params.modelID) + ',' + str(threshold) + ','
         for key in params.values().keys():
             if key == 'modelID':
                 continue
