@@ -30,7 +30,7 @@ L8 | MODGA09
 Order: 3, 4, 1, 2, 6, 7, 5
 """
 
-CLS=['shadow', 'clear', 'thin', 'cloud'] # 'fill' has to be included for categorical?, so model non-class option for fill pixel and thus wont learn bad habits.
+CLS=['shadow', 'clear', 'thin', 'cloud'] # 'fill' has to be included for categorical? No., so model non-class option for fill pixel and thus wont learn bad habits.
 SATELLITE = "Landsat8"
 TRAIN_DATASET = "Biome_gt"
 
@@ -49,24 +49,25 @@ adam-decay: 0?
 train_set_overlap: 120px -> give 60px to patch_v2 as it cuts from both sides
 """
 
-params = HParams(activation_func="relu",
-                # modelID="240512114954-CV2of2", # this is for --test model loading
-                leaky_alpha=0.1,
+params = HParams(activation_func="relu", # or elu or leaky relu?
+                # modelID="240514083303-CV1of2", # this is for --test model loading
+                leaky_alpha=np.nan, # not needed as input is normalized to [0,1]
                 loss_func="sparse_categorical_crossentropy",
-                learning_rate=0.97e-6, # 4e-8 # 2e-7 is too big for training overlap 40?!
+                learning_rate=1e-7,
                 reduce_lr=True, # True maybe?, as it monitors val_loss aswell
-                plateau_patience=12, #12 # in epochs
-                early_patience=20,
+                plateau_patience=5, #12 # in epochs
+                early_patience=29, # maybe up this to ~= epochs
+                replace_fill_values = True,
                 affine_transformation = True,
-                L2reg=0.99e-3, #-3
+                L2reg=1e-6, #-3
                 dropout=0, # 0.05, # this a tiny bit maybe? # or not?
+                dropout_on_last_layer_only=True, # False, if using dropout, definitely test both
                 decay=0,  #2e-1, #this a bit, to slow down learning through Adam, ~ 1e-5 or so
                 bands=[1, 2, 3, 4, 5, 6, 7],
-                epochs=50, # training goes well, maybe just reduce epochs a bit, so less overfitting?
+                epochs=8, # training goes well, maybe just reduce epochs a bit, so less overfitting?
                 norm_method="enhance_contrast", #"enhance_contrast"
                 use_batch_norm=True,
-                batch_norm_momentum=0.95, # increase for stability?
-                dropout_on_last_layer_only=True,
+                batch_norm_momentum=0.7, # increase for stability?
                 initialization="he_normal", # glorot_normal for categorical, try he_normal for (r)elu perhaps?
                 last_layer_activation_func='softmax', # 'softmax'
                 satellite=SATELLITE,
@@ -78,7 +79,7 @@ params = HParams(activation_func="relu",
                 test_dataset=TRAIN_DATASET, # atm only train=test implemented
                 overlap=40, # 20 # 0
                 overlap_train_set=60, #120# 6 converts to 3 in every direction, as in fmask
-                norm_threshold=2**16-1,
+                norm_threshold=2**16-1, # might set this lower to the max values that actually occur in L8 sensors
                 split_dataset=True,
                 save_best_only=False)
 
