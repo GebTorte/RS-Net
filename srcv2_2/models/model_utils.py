@@ -225,13 +225,13 @@ class ImageSequence(Sequence):
                     
                     vals, counts = np.unique(mask, return_counts=True, axis=None)
                     # remove fill count from vals and counts
-                    if np.count_nonzero(mask == fill_val) > 0:
-                        fill_idx = vals.index(fill_val)
-                        vals = np.delete(vals, fill_idx)
-                        counts = np.delete(counts, fill_idx)
+                    if fill_val in vals:
+                        fill_idx = list(vals).index(fill_val) # ndarray has no index function
+                        counts[fill_idx] = 0 # set fill value count, so it be argmax
 
-                    # set fill pixel to most occuring pixel class
-                    mask[mask == fill_val] = vals[counts.argmax()] 
+                        if len(vals) > 0:
+                            # set fill pixel to most occuring pixel class that is not fill
+                            mask[mask == fill_val] = vals[counts.argmax()] 
 
             # Create the binary masks
             if self.params.collapse_cls:
