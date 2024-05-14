@@ -214,6 +214,25 @@ class ImageSequence(Sequence):
             # Load the masks
             mask = np.load(self.path + "mask/" + filename)
 
+            # for categorical, preplace 'fill' pxl with current most occuring pixel class.
+            if self.params.loss_func == "sparse_categorical_crossentropy":
+                if self.params.replace_fill_values:
+                    # get fill pixel value
+                    fill_lst = get_cls(self.params.satellite, self.params.train_dataset, ['fill'])
+                    fill_val = -1 # non uint8 value
+                    if len(fill_lst) > 0:
+                        fill_val = fill_lst[0]
+                    
+                    vals, counts = np.unique(mask, return_counts=True, axis=None)
+                    # remove fill count from vals and counts
+                    if np.count_nonzero(mask == fill_val) > 0:
+                        fill_idx = vals.index(fill_val)
+                        vals = np.delete(vals, fill_idx)
+                        counts = np.delete(counts, fill_idx)
+
+                    # set fill pixel to most occuring pixel class
+                    mask[mask == fill_val] = vals[counts.argmax()] 
+
             # Create the binary masks
             if self.params.collapse_cls:
                 mask = extract_collapsed_cls(mask, self.cls)
@@ -222,6 +241,8 @@ class ImageSequence(Sequence):
                 self.y[i, :, :, :] = mask[self.clip_pixels:self.params.patch_size - self.clip_pixels,
                                         self.clip_pixels:self.params.patch_size - self.clip_pixels,
                                         :]
+                
+            
 
         if self.augment_data:
             if self.random.randint(0, 1):
