@@ -81,13 +81,13 @@ def __evaluate_sparcs_dataset__(model, num_gpus, params, save_output=False, writ
             mask_true = extract_collapsed_cls(mask_true, cls)
         else:
             for l, c in enumerate(params.cls):
-                y = extract_cls_mask(mask_true, cls)
+                y = extract_cls_mask(mask_true, c)
 
                 # Save the binary masks as one hot representations
                 mask_true[:, :, l] = y[:, :, 0]
 
         # Predict the images
-        predicted_mask_padded, _ = predict_img_v2(model, params, img_padded, n_bands, n_cls, num_gpus)
+        predicted_mask_padded, _ = predict_img(model, params, img_padded, n_bands, n_cls, num_gpus)
 
         # Remove padding
         predicted_mask =  predicted_mask_padded[padding_size:-padding_size, padding_size:-padding_size, :]
@@ -749,7 +749,7 @@ def calculate_sparse_class_evaluation_criteria(threshold, params, valid_pixels_m
     equal_count=binary_accuracy_mask.sum()
 
     # categorical_accuracy = # of correctly predicted records / total number of records
-    categorical_accuracy = equal_count / max(npix - fill_and_valid_pixels_mask.sum(), equal_count) #, valid_pixels_mask.sum()) # - fill_and_valid_pixels_mask.sum(
+    categorical_accuracy = equal_count / max(npix - fill_and_valid_pixels_mask.sum(), equal_count+1) #, valid_pixels_mask.sum()) # - fill_and_valid_pixels_mask.sum(
     print(f"Threshold: {threshold}, old categorical_accuracy: ", categorical_accuracy)
     
     # perhaps implement acc,pred,... for every cls type
@@ -945,7 +945,7 @@ def write_csv_files(evaluation_metrics, params):
         f = open(params.project_path + 'reports/Unet/' + file_name, 'a')
 
         # Create headers for parameters
-        string = 'modelID,'
+        string = 'modelID,' + 'eval_threshold,'
         for key in params.keys():
             if key == 'modelID':
                 pass

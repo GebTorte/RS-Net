@@ -194,8 +194,6 @@ class UnetV2(object):
         return {'seed': self.seed, 'params': self.params, 'n_cls': self.n_cls, 'n_bands': self.n_bands, 'model_config': self.model.get_config()}
 
     def train(self):
-        #set training params to params used while training
-        # self.training_params = self.params
         print()
         print(f"Model {self.params.modelID}: Training on params: ", self.params.as_string(delimiter="\n", skip_keys_list=["test_tiles", "project_path", "data_path", "toa_path"]))
         print()
@@ -268,6 +266,9 @@ class UnetV2(object):
                                    metrics=['binary_crossentropy', jaccard_coef_loss, jaccard_coef,
                                             jaccard_coef_thresholded, 'accuracy'])
 
+        # save params if compilation succeeds
+        self._save_params()
+
         # Create generators
         image_generator = ImageSequence(self.params, shuffle=True, seed=self.seed, augment_data=self.params.affine_transformation)
         val_generator = ImageSequence(self.params, shuffle=True, seed=self.seed, augment_data=self.params.affine_transformation,
@@ -294,7 +295,6 @@ class UnetV2(object):
         # self.model.save(self.params.project_path + 'models/Unet/' + self.model_name + '.keras')
         # self.model.save(self.params.project_path + 'models/Unet/' + get_model_name(self.params) + '.keras')
         # model saving is done by checkpoint now
-        self._save_params()
         self._save_history(history.history)
     
     def _save_history(self, history):
