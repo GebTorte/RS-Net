@@ -110,6 +110,10 @@ parser.add_argument('--dataset',
 if __name__ == '__main__':
     # Load the arguments
     args = parser.parse_args()
+    store_flag = False
+    if args.save_output:
+        store_flag = True
+
     # Store current time to calculate execution time later
     start_time = time.time()
 
@@ -146,12 +150,11 @@ if __name__ == '__main__':
         #hist_index = 0
         if not params.split_dataset:  # No k-fold cross-validation
             # Load the model
-            params.modelID = datetime.datetime.now().strftime("%y%m%d%H%M%S")
+            params.modelID = params.modelID + '_' + datetime.datetime.now().strftime("%y%m%d%H%M%S")[:12]
             if args.model == 'U-net-v2':
                 model = UnetV2(params)
-
-            model.train(params)
-            # Run model on test data set
+                model.train(params)
+            # Run model on test data set / leave for test flag
             # evaluate_test_set(model, params.test_dataset, params.num_gpus, params)
         else:  # With k-fold cross-validation
             # Define number of k-folds
@@ -171,9 +174,6 @@ if __name__ == '__main__':
                 random.shuffle(sparcs_products)
 
             # Do the training/testing with k-fold cross-validation
-            params.modelID = datetime.datetime.now().strftime("%y%m%d%H%M%S")
-            Unet_model = None
-            model = None
             for k in range(k_folds):
                 # Define train and test tiles (note that params.test_tiles[0] are training and .test_tiles[1] are test)
                 if 'SPARCS' in params.train_dataset:
@@ -192,30 +192,23 @@ if __name__ == '__main__':
                     params.test_tiles[1] = temp
 
                 # Train and evaluate
-                params.modelID = params.modelID[0:12] + '-CV' + str(k) + 'of' + str(k_folds)  # Used for saving results
-                Unet_model = UnetV2(params, model)  # load previous loops model, if initialized
-                params.modelID = params.modelID[0:12] + '-CV' + str(k+1) + 'of' + str(k_folds)  # Used for saving results
+                time_stamp = datetime.datetime.now().strftime("%y%m%d%H%M%S")
+                params.modelID = time_stamp[0:12] + '-CV' + str(k+1) + 'of' + str(k_folds)  # Used for saving results
+                model = UnetV2(params)
                 print("Training on fold " + str(k + 1) + " of " + str(k_folds))
-                Unet_model.train() # params) # uses params from self.
-                model = Unet_model.model  # save model to provide it in next loop
+                model.train()
 
-                # leave for --test flag
                 # Run model on test data set and save output
-                # evaluate_test_set(model, params.test_dataset, params.num_gpus, params)
+                evaluate_test_set(model, params.test_dataset, params.num_gpus, params, save_output=store_flag)
 
     if args.test:
-        # If a model has been trained, use that one. If not, load a new one.
-        if not args.train: # then no model has been trained in current step, so load the saved one
-            if args.model == 'U-net-v2':
-                loaded_model = tf.keras.saving.load_model(f"./models/Unet/{params.modelID}.keras")
-                # {get_model_name(params)}
-                #loaded_model = tf.keras.saving.load_model(f"../models/Unet/{params.modelID}.keras")
-                model = UnetV2(params, model=loaded_model)  # to implement for V2: load model from file
+        if args.model == 'U-net-v2':
+            loaded_model = tf.keras.saving.load_model(f"./models/Unet/{params.modelID}.keras")
+            # {get_model_name(params)}
+            #loaded_model = tf.keras.saving.load_model(f"../models/Unet/{params.modelID}.keras")
+            model = UnetV2(params, model=loaded_model)  # to implement for V2: load model from file
         # out = model.evaluate(return_dict=True)
 
-        store_flag = False
-        if args.save_output:
-            store_flag = True
         print("Saving evaluation image output: ", store_flag)
         evaluate_test_set(model, params.test_dataset, params.num_gpus, params, save_output=store_flag) # todo: implement args.save_output
 
