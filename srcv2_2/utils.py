@@ -664,8 +664,8 @@ def get_model_name(params):
     '''
     Combine the parameters for the model into a string (to name the model file)
     '''
-    #if params.modelID:
-    #    model_name = 'Unet_' + params.satellite + '_' + params.modelID
+    if params.modelID:
+        model_name = 'UnetV2_' + params.satellite + '_' + params.modelID
     if params.satellite == 'Sentinel-2':
         model_name = 'sentinel2_unet_cls-' + "".join(str(c) for c in params.cls) + \
                      '_initmodel-' + params.initial_model + \

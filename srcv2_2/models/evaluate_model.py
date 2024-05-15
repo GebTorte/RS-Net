@@ -721,7 +721,7 @@ def calculate_sparse_class_evaluation_criteria(threshold, params, valid_pixels_m
         fill_val = fill_lst[0]
     
     fill_pixel_mask = mask_true == fill_val 
-    print("Fill pixel: ",np.sum(fill_pixel_mask))
+    #print("Fill pixel: ",np.sum(fill_pixel_mask))
     fill_and_valid_pixels_mask = fill_pixel_mask & valid_pixels_mask
 
     # npix = valid_pixels_mask.sum() - fill_and_valid_pixels_mask.sum()
@@ -750,7 +750,7 @@ def calculate_sparse_class_evaluation_criteria(threshold, params, valid_pixels_m
 
     # categorical_accuracy = # of correctly predicted records / total number of records
     categorical_accuracy = equal_count / max(npix - fill_and_valid_pixels_mask.sum(), equal_count+1) #, valid_pixels_mask.sum()) # - fill_and_valid_pixels_mask.sum(
-    print(f"Threshold: {threshold}, old categorical_accuracy: ", categorical_accuracy)
+    #print(f"Threshold: {threshold}, old categorical_accuracy: ", categorical_accuracy)
     
     # perhaps implement acc,pred,... for every cls type
     #cloudy types / classy types
@@ -794,7 +794,7 @@ def calculate_sparse_class_evaluation_criteria(threshold, params, valid_pixels_m
     # passing copies just to be safe. In many cases not needed tho.
     iou = calculate_iou(mask_true.copy(), argmaxed_cls_pred_mask.copy(), valid_pixels_mask, enumeration_cls, fill_val=fill_val)
     dice_coeff = np.nan #calculate_dice_coefficient(mask_true.copy(), argmaxed_cls_pred_mask.copy(), valid_pixels_mask,enumeration_cls, fill_val=fill_val)
-    categorical_accuracy = calculate_categorical_accuracy(mask_true.copy(), argmaxed_cls_pred_mask.copy(), valid_pixels_mask, fill_pixel_mask, enumeration_cls, npix, fill_val=fill_val)
+    # categorical_accuracy = calculate_categorical_accuracy(mask_true.copy(), argmaxed_cls_pred_mask.copy(), valid_pixels_mask, fill_pixel_mask, enumeration_cls, npix, fill_val=fill_val)
     categorical_cross_entropy = np.nan # calculate_categorical_cross_entropy(mask_true.copy(), predicted_mask.copy(), enumeration_cls, fill_val=fill_val)
 
     return categorical_cross_entropy, iou, dice_coeff, categorical_accuracy, accuracy, omission, comission, pixel_jaccard, precision, recall, f_one_score, tp, tn, fp, fn, npix

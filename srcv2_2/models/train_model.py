@@ -11,26 +11,7 @@ from utils import get_cls, get_model_name
 from params import HParams
 
 
-"""
-Landsat 8 Order MODIS bands:
-
-L8 | MODGA09
-1  |  x      | COASTAL / AEROSOL
-2  |  3      | BLUE
-3  |  4      | GREEN
-4  |  1      | RED
-5  |  2      | NIR
-6  |  6      | SWIR1
-7  |  7      | SWIR2
-8  |  x      | PANCHROMATIC
-9  |  5      | CIRRUS
-10 |  x      | LWIR1
-11 |  x      | LWIR2
-
-Order: 3, 4, 1, 2, 6, 7, 5
-"""
-
-CLS=['shadow', 'clear', 'thin', 'cloud'] # 'fill' has to be included for categorical? No., so model non-class option for fill pixel and thus wont learn bad habits.
+CLS=['thin', 'cloud'] # ['shadow', 'clear', 'thin', 'cloud'] # 'fill' has to be included for categorical? No., so model non-class option for fill pixel and thus wont learn bad habits.
 SATELLITE = "Landsat8"
 TRAIN_DATASET = "Biome_gt"
 TEST_DATASET= TRAIN_DATASET
@@ -52,29 +33,29 @@ train_set_overlap: 120px -> give 60px to patch_v2 as it cuts from both sides
 
 # define additional parameters
 params = HParams(activation_func="relu", # or elu or leaky relu?
-                modelID="dummy", #"240515092709-CV1of2",
+                modelID="Unet-v2-binary",
+                split_dataset=False,
                 leaky_alpha=np.nan, # not needed as input is normalized to [0,1]
-                loss_func="sparse_categorical_crossentropy",
-                learning_rate=3e-6, # next 1e-6
+                loss_func="binary_crossentropy",
+                learning_rate=0.97e-4, # next 3e-7
                 reduce_lr=True, # True maybe?, as it monitors val_loss aswell
-                plateau_patience=2, #12 # in epochs
-                early_stopping=False,
-                early_patience=5, # maybe up this to ~= epochs/2
+                plateau_patience=12, #12 # in epochs
+                early_patience=100, # maybe up this to ~= epochs
                 replace_fill_values = True,
                 affine_transformation = True,
-                L2reg=1e-4, # 1e-4 # next 7e-7 or 3e-6
-                dropout=0.2, # 0.05, # this a tiny bit maybe? # or not?
-                dropout_on_last_layer_only=False, # if using dropout, definitely test both
-                decay=0.2,  # 0.2, #this a bit, to slow down learning through Adam, ~ 1e-5 or so
+                L2reg=.99e-4, # next 7e-7 or 3e-6
+                dropout=0, # 0.05, # this a tiny bit maybe? # or not?
+                dropout_on_last_layer_only=True, # False, if using dropout, definitely test both
+                decay=0,  #2e-1, #this a bit, to slow down learning through Adam, ~ 1e-5 or so
                 bands=[1, 2, 3, 4, 5, 6, 7],
-                epochs=2, # training goes well, maybe just reduce epochs a bit, so less overfitting?
+                epochs=42, # training goes well, maybe just reduce epochs a bit, so less overfitting?
                 norm_method="enhance_contrast", #"enhance_contrast"
                 use_batch_norm=True,
-                batch_norm_momentum=0.1, # increase for stability?
+                batch_norm_momentum=0.7, # increase for stability?
                 initialization="glorot_normal", # glorot_normal for categorical, try he_normal for (r)elu perhaps?
-                last_layer_activation_func='softmax', # 'softmax'
+                last_layer_activation_func='sigmoid', # 'softmax'
                 satellite=SATELLITE,
-                collapse_cls=False,
+                collapse_cls=True,
                 cls=CLS,
                 str_cls=CLS,
                 int_cls=get_cls(SATELLITE, TRAIN_DATASET, CLS),
@@ -83,7 +64,6 @@ params = HParams(activation_func="relu", # or elu or leaky relu?
                 overlap=40, # 20 # 0
                 overlap_train_set=60, #120# 6 converts to 3 in every direction, as in fmask
                 norm_threshold=2**16-1, # might set this lower to the max values that actually occur in L8 sensors
-                split_dataset=True,
                 save_best_only=False)
 
 
@@ -99,12 +79,6 @@ if __name__ == '__main__':
                         "--params="+params.as_string()])
     """
 
-    # Hacky way to do to random search by overwriting actual values
-    # learning_rate = int(np.random.uniform(10, 9, 1)[0]) * learning_rate  # Cast to int to avoid round() function (issues with floats)
-    #l2reg = int(np.random.uniform(1, 100, 1)[0]) * l2reg  # 1 to 100 when using ground truth, 1 to 1000 when using fmask
-    #dropout = int(np.random.uniform(0, 50, 1)[0]) * 1e-2 * np.random.randint(2, size=1)[0]  # 50% chance for dropout=0
-    #epoch_no = int(np.random.lognormal(3, 0.8, 1)[0])
-
 
     # Params string format must fit with the HParams object
     # See more at https://www.tensorflow.org/api_docs/python/tf/contrib/training/HParams
@@ -118,7 +92,7 @@ if __name__ == '__main__':
                         #"--make_dataset",  # needed if cls definitions changed from fmask to gt or vice versa    
                         "--train",
                         #"--dev_dataset",
-                        #"--test", # works now, but takes a loong time. # needed for writing csv output.
+                        "--test", # works now, but takes a loong time. # needed for writing csv output.
                         
                         "--save_output", # every model has like 3G output
                         
