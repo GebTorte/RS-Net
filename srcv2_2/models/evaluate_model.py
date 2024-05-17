@@ -203,7 +203,7 @@ def __evaluate_biome_dataset__(model, num_gpus, params, save_output=False, write
     elif params.loss_func =="categorical_crossentropy": # for categorical argmaxing, thresholding seems to be irrelevant
         thresholds = [params.threshold]
     else:
-        thresholds = [1/n_cls, 1/(n_cls-1), 0.5, 0.9] # n_cls might be one to big, if fill is in params
+        thresholds = [1/n_cls, 0.5, 0.8] # n_cls might be one to big, if fill is in params
         # softmax normalizes to between 0-1 anyway
 
     evaluation_metrics = {}
@@ -290,10 +290,11 @@ def __evaluate_biome_dataset__(model, num_gpus, params, save_output=False, write
             # mask_true = np.uint8(mask_true)
             # Loop over different threshold values
             for j, threshold in enumerate(thresholds):
+                categorical_accuracies = []
                 predicted_binary_mask = np.uint8(predicted_mask >= threshold)
                 #predicted_mask = np.uint8(predicted_mask >= threshold) # not needed because of argmaxing i think
 
-                categorical_cross_entropy = iou = dice_coeff=categorical_accuracy = accuracy= omission= comission= pixel_jaccard= precision= recall= f_one_score= tp= tn = fp = fn = npix = 0
+                categorical_cross_entropy = iou = dice_coeff=categorical_accuracy = accuracy= omission= comission= pixel_jaccard= precision= recall= f_one_score= tp= tn = fp = fn = npix = np.nan
                 if params.collapse_cls:
                     accuracy, omission, comission, pixel_jaccard, precision, recall, f_one_score, tp, tn, fp, fn, npix = calculate_evaluation_criteria(valid_pixels_mask.copy(), predicted_binary_mask.copy(), mask_true.copy())
                 else:
@@ -707,7 +708,7 @@ def calculate_sparse_class_evaluation_criteria(threshold, params, valid_pixels_m
 
     Note: As this function and its sub-functions is rather unoptimized, the threshold loop might take a long time.
     """
-    # Count number of actual pixels # should not be needed for only bands 1-7
+    # Count number of actual pixels # should not be needed for bands 1-7
     valid_pixels_mask = np.asarray(valid_pixels_mask, dtype=bool)
     npix = valid_pixels_mask.sum()
     #invalid_pixels_mask = ~valid_pixels_mask
@@ -965,7 +966,7 @@ def write_csv_files(evaluation_metrics, params):
                 string += key + '_' + str(i) + ','
 
         # Create headers for averaged metrics
-        f.write(string + 'mean_accuracy,mean_precision,mean_recall,mean_f_one_score,mean_omission,mean_comission,mean_pixel_jaccard,mean_categorical_accuracy,mean_iou,mean_dice_coefficient,mean_categorical_cross_entropy\n')
+        f.write(string + 'mean_accuracy,mean_precision,mean_recall,mean_f_one_score,mean_omission,mean_comission,mean_pixel_jaccard,mean_categorical_accuracy,mean_iou,mean_dice_coefficient,mean_categorical_cross_entropy,median_categorical_accuracy\n')
         f.close()
 
     # Write a new line for each threshold value
@@ -991,7 +992,8 @@ def write_csv_files(evaluation_metrics, params):
             string += str(addition).replace(",", "|")  + ',' # cant have extra commata in csv
 
         # Initialize variables for calculating mean visualization set values
-        cat_cross_entropy_sum = dice_coeff_sum = iou_sum = categorical_accuracy_sum = accuracy_sum = precision_sum = recall_sum = f_one_score_sum = omission_sum = comission_sum = pixel_jaccard_sum=0.0
+        
+        cat_acc_median = cat_cross_entropy_sum = dice_coeff_sum = iou_sum = categorical_accuracy_sum = accuracy_sum = precision_sum = recall_sum = f_one_score_sum = omission_sum = comission_sum = pixel_jaccard_sum=0.0
 
         # Write visualization set values
         for product in list(evaluation_metrics):
@@ -1002,28 +1004,30 @@ def write_csv_files(evaluation_metrics, params):
                 string += str(evaluation_metrics[product][threshold][key]) + ','
 
                 # Extract values for calculating mean values of entire visualization set
-                if 'categorical_accuracy' in key: # this has to be run before accuracy summation, as the accuracy if statement holds for categorical_accuracy aswell...
+                if 'categorical_accuracy' == key: # this has to be run before accuracy summation, as the accuracy if statement holds for categorical_accuracy aswell...
                     categorical_accuracy_sum = categorical_accuracy_sum + evaluation_metrics[product][threshold][key]    
-                elif 'accuracy' in key:
+                elif 'accuracy' == key:
                     accuracy_sum += evaluation_metrics[product][threshold][key]
-                elif 'precision' in key:
+                elif 'precision' == key:
                     precision_sum += evaluation_metrics[product][threshold][key]
-                elif 'recall' in key:
+                elif 'recall' == key:
                     recall_sum += evaluation_metrics[product][threshold][key]
-                elif 'f_one_score' in key:
+                elif 'f_one_score' == key:
                     f_one_score_sum += evaluation_metrics[product][threshold][key]
-                elif 'omission' in key:
+                elif 'omission' == key:
                     omission_sum += evaluation_metrics[product][threshold][key]
-                elif 'comission' in key:
+                elif 'comission' == key:
                     comission_sum += evaluation_metrics[product][threshold][key]
-                elif 'pixel_jaccard' in key:
+                elif 'pixel_jaccard' == key:
                     pixel_jaccard_sum += evaluation_metrics[product][threshold][key]
-                elif 'dice_coeff' in key:
+                elif 'dice_coeff' == key:
                     dice_coeff_sum += evaluation_metrics[product][threshold][key]
                 elif key == 'iou':
                     iou_sum += evaluation_metrics[product][threshold][key]
                 elif key == "categorical_cross_entropy":
                     cat_cross_entropy_sum += evaluation_metrics[product][threshold][key]
+                elif key == "categorical_accuracy_mean":
+                    cat_acc_median = evaluation_metrics[product][threshold][key]
 
         # Add mean values to string
         n_products = np.size(list(evaluation_metrics))
@@ -1032,7 +1036,7 @@ def write_csv_files(evaluation_metrics, params):
                   str(omission_sum / n_products) + ',' + str(comission_sum / n_products) + ',' + \
                   str(pixel_jaccard_sum / n_products)+ ',' + str(categorical_accuracy_sum / n_products) + ',' + \
                   str(iou_sum / n_products) + ','+ str(dice_coeff_sum / n_products) + ',' + \
-                  str(cat_cross_entropy_sum/n_products)
+                  str(cat_cross_entropy_sum/n_products) + ',' + str(cat_acc_median)
 
         
         # Write string and close csv file
