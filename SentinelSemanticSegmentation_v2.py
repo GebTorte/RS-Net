@@ -153,7 +153,7 @@ if __name__ == '__main__':
             params.modelID = params.modelID + '_' + datetime.datetime.now().strftime("%y%m%d%H%M%S")[:12]
             if args.model == 'U-net-v2':
                 model = UnetV2(params)
-                model.train(params)
+                model.train()
             # Run model on test data set / leave for test flag
             # evaluate_test_set(model, params.test_dataset, params.num_gpus, params)
         else:  # With k-fold cross-validation
