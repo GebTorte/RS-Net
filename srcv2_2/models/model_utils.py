@@ -253,14 +253,14 @@ class ImageSequence(Sequence):
             mask = np.load(self.path + "mask/" + filename)
 
             # for categorical, preplace 'fill' pxl with current most occuring pixel class.
-            if self.params.loss_func == "sparse_categorical_crossentropy":
+            if self.params.loss_func == "sparse_categorical_crossentropy" or self.params.loss_func == "categorical_crossentropy":
+                if self.params.replace_fill_values:
+                    mask = replace_fill_values(self.params, self.params.train_dataset, mask)
 
                 # normalize the (biome_gt) mask values to range(0, len(cls)-1) 
                 # loss will only compile then
+                # do this after replacing fill values!
                 mask = shrink_cls_mask_to_indices(self.params, self.params.train_dataset, self.params.cls, mask)
-
-                if self.params.replace_fill_values:
-                    mask = replace_fill_values(self.params, self.params.train_dataset, mask)
 
                 assert type(mask) == np.ndarray
 

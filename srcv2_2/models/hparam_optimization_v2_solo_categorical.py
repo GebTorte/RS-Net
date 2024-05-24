@@ -68,10 +68,10 @@ new_params = HParams(activation_func="relu", # or elu or leaky relu?
                 early_patience=5, # maybe up this to ~= epochs/2
                 replace_fill_values = True,
                 affine_transformation = True,
-                L2reg=5e-7,# -> best go in range 1e-4, 1e-5?
+                L2reg=4e-4,# -> best go in range 1e-4, 1e-5?
                 dropout=0.25, # --> 0.2, # this a significant bit? # or not?
                 dropout_on_last_layer_only=False, # if using dropout, definitely test both
-                decay=1e-4, # 0.2 # init lr / nr epochs
+                decay=4e-4, # initial lr / nr epochs
                 bands=[1, 2, 3, 4, 5, 6, 7],
                 epochs=10, # training goes well, maybe just reduce epochs a bit, so less overfitting?
                 # steps_per_epoch=3,

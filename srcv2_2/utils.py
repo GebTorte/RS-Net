@@ -363,7 +363,7 @@ def shrink_cls_mask_to_indices(params, dataset, cls, mask):
     cls = get_cls(params.satellite, dataset, cls)
 
     for i, c in enumerate(cls): # easiest method here. If dataset requires, use other method
-        mask[mask==c] = i
+        mask[mask==c] = i # skip 0 ? (fill value for biome gt)
 
     return mask
 
