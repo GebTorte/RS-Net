@@ -203,7 +203,7 @@ def __evaluate_biome_dataset__(model, num_gpus, params, save_output=False, write
     elif params.loss_func =="categorical_crossentropy": # for categorical argmaxing, thresholding seems to be irrelevant
         thresholds = [params.threshold]
     else:
-        thresholds = [1/n_cls, 0.5, 0.8] # n_cls might be one to big, if fill is in params
+        thresholds = [1/n_cls, 0.5, 0.95, 0.99] # n_cls might be one to big, if fill is in params
         # softmax normalizes to between 0-1 anyway
 
     evaluation_metrics = {}
@@ -294,7 +294,7 @@ def __evaluate_biome_dataset__(model, num_gpus, params, save_output=False, write
                 predicted_binary_mask = np.uint8(predicted_mask >= threshold)
                 #predicted_mask = np.uint8(predicted_mask >= threshold) # not needed because of argmaxing i think
 
-                categorical_cross_entropy = iou = dice_coeff=categorical_accuracy = accuracy= omission= comission= pixel_jaccard= precision= recall= f_one_score= tp= tn = fp = fn = npix = np.nan
+                categorical_cross_entropy = iou = dice_coeff=categorical_accuracy = accuracy= omission= comission= pixel_jaccard= precision= recall= f_one_score= tp= tn = fp = fn = npix = 0.0
                 if params.collapse_cls:
                     accuracy, omission, comission, pixel_jaccard, precision, recall, f_one_score, tp, tn, fp, fn, npix = calculate_evaluation_criteria(valid_pixels_mask.copy(), predicted_binary_mask.copy(), mask_true.copy())
                 else:
@@ -794,7 +794,7 @@ def calculate_sparse_class_evaluation_criteria(threshold, params, valid_pixels_m
 
     # passing copies just to be safe. In many cases not needed tho.
     iou = calculate_iou(mask_true.copy(), argmaxed_cls_pred_mask.copy(), valid_pixels_mask, enumeration_cls, fill_val=fill_val)
-    dice_coeff = np.nan #calculate_dice_coefficient(mask_true.copy(), argmaxed_cls_pred_mask.copy(), valid_pixels_mask,enumeration_cls, fill_val=fill_val)
+    dice_coeff = calculate_dice_coefficient(mask_true.copy(), argmaxed_cls_pred_mask.copy(), valid_pixels_mask,enumeration_cls, fill_val=fill_val)
     # categorical_accuracy = calculate_categorical_accuracy(mask_true.copy(), argmaxed_cls_pred_mask.copy(), valid_pixels_mask, fill_pixel_mask, enumeration_cls, npix, fill_val=fill_val)
     categorical_cross_entropy = np.nan # calculate_categorical_cross_entropy(mask_true.copy(), predicted_mask.copy(), enumeration_cls, fill_val=fill_val)
 
