@@ -288,7 +288,7 @@ class ImageSequence(Sequence):
 
         if self.params.loss_func == "categorical_crossentropy": 
             # should theoretically work
-            # but categorical with these batch sizes exhausts the gpu resources
+            # but categorical with these batch sizes exhausts the gpu resources -> reduce batch size
             batch_x = tf.convert_to_tensor(self.x)
             batch_y = tf.convert_to_tensor(keras.utils.to_categorical(np.int32(self.y)))
         elif self.params.loss_func == "sparse_categorical_crossentropy":
@@ -301,10 +301,12 @@ class ImageSequence(Sequence):
         return batch_x, batch_y
 
     def on_epoch_end(self):
+        pass
         # Shuffle the patches
-        if self.shuffle:
-            rng_seed = int(self.tf_rng.uniform(shape=(), minval=0, maxval=255, dtype=tf.int32))
-            self.random.seed(rng_seed)
-            self.random.shuffle(self.x_files)
-            self.random.seed(rng_seed)
-            self.random.shuffle(self.y_files)
+        # USE Shuffle from model.fit() for this
+        #if self.shuffle:
+        #    rng_seed = int(self.tf_rng.uniform(shape=(), minval=0, maxval=255, dtype=tf.int32))
+        #    self.random.seed(rng_seed)
+        #    self.random.shuffle(self.x_files)
+        #    self.random.seed(rng_seed)
+        #    self.random.shuffle(self.y_files)

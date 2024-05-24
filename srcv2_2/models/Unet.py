@@ -315,7 +315,7 @@ class UnetV2(object):
                         workers=8, # 4
                         max_queue_size=12,
                         use_multiprocessing=False,
-                        shuffle=False,
+                        shuffle=True, # False
                         callbacks=used_callbacks,
                         validation_data=val_generator,
                         validation_steps=None)
