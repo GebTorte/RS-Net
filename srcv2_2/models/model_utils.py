@@ -12,15 +12,17 @@ import os.path
 import random
 import threading
 import numpy as np
+import tensorflow as tf
 import tensorflow.keras as keras
-from tensorflow.keras import backend as K
-from tensorflow.keras.backend import binary_crossentropy, sparse_categorical_crossentropy
-from tensorflow.keras.callbacks import ModelCheckpoint, TensorBoard, ReduceLROnPlateau, CSVLogger, EarlyStopping
-from tensorflow.keras.utils import Sequence
+from keras import backend as K
+from keras.backend import binary_crossentropy, sparse_categorical_crossentropy
+from keras.callbacks import ModelCheckpoint, TensorBoard, ReduceLROnPlateau, CSVLogger, EarlyStopping
+from keras.utils import Sequence
+from keras.utils import to_categorical
 # from tensorflow.metrics import SparseCategoricalAccuracy
 
 sys.path.insert(0, '../')
-from srcv2_2.utils import extract_collapsed_cls, extract_cls_mask, image_normalizer, get_cls
+from srcv2_2.utils import extract_collapsed_cls, extract_cls_mask, image_normalizer, get_cls, shrink_cls_mask_to_indices, replace_fill_values
 
 
 def swish(x):
@@ -80,6 +82,43 @@ def jaccard_coef_loss(y_true, y_pred):
 def learning_rate_scheduler(epoch, lr):
     return lr*0.9
 
+
+@keras.saving.register_keras_serializable()
+def get_catgorical_callbacks(params):
+                
+    categorical_model_checkpoint = ModelCheckpoint(params.project_path + f'models/Unet/{params.modelID}.keras',
+                                       monitor='val_categorical_accuracy',
+                                       save_weights_only=False,
+                                       save_best_only=False)
+
+    categorical_model_weights_checkpoint = ModelCheckpoint(params.project_path + f'models/Unet/{params.modelID}.h5',
+                                       monitor='val_categorical_accuracy',
+                                       save_weights_only=True,
+                                       save_best_only=params.save_best_only)
+
+    categorical_early_stopping = EarlyStopping(monitor='val_categorical_accuracy', patience=params.early_patience, verbose=2)
+    return categorical_model_checkpoint, categorical_model_weights_checkpoint, categorical_early_stopping
+
+
+@keras.saving.register_keras_serializable()
+def get_sparse_catgorical_callbacks(params):
+            
+    sparse_model_checkpoint = ModelCheckpoint(params.project_path + f'models/Unet/{params.modelID}.keras',
+                                       monitor='val_sparse_categorical_accuracy',
+                                       save_weights_only=False,
+                                       save_best_only=False)
+
+    sparse_model_weights_checkpoint = ModelCheckpoint(params.project_path + f'models/Unet/{params.modelID}.h5',
+                                       monitor='val_sparse_categorical_accuracy',
+                                       save_weights_only=True,
+                                       save_best_only=params.save_best_only)
+
+    sparse_early_stopping = EarlyStopping(monitor='val_sparse_categorical_accuracy', patience=params.early_patience, verbose=2)
+
+    sparse_reduce_lr = ReduceLROnPlateau(factor=0.5, patience=params.plateau_patience, verbose=2, min_lr=1e-11)
+
+    return sparse_model_checkpoint, sparse_model_weights_checkpoint,  sparse_early_stopping
+
 @keras.saving.register_keras_serializable()
 def get_callbacks(params):
     # Must use save_weights_only=True in model_checkpoint (BUG: https://github.com/fchollet/keras/issues/8123)
@@ -101,31 +140,28 @@ def get_callbacks(params):
 
     csv_logger = CSVLogger(params.project_path + 'reports/Unet/csvlogger/' + params.modelID + '.log')
 
-    reduce_lr = ReduceLROnPlateau(monitor='val_loss', factor=0.2, verbose=2,
-                                  patience=params.plateau_patience, min_lr=1e-10) # might have to set patience lower (according to num epochs perhaps)
-        
-    sparse_model_checkpoint = ModelCheckpoint(params.project_path + f'models/Unet/{params.modelID}.keras',
-                                       monitor='val_sparse_categorical_accuracy',
-                                       save_weights_only=False,
-                                       save_best_only=False)
+    reduce_lr = ReduceLROnPlateau(monitor='val_loss', factor=0.5, verbose=2,
+                                  patience=params.plateau_patience, min_lr=1e-11) # might have to set patience lower (according to num epochs perhaps)
 
-    sparse_model_weights_checkpoint = ModelCheckpoint(params.project_path + f'models/Unet/{params.modelID}.h5',
-                                       monitor='val_sparse_categorical_accuracy',
-                                       save_weights_only=True,
-                                       save_best_only=params.save_best_only)
 
-    sparse_early_stopping = EarlyStopping(monitor='val_sparse_categorical_accuracy', patience=params.early_patience, verbose=2)
-
-    return csv_logger, model_checkpoint, model_checkpoint_saving, reduce_lr, tensorboard, early_stopping, sparse_model_checkpoint, sparse_early_stopping, sparse_model_weights_checkpoint
+    return csv_logger, model_checkpoint, model_checkpoint_saving, reduce_lr, tensorboard, early_stopping
 
 
 class ImageSequence(Sequence):
-    def __init__(self, params, shuffle, seed, augment_data, validation_generator=False, normalized_path=""):
+    def __init__(self, params, shuffle, seed, augment_data, validation_generator=False):
+        self.shuffle = shuffle
+
+        # Find the number of classes and bands
+        if params.collapse_cls:
+            self.n_cls = 1
+        else:
+            self.n_cls = np.size(params.cls)
+        self.n_bands = np.size(params.bands)
         # Load the names of the numpy files, each containing one patch
         if validation_generator:
-            self.path = params.project_path + "data/processed/val/" + normalized_path
+            self.path = params.project_path + "data/processed/val/"
         else:
-            self.path = params.project_path + "data/processed/train/" + normalized_path
+            self.path = params.project_path + "data/processed/train/" 
         self.x_files = sorted(os.listdir(self.path + "img/"))  # os.listdir loads in arbitrary order, hence use sorted()
         self.x_files = [f for f in self.x_files if '.npy' in f]  # Only use .npy files (e.g. avoid .gitkeep)
         self.y_files = sorted(os.listdir(self.path + "mask/"))  # os.listdir loads in arbitrary order, hence use sorted()
@@ -139,7 +175,7 @@ class ImageSequence(Sequence):
 
         # Create random generator used for shuffling files
         self.random = random.Random()
-
+        self.tf_rng = tf.random.Generator.from_seed(seed)
         # Shuffle the patches
         if shuffle:
             self.random.seed(seed)
@@ -153,8 +189,10 @@ class ImageSequence(Sequence):
         self.x_all_bands = np.zeros((params.batch_size, params.patch_size, params.patch_size, 10), dtype=np.float32)
         self.x = np.zeros((params.batch_size, params.patch_size, params.patch_size, np.size(params.bands)), dtype=np.float32)
 
-        self.clip_pixels = np.int32(params.overlap / 2) # might have to change to training_overlap here, if train data generator
-        self.y = np.zeros((params.batch_size, params.patch_size - 2*self.clip_pixels, params.patch_size - 2*self.clip_pixels, 1), dtype=np.float32)
+        self.clip_pixels = np.int32(params.overlap/2)
+        # will change depending on actual overlap (v2 or v1 patch)
+
+        self.y = np.zeros((params.batch_size, params.patch_size - 2*self.clip_pixels, params.patch_size-2*self.clip_pixels, 1), dtype=np.float32)
 
         # Load the params object for the normalizer function (not nice!)
         self.params = params
@@ -216,34 +254,25 @@ class ImageSequence(Sequence):
 
             # for categorical, preplace 'fill' pxl with current most occuring pixel class.
             if self.params.loss_func == "sparse_categorical_crossentropy":
-                if self.params.replace_fill_values:
-                    # get fill pixel value
-                    fill_lst = get_cls(self.params.satellite, self.params.train_dataset, ['fill'])
-                    fill_val = -1 # non uint8 value
-                    if len(fill_lst) > 0:
-                        fill_val = fill_lst[0]
-                    
-                    vals, counts = np.unique(mask, return_counts=True, axis=None)
-                    # remove fill count from vals and counts
-                    if fill_val in vals:
-                        fill_idx = list(vals).index(fill_val) # ndarray has no index function
-                        counts[fill_idx] = 0 # set fill value count, so it be argmax
 
-                        if len(vals) > 0:
-                            # set fill pixel to most occuring pixel class that is not fill
-                            mask[mask == fill_val] = vals[counts.argmax()] 
+                # normalize the (biome_gt) mask values to range(0, len(cls)-1) 
+                # loss will only compile then
+                mask = shrink_cls_mask_to_indices(self.params, self.params.train_dataset, self.params.cls, mask)
+
+                if self.params.replace_fill_values:
+                    mask = replace_fill_values(self.params, self.params.train_dataset, mask)
+
+                assert type(mask) == np.ndarray
 
             # Create the binary masks
             if self.params.collapse_cls:
                 mask = extract_collapsed_cls(mask, self.cls)
             
-                # Save the (binary) mask (cropped) ( this will crop too much if indented once less)
-                self.y[i, :, :, :] = mask[self.clip_pixels:self.params.patch_size - self.clip_pixels,
+            # Save the (binary) mask (cropped)
+            self.y[i, :, :, :] = mask[self.clip_pixels:self.params.patch_size - self.clip_pixels,
                                         self.clip_pixels:self.params.patch_size - self.clip_pixels,
                                         :]
-                
-            
-
+        
         if self.augment_data:
             if self.random.randint(0, 1):
                 np.flip(self.x, axis=1)
@@ -253,4 +282,29 @@ class ImageSequence(Sequence):
                 np.flip(self.x, axis=2)
                 np.flip(self.y, axis=2)
 
-        return self.x, self.y
+        # assert training data is valid and does not introduce nan to model
+        assert not np.any(np.isnan(self.x))
+        assert not np.any(np.isnan(self.y))
+
+        if self.params.loss_func == "categorical_crossentropy": 
+            # should theoretically work
+            # but categorical with these batch sizes exhausts the gpu resources
+            batch_x = tf.convert_to_tensor(self.x)
+            batch_y = tf.convert_to_tensor(keras.utils.to_categorical(np.int32(self.y)))
+        elif self.params.loss_func == "sparse_categorical_crossentropy":
+            batch_x = tf.convert_to_tensor(self.x) # tf.convert_to_tensor()
+            batch_y = tf.convert_to_tensor(np.squeeze(np.int32(self.y), axis=-1)) # cast to int
+        else:# binary crossentropy
+            batch_x = self.x
+            batch_y = self.y
+        
+        return batch_x, batch_y
+
+    def on_epoch_end(self):
+        # Shuffle the patches
+        if self.shuffle:
+            rng_seed = int(self.tf_rng.uniform(shape=(), minval=0, maxval=255, dtype=tf.int32))
+            self.random.seed(rng_seed)
+            self.random.shuffle(self.x_files)
+            self.random.seed(rng_seed)
+            self.random.shuffle(self.y_files)

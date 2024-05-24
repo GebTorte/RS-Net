@@ -164,7 +164,7 @@ def get_params(model, satellite):
             'optimizer': 'Adam',
             'loss_func': 'categorical_crossentropy',
             'activation_func': 'elu',
-            'leaky_alpha': 0.1,
+            'random': True,
             'last_layer_activation_func': 'softmax',
             'initialization': 'glorot_uniform',
             'use_batch_norm': True,

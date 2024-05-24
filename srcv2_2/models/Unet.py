@@ -2,8 +2,7 @@
 # Needed to set seed for random generators for making reproducible experiments
 from numpy.random import seed
 seed(1)
-from tensorflow.random import set_seed
-set_seed(1)
+#set_seed(1)
 
 import json
 import numpy as np
@@ -13,13 +12,15 @@ import tensorflow.keras as keras
 import keras.utils
 from keras.models import Model
 from keras import regularizers
+from keras.metrics import Precision, Recall
 from keras.initializers import GlorotNormal, HeNormal
-from keras.layers import Input, Conv2D, MaxPooling2D, UpSampling2D, Concatenate, Dropout, Cropping2D, Activation, BatchNormalization
-from keras.optimizers.legacy import Adam, Nadam
+from keras.layers import Input, Conv2D, MaxPooling2D, UpSampling2D, Concatenate, Dropout, Cropping2D, Activation, BatchNormalization, LeakyReLU
+# from keras.optimizers.legacy import Adam, Nadam
+from keras.optimizers import AdamW, Adam
 from keras.utils import get_custom_objects  # To use swish activation function
 #from tensorflow.keras.utils import multi_gpu_model
 from ..utils import get_model_name, get_cls
-from srcv2_2.models.model_utils import jaccard_coef, jaccard_coef_thresholded, jaccard_coef_loss, swish, get_callbacks, ImageSequence #, jaccard_coef_loss_sparse_categorical
+from srcv2_2.models.model_utils import jaccard_coef, jaccard_coef_thresholded, jaccard_coef_loss, swish, get_callbacks, get_sparse_catgorical_callbacks, get_catgorical_callbacks,ImageSequence #, jaccard_coef_loss_sparse_categorical
 from srcv2_2.models.params import HParams
 
 
@@ -27,19 +28,15 @@ class UnetV2(object):
     def __init__(self, params, model=None):
         # Seed for the random generators
         self.seed = 1
-        tf.random.set_seed(self.seed)
-        keras.utils.set_random_seed(self.seed)
+
         self.params = params
         self.model = model
 
-        # try:
-        #     if self.training_params == None: # access training_params. If its uninitialized, init it to None, otherwise pass
-        #         pass
-        # except AttributeError as ae: # init training_params if its not set.
-        #     if training_params != None:
-        #         self.training_params = training_params
-        #     else:
-        #         self.training_params = None
+                # set these random generator seeds to ensure more comparable output. Otherwise train model multiple times and evaluate means
+        if not self.params.random:
+            tf.random.set_seed(self.seed)
+            keras.utils.set_random_seed(self.seed) # this will apply to dropout aswell (and lead to overfitting i think). 
+
 
         # Find the model you would like
         self.model_name = get_model_name(self.params)
@@ -79,7 +76,8 @@ class UnetV2(object):
                 print("No model was loaded.")
 
             if self.params.num_gpus == 1:
-                self.model = self.__create_inference__()  # initialize the model
+                with tf.device("/GPU:0"):
+                    self.model = self.__create_inference__()  # initialize the model
                 # try:
                 #     self.model.load_weights(self.params.project_path + 'models/Unet/' + self.model_name)
                 #     print('Weights loaded from model: ' + self.model_name)
@@ -104,21 +102,16 @@ class UnetV2(object):
     def __create_inference__(self):
         # Note about BN and dropout: https://stackoverflow.com/questions/46316687/how-to-include-batch-normalization-in-non-sequential-keras-model
         get_custom_objects().update({'swish': Activation(swish)})
-        #if self.params.activation_func == "leaky_relu":
-        #    activation_func = LeakyReLU(alpha=self.params.leaky_alpha)
-        #else:
-        activation_func = self.params.activation_func
+        if self.params.activation_func == "leaky_relu":
+            activation_func = LeakyReLU(alpha=self.params.leaky_alpha)
+        else:
+            activation_func = self.params.activation_func
 
         # conv2d etc kernel initializers default to glorot_uniform
         #if self.params.initialization == "glorot_normal":
         #    kernel_initializer = GlorotNormal(self.seed)
         #elif self.params.initialization == "he_normal":
         #    kernel_initializer = HeNormal(self.seed)
-
-        seed6 = self.seed * 6
-        seed7 = self.seed * 7
-        seed8 = self.seed * 8
-        seed9 = self.seed * 9
 
         inputs = Input((self.params.patch_size, self.params.patch_size, self.n_bands))
         # -----------------------------------------------------------------------
@@ -127,7 +120,8 @@ class UnetV2(object):
                        kernel_initializer=self.params.initialization)(inputs)
         conv1 = BatchNormalization(momentum=self.params.batch_norm_momentum)(conv1) if self.params.use_batch_norm else conv1
         conv1 = Conv2D(32, (3, 3), activation=activation_func, padding='same',
-                       kernel_regularizer=regularizers.l2(self.params.L2reg))(conv1)
+                       kernel_regularizer=regularizers.l2(self.params.L2reg),
+                       kernel_initializer=self.params.initialization)(conv1)
         conv1 = BatchNormalization(momentum=self.params.batch_norm_momentum)(conv1) if self.params.use_batch_norm else conv1
         pool1 = MaxPooling2D(pool_size=(2, 2))(conv1)
         # -----------------------------------------------------------------------
@@ -136,7 +130,8 @@ class UnetV2(object):
                        kernel_initializer=self.params.initialization)(pool1)
         conv2 = BatchNormalization(momentum=self.params.batch_norm_momentum)(conv2) if self.params.use_batch_norm else conv2
         conv2 = Conv2D(64, (3, 3), activation=activation_func, padding='same',
-                       kernel_regularizer=regularizers.l2(self.params.L2reg))(conv2)
+                       kernel_regularizer=regularizers.l2(self.params.L2reg),
+                       kernel_initializer=self.params.initialization)(conv2)
         conv2 = BatchNormalization(momentum=self.params.batch_norm_momentum)(conv2) if self.params.use_batch_norm else conv2
         pool2 = MaxPooling2D(pool_size=(2, 2))(conv2)
         # -----------------------------------------------------------------------
@@ -173,47 +168,46 @@ class UnetV2(object):
         conv6 = Conv2D(256, (3, 3), activation=activation_func, padding='same',
                        kernel_regularizer=regularizers.l2(self.params.L2reg),
                        kernel_initializer=self.params.initialization)(up6)
-        conv6 = Dropout (self.params.dropout, seed=self.seed)(conv6) if not self.params.dropout_on_last_layer_only else conv6
+        conv6 = Dropout (self.params.dropout)(conv6) if not self.params.dropout_on_last_layer_only else conv6
         conv6 = Conv2D(256, (3, 3), activation=activation_func, padding='same',
                        kernel_regularizer=regularizers.l2(self.params.L2reg),
                        kernel_initializer=self.params.initialization)(conv6)
-        conv6 = Dropout (self.params.dropout, seed=seed6)(conv6) if not self.params.dropout_on_last_layer_only else conv6
+        conv6 = Dropout (self.params.dropout)(conv6) if not self.params.dropout_on_last_layer_only else conv6
         # -----------------------------------------------------------------------
         up7 = Concatenate(axis=3)([UpSampling2D(size=(2, 2))(conv6), conv3])
         conv7 = Conv2D(128, (3, 3), activation=activation_func, padding='same',
                        kernel_regularizer=regularizers.l2(self.params.L2reg),
                        kernel_initializer=self.params.initialization)(up7)
-        conv7 = Dropout (self.params.dropout, seed=seed6)(conv7) if not self.params.dropout_on_last_layer_only else conv7
+        conv7 = Dropout (self.params.dropout)(conv7) if not self.params.dropout_on_last_layer_only else conv7
         conv7 = Conv2D(128, (3, 3), activation=activation_func, padding='same',
                        kernel_regularizer=regularizers.l2(self.params.L2reg),
                        kernel_initializer=self.params.initialization)(conv7)
-        conv7 = Dropout (self.params.dropout, seed=seed7)(conv7) if not self.params.dropout_on_last_layer_only else conv7
+        conv7 = Dropout (self.params.dropout)(conv7) if not self.params.dropout_on_last_layer_only else conv7
         # -----------------------------------------------------------------------
         up8 = Concatenate(axis=3)([UpSampling2D(size=(2, 2))(conv7), conv2])
         conv8 = Conv2D(64, (3, 3), activation=activation_func, padding='same',
                        kernel_regularizer=regularizers.l2(self.params.L2reg),
                        kernel_initializer=self.params.initialization)(up8)
-        conv8 = Dropout (self.params.dropout, seed=seed7)(conv8) if not self.params.dropout_on_last_layer_only else conv8
+        conv8 = Dropout (self.params.dropout)(conv8) if not self.params.dropout_on_last_layer_only else conv8
         conv8 = Conv2D(64, (3, 3), activation=activation_func, padding='same',
                        kernel_regularizer=regularizers.l2(self.params.L2reg),
                        kernel_initializer=self.params.initialization)(conv8)
-        conv8 = Dropout (self.params.dropout, seed=seed8)(conv8) if not self.params.dropout_on_last_layer_only else conv8
+        conv8 = Dropout (self.params.dropout)(conv8) if not self.params.dropout_on_last_layer_only else conv8
         # -----------------------------------------------------------------------
         up9 = Concatenate(axis=3)([UpSampling2D(size=(2, 2))(conv8), conv1])
         conv9 = Conv2D(32, (3, 3), activation=activation_func, padding='same',
                        kernel_regularizer=regularizers.l2(self.params.L2reg),
                        kernel_initializer=self.params.initialization)(up9)
-        conv9 = Dropout(self.params.dropout, seed=seed8)(conv9) if not self.params.dropout_on_last_layer_only else conv9
+        conv9 = Dropout(self.params.dropout)(conv9) if not self.params.dropout_on_last_layer_only else conv9
         conv9 = Conv2D(32, (3, 3), activation=activation_func, padding='same',
                        kernel_regularizer=regularizers.l2(self.params.L2reg),
                        kernel_initializer=self.params.initialization)(conv9)
-        conv9 = Dropout(self.params.dropout, seed=seed9)(conv9)
+        conv9 = Dropout(self.params.dropout)(conv9)
         # -----------------------------------------------------------------------
-        clip_pixels = np.int32 (self.params.overlap / 2)  # Only used for input in Cropping2D function on next line
+        clip_pixels = np.int32(self.params.overlap / 2)  #(self.params.overlap) / 2  # Only used for input in Cropping2D function on next line
         crop9 = Cropping2D(cropping=((clip_pixels, clip_pixels), (clip_pixels, clip_pixels)))(conv9)
         # -----------------------------------------------------------------------
         # SIS: change to softmax for multi class prediction
-        #conv10 = Conv2D(self.n_cls, (1, 1), activation='sigmoid')(crop9)
         conv10 = Conv2D(self.n_cls, (1, 1), activation=self.params.last_layer_activation_func, 
                         kernel_initializer=self.params.initialization)(crop9)
         # -----------------------------------------------------------------------
@@ -230,8 +224,7 @@ class UnetV2(object):
         print()
 
         # Define callbacks
-        csv_logger, model_checkpoint,model_checkpoint_saving, reduce_lr, tensorboard, early_stopping, \
-            sparse_model_checkpoint, sparse_early_stopping, sparse_model_weights_checkpoint= get_callbacks(self.params)
+        csv_logger, model_checkpoint,model_checkpoint_saving, reduce_lr, tensorboard, early_stopping = get_callbacks(self.params)
         used_callbacks = [csv_logger,  tensorboard]
         
         if self.params.reduce_lr:
@@ -241,50 +234,57 @@ class UnetV2(object):
                 used_callbacks.append(early_stopping)
             used_callbacks.append(model_checkpoint)
             used_callbacks.append(model_checkpoint_saving)
-        elif self.params.loss_func == "sparse_categorical_crossentropy" or self.params.loss_func == "categorical_crossentropy":
+        elif self.params.loss_func == "sparse_categorical_crossentropy":
+            sparse_model_checkpoint, sparse_model_weights_checkpoint,  sparse_early_stopping = get_sparse_catgorical_callbacks(self.params)
             if self.params.early_stopping:
                 used_callbacks.append(sparse_early_stopping)
             used_callbacks.append(sparse_model_checkpoint)
             used_callbacks.append(sparse_model_weights_checkpoint)
+        elif self.params.loss_func == "categorical_crossentropy":
+            categorical_model_checkpoint, categorical_model_weights_checkpoint, categorical_early_stopping = get_catgorical_callbacks(self.params)
+            if self.params.early_stopping:
+                used_callbacks.append(categorical_early_stopping)
+            used_callbacks.append(categorical_model_checkpoint)
+            used_callbacks.append(categorical_model_weights_checkpoint)
 
         # Configure optimizer (use Nadam or Adam and 'binary_crossentropy' or jaccard_coef_loss)
         if self.params.optimizer == 'Adam':
-            if self.params.loss_func == 'binary_crossentropy':
-                self.model.compile(optimizer=Adam(learning_rate=self.params.learning_rate, decay=self.params.decay, amsgrad=True),
-                                   loss='binary_crossentropy',
-                                   metrics=['binary_crossentropy', jaccard_coef_loss, jaccard_coef,
-                                            jaccard_coef_thresholded, 'accuracy'])
-            # SIS: Multi Class Prediction loss func
-            elif self.params.loss_func == 'sparse_categorical_crossentropy':
-                print("Compiling with Sparse Categorical Crossentropy")
-                sparse_cat_loss = keras.losses.SparseCategoricalCrossentropy() 
-                self.model.compile(optimizer=Adam(learning_rate=self.params.learning_rate, decay=self.params.decay, amsgrad=True),
-                                loss=sparse_cat_loss,
-                                metrics=[keras.metrics.SparseCategoricalCrossentropy(), jaccard_coef,
-                                        jaccard_coef_thresholded, keras.metrics.SparseCategoricalAccuracy(), keras.metrics.SparseTopKCategoricalAccuracy(k=5)]) 
-                                        # drop keras.metrics.Accuracy()
-                                        # 'accuracy' will be converted to CategoricalAccuracy by tf in this case
-
-                                        # jaccard_coef_loss_sparse_categorical
-            elif self.params.loss_func == 'categorical_crossentropy':
-                print("Compiling with Categorical Crossentropy")
-                probability = 1/self.n_cls
-                logits = tf.constant([[probability]*self.n_cls] *self.n_cls) # uniform distribution
-                labels = tf.constant([((i-1)*[0] + [1] + (self.n_cls-i) * [0]) for i in range(1, self.n_cls+1)]) # one hot encoded
-                #labels = tf.constant([[1, 0, 0], [0, 1, 0]]) # one hot encoded
-                print(logits, labels)
-                cat_loss = keras.losses.CategoricalCrossentropy(from_logits=False)(labels, logits)
-                self.model.compile(optimizer=Adam(learning_rate=self.params.learning_rate, decay=self.params.decay, amsgrad=True),
-                                loss=keras.losses.CategoricalCrossentropy(),
-                                metrics=[keras.metrics.CategoricalCrossentropy(), jaccard_coef_loss, jaccard_coef,
-                                        jaccard_coef_thresholded, keras.metrics.CategoricalAccuracy()]) 
-                                        # drop keras.metrics.Accuracy()
-                                        # 'accuracy' will be converted to CategoricalAccuracy by tf in this case
-            elif self.params.loss_func == 'jaccard_coef_loss':
-                self.model.compile(optimizer=Adam(lr=self.params.learning_rate, decay=self.params.decay, amsgrad=True),
-                                   loss=jaccard_coef_loss,
-                                   metrics=['binary_crossentropy', jaccard_coef_loss, jaccard_coef,
-                                            jaccard_coef_thresholded, 'accuracy'])
+            optimizer = Adam(learning_rate=self.params.learning_rate, decay=self.params.decay, amsgrad=True)
+        elif self.params.optimizer == 'AdamW':
+            optimizer = AdamW(learning_rate=self.params.learning_rate, weight_decay=self.params.decay, amsgrad=True)
+        
+        if self.params.loss_func == 'binary_crossentropy':
+            self.model.compile(optimizer=optimizer,
+                                loss='binary_crossentropy',
+                                metrics=['binary_crossentropy', jaccard_coef_loss, jaccard_coef,
+                                        jaccard_coef_thresholded, 'accuracy'])
+        # SIS: Multi Class Prediction loss func
+        elif self.params.loss_func == 'sparse_categorical_crossentropy':
+            print("Compiling with Sparse Categorical Crossentropy")
+            sparse_cat_loss = keras.losses.SparseCategoricalCrossentropy(ignore_class=self.params.dataset_fill_cls) # ignore fill class 
+            self.model.compile(optimizer=optimizer,
+                            loss=sparse_cat_loss,
+                            metrics=[keras.metrics.SparseCategoricalCrossentropy(ignore_class=self.params.dataset_fill_cls),
+                                      keras.metrics.SparseCategoricalAccuracy(), keras.metrics.SparseTopKCategoricalAccuracy(k=2)]) 
+        elif self.params.loss_func == 'categorical_crossentropy':
+            print("Compiling with Categorical Crossentropy")
+            #probability = 1/self.n_cls
+            #logits = tf.constant([[probability]*self.n_cls] *self.n_cls) # uniform distribution
+            #labels = tf.constant([((i-1)*[0] + [1] + (self.n_cls-i) * [0]) for i in range(1, self.n_cls+1)]) # one hot encoded
+            #labels = tf.constant([[1, 0, 0], [0, 1, 0]]) # one hot encoded
+            #print(logits, labels)
+            #cat_loss = keras.losses.CategoricalCrossentropy(from_logits=False)(labels, logits)
+            self.model.compile(optimizer=optimizer,
+                            loss=keras.losses.CategoricalCrossentropy(),
+                            metrics=[keras.metrics.CategoricalCrossentropy(), jaccard_coef_loss, jaccard_coef,
+                                    jaccard_coef_thresholded, keras.metrics.CategoricalAccuracy()]) 
+                                    # drop keras.metrics.Accuracy()
+                                    # 'accuracy' will be converted to CategoricalAccuracy by tf in this case
+        elif self.params.loss_func == 'jaccard_coef_loss':
+            self.model.compile(optimizer=Adam(lr=self.params.learning_rate, decay=self.params.decay, amsgrad=True),
+                                loss=jaccard_coef_loss,
+                                metrics=['binary_crossentropy', jaccard_coef_loss, jaccard_coef,
+                                        jaccard_coef_thresholded, 'accuracy'])
         elif self.params.optimizer == 'Nadam':
             if self.params.loss_func == 'binary_crossentropy':
                 self.model.compile(optimizer=Nadam(lr=self.params.learning_rate),
@@ -312,9 +312,9 @@ class UnetV2(object):
                         epochs=self.params.epochs,
                         steps_per_epoch=self.params.steps_per_epoch,
                         verbose=1,
-                        workers=12, # 4
-                        max_queue_size=16,
-                        use_multiprocessing=True,
+                        workers=8, # 4
+                        max_queue_size=12,
+                        use_multiprocessing=False,
                         shuffle=False,
                         callbacks=used_callbacks,
                         validation_data=val_generator,

@@ -180,7 +180,7 @@ def __make_landsat8_biome_dataset__(params, normalize=True):
 
             # Patch the image and the mask
             x_patched, _, _, _, _ = patch_v2(x, patch_size, overlap=params.overlap_train_set)
-            y_patched, _, _,_,_ = patch_v2(y, patch_size, overlap=params.overlap_train_set)
+            y_patched, _, _, _,_ = patch_v2(y, patch_size, overlap=params.overlap_train_set)
 
             # Save all the patches individually
             for patch in range(np.size(x_patched, axis=0)):

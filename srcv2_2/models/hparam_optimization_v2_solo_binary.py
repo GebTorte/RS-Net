@@ -44,19 +44,20 @@ Jeppesen Biome gt x Biome gt, Bands: All non-thermal bands, params:
 lr: 0.97e-3
 l2reg: 0.99e-3
 dropout: 0
-epochs: 42 (on 1-fold) ->  84 total
+epochs: 42
 adam-decay: 0?
 train_set_overlap: 120px -> give 60px to patch_v2 as it cuts from both sides
 """
 
-params = HParams(activation_func="elu",
-                # modelID="240512114954-CV2of2", # this is for --test model loading
-                leaky_alpha=0.1,
+params = HParams(activation_func="relu",
+                modelID="binary_240520230628", # this is for --test model loading
+                optimizer='AdamW',
                 loss_func="binary_crossentropy", #"sparse_categorical_crossentropy",
                 learning_rate=0.97e-3, # 4e-8 # 2e-7 is too big for training overlap 40?!
                 reduce_lr=True, # True maybe?, as it monitors val_loss aswell
                 plateau_patience=12, #12 # in epochs
                 early_patience=100,
+                replace_fill_values = True,
                 affine_transformation = True,
                 L2reg=0.99e-3, #-3
                 dropout=0, # 0.05, # this a tiny bit maybe? # or not?
@@ -67,7 +68,7 @@ params = HParams(activation_func="elu",
                 use_batch_norm=True,
                 batch_norm_momentum=0.7,
                 dropout_on_last_layer_only=True,
-                initialization="glorot_normal",
+                initialization="glorot_normal", # /glorot_uniform
                 last_layer_activation_func='sigmoid', # 'softmax'
                 satellite=SATELLITE,
                 collapse_cls=True,
@@ -79,21 +80,21 @@ params = HParams(activation_func="elu",
                 overlap=40, # 20 # 0
                 overlap_train_set=60, #120# 6 converts to 3 in every direction, as in fmask
                 norm_threshold=2**16-1,
-                split_dataset=True,
+                split_dataset=False,
                 save_best_only=False)
 
 
 if __name__ == '__main__':
 
     # do the make_dataset step, if training overlap changed, or on train/test dataset change
-    """ 60 / 120total overlap atm
-    subprocess.check_call([interpreter,
-                        script,
-                        "--make_dataset",  # needed if cls definitions changed from fmask to gt or vice versa  
-                        # and for different overlaps/train_dataset_overlaps which can be interdependent, depending on implementation
-                        "--satellite", str(SATELLITE),
-                        "--params="+params.as_string()])
-    """
+     #60 / 120total overlap atm
+    #subprocess.check_call([interpreter,
+    #                    script,
+    #                    "--make_dataset",  # needed if cls definitions changed from fmask to gt or vice versa  
+    #                    # and for different overlaps/train_dataset_overlaps which can be interdependent, depending on implementation
+    #                    "--satellite", str(SATELLITE),
+    #                    "--params="+params.as_string()])
+    
 
     # Hacky way to do to random search by overwriting actual values
     # learning_rate = int(np.random.uniform(10, 9, 1)[0]) * learning_rate  # Cast to int to avoid round() function (issues with floats)
@@ -112,7 +113,7 @@ if __name__ == '__main__':
     subprocess.check_call([interpreter,
                         script,
                         #"--make_dataset",  # needed if cls definitions changed from fmask to gt or vice versa    
-                        "--train",
+                        #"--train",
                         #"--dev_dataset",
                         "--test", # works now, but takes a loong time. # needed for writing csv output.
                         

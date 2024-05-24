@@ -8,7 +8,7 @@ import os
 #sys.path.insert(0, '../')
 sys.path.insert(1, os.path.join(sys.path[0], '..'))
 from utils import get_cls, get_model_name
-from params import HParams
+from params import HParams, get_params
 
 
 """
@@ -30,6 +30,7 @@ L8 | MODGA09
 Order: 3, 4, 1, 2, 6, 7, 5
 """
 
+MODEL = "U-net-v2"
 CLS=['shadow', 'clear', 'thin', 'cloud'] # 'fill' has to be included for categorical? No., so model non-class option for fill pixel and thus wont learn bad habits.
 SATELLITE = "Landsat8"
 TRAIN_DATASET = "Biome_gt"
@@ -50,55 +51,64 @@ adam-decay: 0?
 train_set_overlap: 120px -> give 60px to patch_v2 as it cuts from both sides
 """
 
+params = get_params(MODEL, SATELLITE)
+
 # define additional parameters
-params = HParams(activation_func="relu", # or elu or leaky relu?
+new_params = HParams(activation_func="relu", # or elu or leaky relu?
+                random=False,
+                shuffle=True,
+                optimizer='AdamW',
                 modelID="dummy", #"240515092709-CV1of2",
-                leaky_alpha=np.nan, # not needed as input is normalized to [0,1]
                 loss_func="sparse_categorical_crossentropy",
-                learning_rate=3e-6, # next 1e-6
+                learning_rate=3e-6, # up this and use less regulation # was 7e-6
                 batch_size=40, # <-- up this?
                 reduce_lr=True, # True maybe?, as it monitors val_loss aswell
-                plateau_patience=3, #12 # in epochs
-                early_stopping=False,
+                plateau_patience=2, #12 # in epochs
+                early_stopping=True,
                 early_patience=5, # maybe up this to ~= epochs/2
                 replace_fill_values = True,
                 affine_transformation = True,
-                L2reg=1e-4, # 1e-4 # next 7e-7 or 3e-6
-                dropout=0.4, # 0.05, # this a tiny bit maybe? # or not?
+                L2reg=5e-7,# -> best go in range 1e-4, 1e-5?
+                dropout=0.25, # --> 0.2, # this a significant bit? # or not?
                 dropout_on_last_layer_only=False, # if using dropout, definitely test both
-                decay=1e-4, # 1e-2 # 0.2, #this a bit, to slow down learning through Adam, ~ 1e-5 or so
+                decay=1e-4, # 0.2 # init lr / nr epochs
                 bands=[1, 2, 3, 4, 5, 6, 7],
-                epochs=6, # training goes well, maybe just reduce epochs a bit, so less overfitting?
+                epochs=10, # training goes well, maybe just reduce epochs a bit, so less overfitting?
+                # steps_per_epoch=3,
                 norm_method="enhance_contrast", #"enhance_contrast"
                 use_batch_norm=True,
-                batch_norm_momentum=0.1, # increase for stability?
-                initialization="glorot_uniform", # is this a typo? normal/uniform # he_normal again next # glorot_normal, try he_normal for (r)elu perhaps?
+                batch_norm_momentum=0.7, # --> 0.7 # was 0.95 #next 0.7, 0.9 # increase for stability
+                initialization="glorot_normal", # is this a typo? normal/uniform
                 last_layer_activation_func='softmax', # 'softmax'
                 satellite=SATELLITE,
                 collapse_cls=False,
+                dataset_fill_cls=None, # if no fill, just set this to None; (! does not work, loss wont calculate)
                 cls=CLS,
                 str_cls=CLS,
                 int_cls=get_cls(SATELLITE, TRAIN_DATASET, CLS),
                 train_dataset=TRAIN_DATASET,
                 test_dataset=TEST_DATASET, # atm only train=test implemented
                 overlap=40, # 20 # 0
+                patch_size= 256,
                 overlap_train_set=60, #120# 6 converts to 3 in every direction, as in fmask
-                norm_threshold=2**16-1, # might set this lower to the max values that actually occur in L8 sensors
+                norm_threshold=25_000, # 2**16-1, # might set this lower to the max values that actually occur in L8 sensors
                 split_dataset=True,
-                save_best_only=False)
+                save_best_only=True)
+
+params.update(**new_params)
 
 
 if __name__ == '__main__':
 
     # do the make_dataset step, if training overlap changed, or on train/test dataset change
-    """ 60 / 120total overlap atm
-    subprocess.check_call([interpreter,
-                        script,
-                        "--make_dataset",  # needed if cls definitions changed from fmask to gt or vice versa  
-                        # and for different overlaps/train_dataset_overlaps which can be interdependent, depending on implementation
-                        "--satellite", str(SATELLITE),
-                        "--params="+params.as_string()])
-    """
+    # 60 / 120total overlap atm
+    #subprocess.check_call([interpreter,
+    #                    script,
+    #                    "--make_dataset",  # needed if cls definitions changed from fmask to gt or vice versa  
+    #                    # and for different overlaps/train_dataset_overlaps which can be interdependent, depending on implementation
+    #                    "--satellite", str(SATELLITE),
+    #                    "--params="+params.as_string()])
+    
 
     # Hacky way to do to random search by overwriting actual values
     # learning_rate = int(np.random.uniform(10, 9, 1)[0]) * learning_rate  # Cast to int to avoid round() function (issues with floats)
@@ -110,7 +120,7 @@ if __name__ == '__main__':
     # Params string format must fit with the HParams object
     # See more at https://www.tensorflow.org/api_docs/python/tf/contrib/training/HParams
 
-
+    
     print('-------------STARTING NEW--------------------------')
     print(params.as_string(delimiter="\n"))
     print('---------------------------------------------------')
@@ -123,6 +133,6 @@ if __name__ == '__main__':
                         
                         "--save_output", # every model has like 3G output
                         
-                        "--satellite", str(SATELLITE), 
+                        "--satellite", str(SATELLITE), #
 
-                        "--params="+params.as_string()])
+                        "--params="+params.as_string(skip_keys_list=["test_tiles"])])
