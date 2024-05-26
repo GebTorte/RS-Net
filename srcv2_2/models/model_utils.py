@@ -8,6 +8,7 @@ set_seed(1)
 import datetime
 import os
 import sys
+import math
 import os.path
 import random
 import threading
@@ -16,7 +17,7 @@ import tensorflow as tf
 import tensorflow.keras as keras
 from keras import backend as K
 from keras.backend import binary_crossentropy, sparse_categorical_crossentropy
-from keras.callbacks import ModelCheckpoint, TensorBoard, ReduceLROnPlateau, CSVLogger, EarlyStopping
+from keras.callbacks import ModelCheckpoint, TensorBoard, ReduceLROnPlateau, CSVLogger, EarlyStopping, LearningRateScheduler
 from keras.utils import Sequence
 from keras.utils import to_categorical
 # from tensorflow.metrics import SparseCategoricalAccuracy
@@ -79,8 +80,25 @@ def jaccard_coef_loss(y_true, y_pred):
 
 
 @keras.saving.register_keras_serializable()
-def learning_rate_scheduler(epoch, lr):
-    return lr*0.9
+def cyclical_learning_rate_scheduler_2(epoch, lr, modulo = 7):
+    mod = epoch % modulo + 1 # plus one, cant be 0
+    return lr / mod
+
+@keras.saving.register_keras_serializable()
+def cyclical_learning_rate_scheduler(epoch, lr, modulo = 7, epoch_cap=21):
+    """
+    quasi cyclical learning rate @ Smith 2015 
+    """
+    if epoch == 0:
+        return lr
+    if epoch_cap > epoch: # stop cycling and stick with current lr
+        return lr
+    
+    mod = epoch % modulo
+    if mod == 0:
+        return lr * math.factorial(modulo) # set lr back to beginning lr
+    original_lr = lr * math.factorial(mod) # mod-1
+    return original_lr / (mod + 1)
 
 
 @keras.saving.register_keras_serializable()
@@ -89,7 +107,7 @@ def get_catgorical_callbacks(params):
     categorical_model_checkpoint = ModelCheckpoint(params.project_path + f'models/Unet/{params.modelID}.keras',
                                        monitor='val_categorical_accuracy',
                                        save_weights_only=False,
-                                       save_best_only=False)
+                                       save_best_only=params.save_best_only)
 
     categorical_model_weights_checkpoint = ModelCheckpoint(params.project_path + f'models/Unet/{params.modelID}.h5',
                                        monitor='val_categorical_accuracy',
@@ -142,10 +160,11 @@ def get_callbacks(params):
 
     reduce_lr = ReduceLROnPlateau(monitor='val_loss', factor=0.5, verbose=2,
                                   patience=params.plateau_patience, min_lr=1e-11) # might have to set patience lower (according to num epochs perhaps)
+    
+    cyclical_lr_scheduler = LearningRateScheduler(cyclical_learning_rate_scheduler, verbose=1)
 
 
-    return csv_logger, model_checkpoint, model_checkpoint_saving, reduce_lr, tensorboard, early_stopping
-
+    return csv_logger, model_checkpoint, model_checkpoint_saving, reduce_lr, tensorboard, early_stopping, cyclical_lr_scheduler
 
 class ImageSequence(Sequence):
     def __init__(self, params, shuffle, seed, augment_data, validation_generator=False):

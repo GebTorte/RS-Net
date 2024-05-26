@@ -55,25 +55,25 @@ params = get_params(MODEL, SATELLITE)
 
 # define additional parameters
 new_params = HParams(activation_func="relu", # or elu or leaky relu?
-                random=False,
+                random=True,
                 shuffle=True,
                 optimizer='AdamW',
                 modelID="dummy", #"240515092709-CV1of2",
                 loss_func="sparse_categorical_crossentropy",
-                learning_rate=3e-6, # up this and use less regulation # was 7e-6
+                learning_rate=1e-7, # up this and use less regulation # was 7e-6
                 batch_size=40, # <-- up this?
-                reduce_lr=True, # True maybe?, as it monitors val_loss aswell
-                plateau_patience=2, #12 # in epochs
+                reduce_lr=False, # True maybe?, as it monitors val_loss aswell
+                plateau_patience=7, #12 # in epochs # LOWER this maybe
                 early_stopping=True,
-                early_patience=5, # maybe up this to ~= epochs/2
+                early_patience=20, # maybe up this to ~= epochs/2
                 replace_fill_values = True,
                 affine_transformation = True,
-                L2reg=4e-4,# -> best go in range 1e-4, 1e-5?
-                dropout=0.25, # --> 0.2, # this a significant bit? # or not?
+                L2reg=1e-6,# -> best go in range 1e-4, 1e-5?
+                dropout=0, # --> 0.2, # this a significant bit? # or not?
                 dropout_on_last_layer_only=False, # if using dropout, definitely test both
-                decay=4e-4, # initial lr / nr epochs
+                decay=1e-6, # initial lr / nr epochs?
                 bands=[1, 2, 3, 4, 5, 6, 7],
-                epochs=10, # training goes well, maybe just reduce epochs a bit, so less overfitting?
+                epochs=21, # training goes well, maybe just reduce epochs a bit, so less overfitting?
                 # steps_per_epoch=3,
                 norm_method="enhance_contrast", #"enhance_contrast"
                 use_batch_norm=True,
@@ -82,16 +82,16 @@ new_params = HParams(activation_func="relu", # or elu or leaky relu?
                 last_layer_activation_func='softmax', # 'softmax'
                 satellite=SATELLITE,
                 collapse_cls=False,
-                dataset_fill_cls=None, # if no fill, just set this to None; (! does not work, loss wont calculate)
+                dataset_fill_cls=None, # if no fill, just set this to None
                 cls=CLS,
                 str_cls=CLS,
                 int_cls=get_cls(SATELLITE, TRAIN_DATASET, CLS),
                 train_dataset=TRAIN_DATASET,
                 test_dataset=TEST_DATASET, # atm only train=test implemented
                 overlap=40, # 20 # 0
-                patch_size= 256,
+                patch_size=256,
                 overlap_train_set=60, #120# 6 converts to 3 in every direction, as in fmask
-                norm_threshold=25_000, # 2**16-1, # might set this lower to the max values that actually occur in L8 sensors
+                norm_threshold=2**16-1, # 2**16-1, # might set this lower to the max values that actually occur in L8 sensors
                 split_dataset=True,
                 save_best_only=True)
 
