@@ -32,11 +32,16 @@ class UnetV2(object):
         self.params = params
         self.model = model
 
-                # set these random generator seeds to ensure more comparable output. Otherwise train model multiple times and evaluate means
+        try:
+            self.params.update(**self._load_params())
+            print("Params have been loaded:", self.params.as_string())
+        except:
+            print("Params were not loaded.")
+
+        # set these random generator seeds to ensure more comparable output. Otherwise train model multiple times and evaluate means
         if not self.params.random:
             tf.random.set_seed(self.seed)
             keras.utils.set_random_seed(self.seed) # this will apply to dropout aswell (and lead to overfitting i think). 
-
 
         # Find the model you would like
         self.model_name = get_model_name(self.params)
@@ -63,14 +68,9 @@ class UnetV2(object):
         if model == None:
             # Try loading a saved model. get_model_name has to be unique
             try:
-                model = tf.keras.saving.load_model(self.params.project_path + 'models/Unet/' + self.params.modelID + '.keras') # get_model_name(self.params)
+                self.model = keras.saving.load_model(self.params.project_path + 'models/Unet/' + self.params.modelID + '.keras') # get_model_name(self.params)
                 print(f"Model {self.params.modelID} has been loaded.")
 
-                try:
-                    self.params = self._load_params()
-                    print("Params have been loaded:", self.params.as_string())
-                except:
-                    print("Params were not loaded.")
                 return # dont create inference
             except:
                 print("No model was loaded.")
@@ -224,8 +224,8 @@ class UnetV2(object):
         print()
 
         # Define callbacks
-        csv_logger, model_checkpoint,model_checkpoint_saving, reduce_lr, tensorboard, early_stopping = get_callbacks(self.params)
-        used_callbacks = [csv_logger,  tensorboard]
+        csv_logger, model_checkpoint, model_checkpoint_saving, reduce_lr, tensorboard, early_stopping, cyclical_lr_scheduler = get_callbacks(self.params)
+        used_callbacks = [csv_logger,  tensorboard, cyclical_lr_scheduler]
         
         if self.params.reduce_lr:
                 used_callbacks.append(reduce_lr)
@@ -343,9 +343,14 @@ class UnetV2(object):
             #f.write(str(self.params.__dict__))
 
     def _load_params(self, postfix=".txt", delimiter=";"):
+        txt = ""
         with open(self.params.project_path + 'models/Unet/' + self.params.modelID + '_params' + postfix, 'r') as f:
             txt = f.read().replace('\n', '')
-        loaded_params = HParams().parse(txt, delimiter=delimiter)
+            print(txt)
+
+        loaded_params = HParams()
+        loaded_params.parse(txt, delimiter=delimiter)
+
         # self.params = loaded_params
         return loaded_params
 
