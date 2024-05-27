@@ -55,25 +55,27 @@ params = get_params(MODEL, SATELLITE)
 
 # define additional parameters
 new_params = HParams(activation_func="relu", # or elu or leaky relu?
-                random=True,
+                random=False,
                 shuffle=True,
                 optimizer='AdamW',
                 modelID="dummy", #"240515092709-CV1of2",
                 loss_func="sparse_categorical_crossentropy",
-                learning_rate=1e-7, # up this and use less regulation # was 7e-6
+                learning_rate=4e-4, # up this and use less regulation # was 7e-6
                 batch_size=40, # <-- up this?
+                use_cyclical_lr_scheduler=False,
+                use_factorial_cyclical_lr_scheduler=True,
                 reduce_lr=False, # True maybe?, as it monitors val_loss aswell
-                plateau_patience=7, #12 # in epochs # LOWER this maybe
+                plateau_patience=7, # SET this to 1 next, so we hopefully stay at plateau < 10
                 early_stopping=True,
                 early_patience=20, # maybe up this to ~= epochs/2
                 replace_fill_values = True,
                 affine_transformation = True,
-                L2reg=1e-6,# -> best go in range 1e-4, 1e-5?
+                L2reg=3e-1,# -> best go in range 1e-4, 1e-5?
                 dropout=0, # --> 0.2, # this a significant bit? # or not?
                 dropout_on_last_layer_only=False, # if using dropout, definitely test both
-                decay=1e-6, # initial lr / nr epochs?
+                decay=3e-1, # initial lr / nr epochs?
                 bands=[1, 2, 3, 4, 5, 6, 7],
-                epochs=21, # training goes well, maybe just reduce epochs a bit, so less overfitting?
+                epochs=34, # set this to x \times modulator -1 to end on a low lr
                 # steps_per_epoch=3,
                 norm_method="enhance_contrast", #"enhance_contrast"
                 use_batch_norm=True,
