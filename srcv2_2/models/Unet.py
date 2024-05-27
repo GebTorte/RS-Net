@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # Needed to set seed for random generators for making reproducible experiments
-from numpy.random import seed
-seed(1)
+import numpy.random
+
 #set_seed(1)
 
 import json
@@ -40,6 +40,7 @@ class UnetV2(object):
 
         # set these random generator seeds to ensure more comparable output. Otherwise train model multiple times and evaluate means
         if not self.params.random:
+            numpy.random.seed(1)
             tf.random.set_seed(self.seed)
             keras.utils.set_random_seed(self.seed) # this will apply to dropout aswell (and lead to overfitting i think). 
 
@@ -224,11 +225,15 @@ class UnetV2(object):
         print()
 
         # Define callbacks
-        csv_logger, model_checkpoint, model_checkpoint_saving, reduce_lr, tensorboard, early_stopping, cyclical_lr_scheduler = get_callbacks(self.params)
-        used_callbacks = [csv_logger,  tensorboard, cyclical_lr_scheduler]
+        csv_logger, model_checkpoint, model_checkpoint_saving, reduce_lr, tensorboard, early_stopping, cyclical_lr_scheduler, factorial_cyclical_lr_scheduler = get_callbacks(self.params)
+        used_callbacks = [csv_logger,  tensorboard]
         
         if self.params.reduce_lr:
-                used_callbacks.append(reduce_lr)
+            used_callbacks.append(reduce_lr)
+        if self.params.use_cyclical_lr_scheduler:
+            used_callbacks.append(cyclical_lr_scheduler)
+        elif self.params.use_factorial_cyclical_lr_scheduler:
+            used_callbacks.append(factorial_cyclical_lr_scheduler)
         if self.params.loss_func == "binary_crossentropy":
             if self.params.early_stopping:
                 used_callbacks.append(early_stopping)
