@@ -98,6 +98,25 @@ def cyclical_learning_rate_scheduler(epoch, lr, modulator = 7, epoch_cap=21):
     original_lr = lr * mod #math.factorial(mod)
     return original_lr / (mod + 1)
 
+@keras.saving.register_keras_serializable()
+def cyclical_learning_rate_scheduler_factorial(epoch, lr, modulator = 7, epoch_cap=21):
+    """
+    quasi cyclical learning rate @ Smith 2015 
+    """
+    if epoch == 0 or epoch > epoch_cap: # stop cycling and stick with current lr
+        return lr
+    
+    mod = epoch % modulator
+    if mod == 0:
+        return lr * math.factorial(modulator) # set lr back to beginning lr
+    return lr / (mod + 1)
+
+
+@keras.saving.register_keras_serializable()
+def learning_rate_scheduler(epoch, lr, epoch_cap=10):
+    if epoch > epoch_cap: # reduce lr exponentially
+        return lr * tf.math.exp(-0.1)
+    return lr
 
 @keras.saving.register_keras_serializable()
 def get_catgorical_callbacks(params):
@@ -160,9 +179,10 @@ def get_callbacks(params):
                                   patience=params.plateau_patience, min_lr=1e-11) # might have to set patience lower (according to num epochs perhaps)
     
     cyclical_lr_scheduler = LearningRateScheduler(cyclical_learning_rate_scheduler, verbose=1)
+    factorial_cyclical_lr_scheduler = LearningRateScheduler(cyclical_learning_rate_scheduler_factorial, verbose=1)
 
 
-    return csv_logger, model_checkpoint, model_checkpoint_saving, reduce_lr, tensorboard, early_stopping, cyclical_lr_scheduler
+    return csv_logger, model_checkpoint, model_checkpoint_saving, reduce_lr, tensorboard, early_stopping, cyclical_lr_scheduler, factorial_cyclical_lr_scheduler
 
 class ImageSequence(Sequence):
     def __init__(self, params, shuffle, seed, augment_data, validation_generator=False):
