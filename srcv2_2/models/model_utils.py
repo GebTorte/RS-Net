@@ -85,18 +85,16 @@ def cyclical_learning_rate_scheduler_2(epoch, lr, modulo = 7):
     return lr / mod
 
 @keras.saving.register_keras_serializable()
-def cyclical_learning_rate_scheduler(epoch, lr, modulo = 7, epoch_cap=21):
+def cyclical_learning_rate_scheduler(epoch, lr, modulator = 7, epoch_cap=21):
     """
     quasi cyclical learning rate @ Smith 2015 
     """
-    if epoch == 0:
-        return lr
-    if epoch > epoch_cap: # stop cycling and stick with current lr
+    if epoch == 0 or epoch > epoch_cap: # stop cycling and stick with current lr
         return lr
     
-    mod = epoch % modulo
-    #if mod == 0:
-    #    return lr * math.factorial(modulo) # set lr back to beginning lr
+    mod = epoch % modulator
+    if mod == 0:
+        return lr * modulator # set lr back to beginning lr
     original_lr = lr * mod #math.factorial(mod)
     return original_lr / (mod + 1)
 
@@ -124,7 +122,7 @@ def get_sparse_catgorical_callbacks(params):
     sparse_model_checkpoint = ModelCheckpoint(params.project_path + f'models/Unet/{params.modelID}.keras',
                                        monitor='val_sparse_categorical_accuracy',
                                        save_weights_only=False,
-                                       save_best_only=False)
+                                       save_best_only=params.save_best_only)
 
     sparse_model_weights_checkpoint = ModelCheckpoint(params.project_path + f'models/Unet/{params.modelID}.h5',
                                        monitor='val_sparse_categorical_accuracy',
@@ -148,7 +146,7 @@ def get_callbacks(params):
     model_checkpoint_saving = ModelCheckpoint(params.project_path + f'models/Unet/{params.modelID}.keras',
                                        monitor='val_acc',
                                        save_weights_only=False,
-                                       save_best_only=False)
+                                       save_best_only=params.save_best_only)
 
     early_stopping = EarlyStopping(monitor='val_acc', patience=100, verbose=2)
 
