@@ -91,13 +91,13 @@ def cyclical_learning_rate_scheduler(epoch, lr, modulo = 7, epoch_cap=21):
     """
     if epoch == 0:
         return lr
-    if epoch_cap > epoch: # stop cycling and stick with current lr
+    if epoch > epoch_cap: # stop cycling and stick with current lr
         return lr
     
     mod = epoch % modulo
-    if mod == 0:
-        return lr * math.factorial(modulo) # set lr back to beginning lr
-    original_lr = lr * math.factorial(mod) # mod-1
+    #if mod == 0:
+    #    return lr * math.factorial(modulo) # set lr back to beginning lr
+    original_lr = lr * mod #math.factorial(mod)
     return original_lr / (mod + 1)
 
 
