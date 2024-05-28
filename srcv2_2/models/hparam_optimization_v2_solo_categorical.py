@@ -60,22 +60,24 @@ new_params = HParams(activation_func="relu", # or elu or leaky relu?
                 optimizer='AdamW',
                 modelID="dummy", #"240515092709-CV1of2",
                 loss_func="sparse_categorical_crossentropy",
-                learning_rate=4e-4, # up this and use less regulation # was 7e-6
+                learning_rate=1e-2, # up this and use less regulation # was 7e-6
                 batch_size=40, # <-- up this?
                 use_cyclical_lr_scheduler=False,
-                use_factorial_cyclical_lr_scheduler=True,
+                use_factorial_cyclical_lr_scheduler=False,
+                use_round_cyclical_lr_scheduler=True,
                 reduce_lr=False, # True maybe?, as it monitors val_loss aswell
                 plateau_patience=7, # SET this to 1 next, so we hopefully stay at plateau < 10
                 early_stopping=True,
-                early_patience=20, # maybe up this to ~= epochs/2
+                early_patience=19, # maybe up this to ~= epochs/2
                 replace_fill_values = True,
+                dataset_fill_cls=None, # if no fill, just set this to None
                 affine_transformation = True,
-                L2reg=3e-1,# -> best go in range 1e-4, 1e-5?
-                dropout=0, # --> 0.2, # this a significant bit? # or not?
+                L2reg=2e-1,# -> best go in range 1e-4, 1e-5?
+                dropout=0.2, # --> 0.25, # this a significant bit? # or not?
                 dropout_on_last_layer_only=False, # if using dropout, definitely test both
-                decay=3e-1, # initial lr / nr epochs?
+                decay=0.3, # initial lr / nr epochs?
                 bands=[1, 2, 3, 4, 5, 6, 7],
-                epochs=34, # set this to x \times modulator -1 to end on a low lr
+                epochs=41, # set this to x \times modulator -1 to end on a low lr
                 # steps_per_epoch=3,
                 norm_method="enhance_contrast", #"enhance_contrast"
                 use_batch_norm=True,
@@ -84,7 +86,6 @@ new_params = HParams(activation_func="relu", # or elu or leaky relu?
                 last_layer_activation_func='softmax', # 'softmax'
                 satellite=SATELLITE,
                 collapse_cls=False,
-                dataset_fill_cls=None, # if no fill, just set this to None
                 cls=CLS,
                 str_cls=CLS,
                 int_cls=get_cls(SATELLITE, TRAIN_DATASET, CLS),

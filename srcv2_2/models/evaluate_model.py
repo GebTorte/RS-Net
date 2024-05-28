@@ -199,11 +199,11 @@ def __evaluate_biome_dataset__(model, num_gpus, params, save_output=False, write
     if params.loss_func == "binary_crossentropy":
         # thresholds = [0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95]
         #thresholds = [params.threshold]
-        thresholds = [0.25, 0.5, 0.9, 0.95, 0.99]
+        thresholds = [0, 0.25, 0.5, 0.9, 0.95, 0.99]
     elif params.loss_func =="categorical_crossentropy": # for categorical argmaxing, thresholding seems to be irrelevant
         thresholds = [params.threshold]
     else:
-        thresholds = [1/n_cls, 0.5, 0.95, 0.99] # n_cls might be one to big, if fill is in params
+        thresholds = [0, 1/n_cls, 0.5, 0.95, 0.99] # n_cls might be one to big, if fill is in params
         # softmax normalizes to between 0-1 anyway
 
     evaluation_metrics = {}

@@ -225,7 +225,7 @@ class UnetV2(object):
         print()
 
         # Define callbacks
-        csv_logger, model_checkpoint, model_checkpoint_saving, reduce_lr, tensorboard, early_stopping, cyclical_lr_scheduler, factorial_cyclical_lr_scheduler = get_callbacks(self.params)
+        csv_logger, model_checkpoint, model_checkpoint_saving, reduce_lr, tensorboard, early_stopping, cyclical_lr_scheduler, factorial_cyclical_lr_scheduler, round_cyclical_learning_rate_scheduler = get_callbacks(self.params)
         used_callbacks = [csv_logger,  tensorboard]
         
         if self.params.reduce_lr:
@@ -234,6 +234,8 @@ class UnetV2(object):
             used_callbacks.append(cyclical_lr_scheduler)
         elif self.params.use_factorial_cyclical_lr_scheduler:
             used_callbacks.append(factorial_cyclical_lr_scheduler)
+        elif self.params.use_round_cyclical_lr_scheduler:
+            used_callbacks.append(round_cyclical_learning_rate_scheduler)
         if self.params.loss_func == "binary_crossentropy":
             if self.params.early_stopping:
                 used_callbacks.append(early_stopping)

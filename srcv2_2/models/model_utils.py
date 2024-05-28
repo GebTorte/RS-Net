@@ -78,12 +78,6 @@ def jaccard_coef_loss(y_true, y_pred):
 #    # From https://github.com/ternaus/kaggle_dstl_submission/blob/master/src/unet_crops.py
 #    return -K.log(jaccard_coef(y_true, y_pred)) + sparse_categorical_crossentropy(y_pred, y_true, ignore_class=0)
 
-
-@keras.saving.register_keras_serializable()
-def cyclical_learning_rate_scheduler_2(epoch, lr, modulo = 7):
-    mod = epoch % modulo + 1 # plus one, cant be 0
-    return lr / mod
-
 @keras.saving.register_keras_serializable()
 def cyclical_learning_rate_scheduler(epoch, lr, modulator = 7, epoch_cap=21):
     """
@@ -111,6 +105,22 @@ def cyclical_learning_rate_scheduler_factorial(epoch, lr, modulator = 7, epoch_c
         return lr * math.factorial(modulator) # set lr back to beginning lr
     return lr / (mod + 1)
 
+def round_learning_rate_scheduler(epoch, lr, modulator = 14, epoch_cap=21, factor=2):
+    """
+    cyclical learning rate @ Smith 2015 
+    """
+    if epoch > epoch_cap or epoch%modulator==0: # stop cycling / @ middle of cycle and stick with current lr
+        return lr
+    
+    up = False
+    mod = epoch % modulator - modulator /2
+    if mod > 0:
+        up = not up # switch every modulator epochs
+    
+    if up:
+        return lr * factor
+    else:
+        return lr / factor
 
 @keras.saving.register_keras_serializable()
 def learning_rate_scheduler(epoch, lr, epoch_cap=10):
@@ -180,9 +190,10 @@ def get_callbacks(params):
     
     cyclical_lr_scheduler = LearningRateScheduler(cyclical_learning_rate_scheduler, verbose=1)
     factorial_cyclical_lr_scheduler = LearningRateScheduler(cyclical_learning_rate_scheduler_factorial, verbose=1)
+    round_cyclical_learning_rate_scheduler = LearningRateScheduler(round_learning_rate_scheduler, verbose= 1)
 
 
-    return csv_logger, model_checkpoint, model_checkpoint_saving, reduce_lr, tensorboard, early_stopping, cyclical_lr_scheduler, factorial_cyclical_lr_scheduler
+    return csv_logger, model_checkpoint, model_checkpoint_saving, reduce_lr, tensorboard, early_stopping, cyclical_lr_scheduler, factorial_cyclical_lr_scheduler, round_cyclical_learning_rate_scheduler
 
 class ImageSequence(Sequence):
     def __init__(self, params, shuffle, seed, augment_data, validation_generator=False):
