@@ -78,8 +78,7 @@ def jaccard_coef_loss(y_true, y_pred):
 #    # From https://github.com/ternaus/kaggle_dstl_submission/blob/master/src/unet_crops.py
 #    return -K.log(jaccard_coef(y_true, y_pred)) + sparse_categorical_crossentropy(y_pred, y_true, ignore_class=0)
 
-@keras.saving.register_keras_serializable()
-def cyclical_learning_rate_scheduler(epoch, lr, modulator = 7, epoch_cap=21):
+def cyclical_learning_rate_scheduler(epoch, lr, modulator = 7, epoch_cap=100):
     """
     quasi cyclical learning rate @ Smith 2015 
     """
@@ -89,11 +88,10 @@ def cyclical_learning_rate_scheduler(epoch, lr, modulator = 7, epoch_cap=21):
     mod = epoch % modulator
     if mod == 0:
         return lr * modulator # set lr back to beginning lr
-    original_lr = lr * mod #math.factorial(mod)
+    original_lr = lr * mod
     return original_lr / (mod + 1)
 
-@keras.saving.register_keras_serializable()
-def cyclical_learning_rate_scheduler_factorial(epoch, lr, modulator = 7, epoch_cap=21):
+def cyclical_learning_rate_scheduler_factorial(epoch, lr, modulator = 7, epoch_cap=100):
     """
     quasi cyclical learning rate @ Smith 2015 
     """
@@ -105,25 +103,46 @@ def cyclical_learning_rate_scheduler_factorial(epoch, lr, modulator = 7, epoch_c
         return lr * math.factorial(modulator) # set lr back to beginning lr
     return lr / (mod + 1)
 
-def round_learning_rate_scheduler(epoch, lr, modulator = 14, epoch_cap=21, factor=2):
+def return_factor(_):
+    return 2
+
+def fib_iter(n):
     """
+    @ https://stackoverflow.com/a/32215743/24005249
+    """
+    a, b = 0, 1
+    for i in range(n):
+        a, b = b, a + b
+    return a
+
+def step_learning_rate_scheduler(epoch, lr, epoch_step=10, divisor=2):
+    if epoch % epoch_step == epoch_step-1:
+        return lr/divisor
+    return lr
+
+def round_learning_rate_scheduler(epoch, lr, modulator=4, epoch_cap=100, divifactsor=2):
+    """
+    Note: modulator has to be of even.
+
     cyclical learning rate @ Smith 2015 
     """
-    if epoch > epoch_cap or epoch%modulator==0: # stop cycling / @ middle of cycle and stick with current lr
+    if epoch > epoch_cap or epoch==0: # or epoch%modulator==0: # stop cycling / @ middle of cycle and stick with current lr
         return lr
     
-    up = False
-    mod = epoch % modulator - modulator /2
-    if mod > 0:
-        up = not up # switch every modulator epochs
+    epoch = epoch - 1 # reset mod position to start @ zero
     
-    if up:
-        return lr * factor
-    else:
-        return lr / factor
+    up = False
+    signed_mod = epoch % modulator  -  modulator / 2
 
-@keras.saving.register_keras_serializable()
-def learning_rate_scheduler(epoch, lr, epoch_cap=10):
+    if signed_mod >= 0:
+        up = not up # switch every modulator/2 epochs
+        
+    if up:
+        return lr * divifactsor
+    else: # down
+        return lr / divifactsor
+
+def learning_rate_scheduler(epoch, lr, epoch_cap=15):
     if epoch > epoch_cap: # reduce lr exponentially
         return lr * tf.math.exp(-0.1)
     return lr
@@ -190,7 +209,7 @@ def get_callbacks(params):
     
     cyclical_lr_scheduler = LearningRateScheduler(cyclical_learning_rate_scheduler, verbose=1)
     factorial_cyclical_lr_scheduler = LearningRateScheduler(cyclical_learning_rate_scheduler_factorial, verbose=1)
-    round_cyclical_learning_rate_scheduler = LearningRateScheduler(round_learning_rate_scheduler, verbose= 1)
+    round_cyclical_learning_rate_scheduler = LearningRateScheduler(round_learning_rate_scheduler, verbose=1)
 
 
     return csv_logger, model_checkpoint, model_checkpoint_saving, reduce_lr, tensorboard, early_stopping, cyclical_lr_scheduler, factorial_cyclical_lr_scheduler, round_cyclical_learning_rate_scheduler
