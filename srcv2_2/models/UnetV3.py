@@ -111,12 +111,12 @@ class UnetV3(object):
         
         #model128 =self._load_model_128()
 
-        model256 = self._load_model_256()
+        #model256 = self._load_model_256()
 
-        # model256_2 = self._load_model_256_2()
+        model256_2 = self._load_model_256_2()
         
-        model = model256
-        return model
+
+        return model256_2
     
     def _load_model_128(self):
         return keras.models.Sequential([
@@ -217,51 +217,53 @@ class UnetV3(object):
         for 4 (sparse) classes
         @ 7 spectral bands depth
         """
-        l2reg = 1e-4
+        l2reg = self.params.L2reg #1e-4
+        initializer = self.params.initializer # "he_normal"
+        activation_func = self.params.last_layer_activation_func # 'softmax'
         return keras.models.Sequential([
             keras.layers.Conv2D(16, 3, activation='relu', input_shape=(256, 256, 7),
                                 kernel_regularizer=regularizers.l2(l2reg),
-                                kernel_initializer='he_normal',
+                                kernel_initializer=initializer,
                                 padding='same'),
             keras.layers.Conv2D(16, 3, activation='relu',
                                 kernel_regularizer=regularizers.l2(l2reg),
-                                kernel_initializer='he_normal',
+                                kernel_initializer=initializer,
                                 padding='same'),
             keras.layers.MaxPooling2D(pool_size=(2, 2), strides=(2, 2)),
             keras.layers.Conv2D(32, 3, activation='relu',
                                 kernel_regularizer=regularizers.l2(l2reg),
-                                kernel_initializer='he_normal',
+                                kernel_initializer=initializer,
                                 padding='same'),
             keras.layers.Conv2D(32, 3, activation='relu',
                                 kernel_regularizer=regularizers.l2(l2reg),
-                                kernel_initializer='he_normal',
+                                kernel_initializer=initializer,
                                 padding='same'),
             keras.layers.MaxPooling2D(pool_size=(2, 2), strides=(2, 2)),
             keras.layers.Conv2D(64, 3, activation='relu',
                                 kernel_regularizer=regularizers.l2(l2reg),
-                                kernel_initializer='he_normal',
+                                kernel_initializer=initializer,
                                 padding='same'),
             keras.layers.Conv2D(64, 3, activation='relu',
                                 kernel_regularizer=regularizers.l2(l2reg),
-                                kernel_initializer='he_normal',
+                                kernel_initializer=initializer,
                                 padding='same'),
             keras.layers.MaxPooling2D(pool_size=(2, 2), strides=(2, 2)),
             keras.layers.Conv2D(128, 3, activation='relu',
                                 kernel_regularizer=regularizers.l2(l2reg),
-                                kernel_initializer='he_normal',
+                                kernel_initializer=initializer,
                                 padding='same'),
             keras.layers.Conv2D(128, 3, activation='relu',
                                 kernel_regularizer=regularizers.l2(l2reg),
-                                kernel_initializer='he_normal',
+                                kernel_initializer=initializer,
                                 padding='same'),
             keras.layers.MaxPooling2D(pool_size=(2, 2), strides=(2, 2)),
             keras.layers.Conv2D(256, 3, activation='relu',
                                 kernel_regularizer=regularizers.l2(l2reg),
-                                kernel_initializer='he_normal',
+                                kernel_initializer=initializer,
                                 padding='same'),
             keras.layers.Conv2D(256, 3, activation='relu',
                                 kernel_regularizer=regularizers.l2(l2reg),
-                                kernel_initializer='he_normal',
+                                kernel_initializer=initializer,
                                 padding='same'),
             keras.layers.MaxPooling2D(strides=(2, 2)),
             keras.layers.Flatten(),
@@ -270,7 +272,7 @@ class UnetV3(object):
             keras.layers.Dense(64, activation='relu'),
             keras.layers.Dense(32, activation='relu'),
             #keras.layers.Cropping2D(cropping=((clip_pixels, clip_pixels), (clip_pixels, clip_pixels))),
-            keras.layers.Dense(4, activation='softmax')
+            keras.layers.Dense(4, activation=activation_func)
         ] 
         )
 
