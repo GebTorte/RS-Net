@@ -50,14 +50,18 @@ train_set_overlap: 120px -> give 60px to patch_v2 as it cuts from both sides
 """
 
 params = HParams(activation_func="relu",
-                modelID="binary_240520230628", # this is for --test model loading
-                optimizer='AdamW',
+                modelID="binary_M1",# "binary_240520230628", # this is for --test model loading
+                optimizer='Adam',
                 loss_func="binary_crossentropy", #"sparse_categorical_crossentropy",
                 learning_rate=0.97e-3, # 4e-8 # 2e-7 is too big for training overlap 40?!
                 reduce_lr=True, # True maybe?, as it monitors val_loss aswell
+                use_cyclical_lr_scheduler=False,
+                use_factorial_cyclical_lr_scheduler=False,
+                use_round_cyclical_lr_scheduler=False,
                 plateau_patience=12, #12 # in epochs
                 early_patience=100,
-                replace_fill_values = True,
+                replace_fill_values = False,
+                dataset_fill_cls=None,
                 affine_transformation = True,
                 L2reg=0.99e-3, #-3
                 dropout=0, # 0.05, # this a tiny bit maybe? # or not?
@@ -88,12 +92,12 @@ if __name__ == '__main__':
 
     # do the make_dataset step, if training overlap changed, or on train/test dataset change
      #60 / 120total overlap atm
-    #subprocess.check_call([interpreter,
-    #                    script,
-    #                    "--make_dataset",  # needed if cls definitions changed from fmask to gt or vice versa  
-    #                    # and for different overlaps/train_dataset_overlaps which can be interdependent, depending on implementation
-    #                    "--satellite", str(SATELLITE),
-    #                    "--params="+params.as_string()])
+    subprocess.check_call([interpreter,
+                        script,
+                        "--make_dataset",  # needed if cls definitions changed from fmask to gt or vice versa  
+                        # and for different overlaps/train_dataset_overlaps which can be interdependent, depending on implementation
+                        "--satellite", str(SATELLITE),
+                        "--params="+params.as_string()])
     
 
     # Hacky way to do to random search by overwriting actual values
@@ -113,7 +117,7 @@ if __name__ == '__main__':
     subprocess.check_call([interpreter,
                         script,
                         #"--make_dataset",  # needed if cls definitions changed from fmask to gt or vice versa    
-                        #"--train",
+                        "--train",
                         #"--dev_dataset",
                         "--test", # works now, but takes a loong time. # needed for writing csv output.
                         

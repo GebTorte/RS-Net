@@ -60,29 +60,30 @@ new_params = HParams(activation_func="relu", # or elu or leaky relu?
                 optimizer='AdamW',
                 modelID="dummy", #"240515092709-CV1of2",
                 loss_func="sparse_categorical_crossentropy",
-                learning_rate=1e-2, # up this and use less regulation # was 7e-6
-                batch_size=40, # <-- up this?
+                learning_rate=7e-4,
+                batch_size=40, 
                 use_cyclical_lr_scheduler=False,
                 use_factorial_cyclical_lr_scheduler=False,
                 use_round_cyclical_lr_scheduler=True,
-                reduce_lr=False, # True maybe?, as it monitors val_loss aswell
-                plateau_patience=7, # SET this to 1 next, so we hopefully stay at plateau < 10
+                reduce_lr=True, # True maybe?, as it monitors val_loss aswell
+                plateau_patience=5, # SET this to 1 next, so we hopefully stay at plateau < 10
                 early_stopping=True,
-                early_patience=19, # maybe up this to ~= epochs/2
+                early_patience=35, # maybe up this to ~= epochs/2
                 replace_fill_values = True,
-                dataset_fill_cls=None, # if no fill, just set this to None
+                dataset_fill_cls=4, # if set to any number, fill values will be replaced by it and it will be ignored by loss calculation. 
+                # If set to None, fill values will be replaced by most probable cls and not ignored by sparse categorical crossentropy.
                 affine_transformation = True,
-                L2reg=2e-1,# -> best go in range 1e-4, 1e-5?
-                dropout=0.2, # --> 0.25, # this a significant bit? # or not?
+                L2reg=7e-4, 
+                dropout=0.3, # --> 0.25 ? # this a significant bit? # or not?
                 dropout_on_last_layer_only=False, # if using dropout, definitely test both
-                decay=0.3, # initial lr / nr epochs?
+                decay=1e-4, # initial lr / nr epochs?
                 bands=[1, 2, 3, 4, 5, 6, 7],
-                epochs=41, # set this to x \times modulator -1 to end on a low lr
+                epochs=18, # set this to x \times modulator -1 to end on a low lr
                 # steps_per_epoch=3,
                 norm_method="enhance_contrast", #"enhance_contrast"
                 use_batch_norm=True,
-                batch_norm_momentum=0.7, # --> 0.7 # was 0.95 #next 0.7, 0.9 # increase for stability
-                initialization="glorot_normal", # is this a typo? normal/uniform
+                batch_norm_momentum=0.99, # try 0.99 perhaps?# increase for stability and learn-ability on lower lrs
+                initialization="he_normal", #glorot_normal #  he_normal? @rainio2024
                 last_layer_activation_func='softmax', # 'softmax'
                 satellite=SATELLITE,
                 collapse_cls=False,
@@ -94,9 +95,9 @@ new_params = HParams(activation_func="relu", # or elu or leaky relu?
                 overlap=40, # 20 # 0
                 patch_size=256,
                 overlap_train_set=60, #120# 6 converts to 3 in every direction, as in fmask
-                norm_threshold=2**16-1, # 2**16-1, # might set this lower to the max values that actually occur in L8 sensors
+                norm_threshold=2**16-1, #,2**16-1, # 2**16-1, # might set this lower to the max values that actually occur in L8 sensors
                 split_dataset=True,
-                save_best_only=True)
+                save_best_only=False)
 
 params.update(**new_params)
 
