@@ -120,7 +120,7 @@ def step_learning_rate_scheduler(epoch, lr, epoch_step=10, divisor=2):
         return lr/divisor
     return lr
 
-def round_learning_rate_scheduler(epoch, lr, modulator=4, epoch_cap=100, divifactsor=2):
+def round_learning_rate_scheduler(epoch, lr, modulator=6, epoch_cap=100, divifactsor=1.5):
     """
     Note: modulator has to be of even.
 
@@ -322,7 +322,7 @@ class ImageSequence(Sequence):
             # for categorical, preplace 'fill' pxl with current most occuring pixel class.
             if self.params.loss_func == "sparse_categorical_crossentropy" or self.params.loss_func == "categorical_crossentropy":
                 if self.params.replace_fill_values:
-                    mask = replace_fill_values(self.params, self.params.train_dataset, mask)
+                    mask = replace_fill_values(self.params, self.params.train_dataset, mask, fill_with_value=self.params.dataset_fill_cls)
 
                 # normalize the (biome_gt) mask values to range(0, len(cls)-1) 
                 # loss will only compile then

@@ -203,7 +203,7 @@ def __evaluate_biome_dataset__(model, num_gpus, params, save_output=False, write
     elif params.loss_func =="categorical_crossentropy": # for categorical argmaxing, thresholding seems to be irrelevant
         thresholds = [params.threshold]
     else:
-        thresholds = [0, 1/n_cls, 0.5, 0.95, 0.99] # n_cls might be one to big, if fill is in params
+        thresholds = [1/n_cls, 0.5, 0.95, 0.99] # n_cls might be one to big, if fill is in params
         # softmax normalizes to between 0-1 anyway
 
     evaluation_metrics = {}
@@ -659,7 +659,7 @@ def calculate_dice_coefficient(y_true, y_pred, valid_pixel_mask, cls, fill_val=0
         union = np.sum(true_cls | pred_cls) #  np.sum(true_cls) + np.sum(pred_cls)
         dice_coefficient = (2. * intersection) / union
         dice_scores.append(dice_coefficient)
-    return np.mean(dice_scores)
+    return np.nanmean(dice_scores)
 
 def calculate_iou(y_true, y_pred, valid_pixel_mask, cls, fill_val=0):
     iou_scores = []
@@ -672,34 +672,30 @@ def calculate_iou(y_true, y_pred, valid_pixel_mask, cls, fill_val=0):
         union = true_cls | pred_cls
         iou_score = np.sum(intersection) / np.sum(union)
         iou_scores.append(iou_score)
-    return np.mean(iou_scores)
+    return np.nanmean(iou_scores)
 
 def calculate_categorical_cross_entropy(y_true, y_pred, cls, fill_val=0):
     """
     y_true of cls
     y_pred of probabilities
     """
-    try:
+    # one hot encode y_true
+    shp = np.shape(y_true)
+    one_hot = np.zeros(shape=(shp[0], shp[1], len(cls)))
 
-        # one hot encode y_true
-        shp = np.shape(y_true)
-        one_hot = np.zeros(shape=(shp[0], shp[1], len(cls)))
+    for i, c in enumerate(cls):
+        if c == fill_val:
+            continue
+        one_hot[y_true == c,i] = 1
 
-        for i, c in enumerate(cls):
-            if c == fill_val:
-                continue
-            one_hot[y_true == c,i] = 1
+    # ensure probabilities per pixel sum up to 1
+    # this should already be the case, as last layer activation funtion is softmax
+    # y_pred /= np.sum(y_pred, axis=-1, keepdims=True)
 
-        # ensure probabilities per pixel sum up to 1
-        # this should already be the case, as last layer activation funtion is softmax
-        # y_pred /= np.sum(y_pred, axis=-1, keepdims=True)
+    epsilon = 1e-7  # Small constant to avoid division by zero
+    y_pred = np.clip(y_pred, epsilon, 1 - epsilon)  # Clip values to avoid log(0)
 
-        epsilon = 1e-15  # Small constant to avoid division by zero
-        y_pred = np.clip(y_pred, epsilon, 1 - epsilon)  # Clip values to avoid log(0)
-
-        res = -np.mean(np.sum(one_hot * np.log(y_pred), axis=-1))
-    except:
-        res = 0
+    res = -np.nanmean(np.sum(one_hot * np.log(y_pred), axis=-1))
     return res
 
 def calculate_sparse_class_evaluation_criteria(threshold, params, valid_pixels_mask, predicted_mask, mask_true):
