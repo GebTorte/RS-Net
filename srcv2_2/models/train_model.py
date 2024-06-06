@@ -32,26 +32,32 @@ train_set_overlap: 120px -> give 60px to patch_v2 as it cuts from both sides
 """
 
 # define additional parameters
-params = HParams(activation_func="relu", # or elu or leaky relu?
-                modelID="Unet-v2-binary",
+params = HParams(activation_func="relu",
+                modelID="binary_M1",
+                random=False, # False -> reproducible
+                shuffle=False,
                 split_dataset=False,
-                leaky_alpha=np.nan, # not needed as input is normalized to [0,1]
                 loss_func="binary_crossentropy",
-                learning_rate=0.97e-4, # next 3e-7
-                reduce_lr=True, # True maybe?, as it monitors val_loss aswell
-                plateau_patience=12, #12 # in epochs
-                early_patience=100, # maybe up this to ~= epochs
-                replace_fill_values = True,
+                optimizer="Adam",
+                learning_rate=0.97e-4,
+                use_cyclical_lr_scheduler=False,
+                use_factorial_cyclical_lr_scheduler=False,
+                use_round_cyclical_lr_scheduler=False,
+                reduce_lr=False, 
+                plateau_patience=12, 
+                early_patience=100, 
+                replace_fill_values = False,
+                dataset_fill_cls=None, # will be replaced by most likely cls. For categorical, change this!
                 affine_transformation = True,
-                L2reg=.99e-4, # next 7e-7 or 3e-6
-                dropout=0, # 0.05, # this a tiny bit maybe? # or not?
-                dropout_on_last_layer_only=True, # False, if using dropout, definitely test both
-                decay=0,  #2e-1, #this a bit, to slow down learning through Adam, ~ 1e-5 or so
+                L2reg=.99e-4, 
+                dropout=0,
+                dropout_on_last_layer_only=True,
+                decay=0,
                 bands=[1, 2, 3, 4, 5, 6, 7],
-                epochs=42, # training goes well, maybe just reduce epochs a bit, so less overfitting?
-                norm_method="enhance_contrast", #"enhance_contrast"
+                epochs=42, 
+                norm_method="enhance_contrast", 
                 use_batch_norm=True,
-                batch_norm_momentum=0.7, # increase for stability?
+                batch_norm_momentum=0.7, 
                 initialization="glorot_normal", # glorot_normal for categorical, try he_normal for (r)elu perhaps?
                 last_layer_activation_func='sigmoid', # 'softmax'
                 satellite=SATELLITE,
@@ -70,19 +76,17 @@ params = HParams(activation_func="relu", # or elu or leaky relu?
 if __name__ == '__main__':
 
     # do the make_dataset step, if training overlap changed, or on train/test dataset change
-    """ 60 / 120total overlap atm
-    subprocess.check_call([interpreter,
-                        script,
-                        "--make_dataset",  # needed if cls definitions changed from fmask to gt or vice versa  
-                        # and for different overlaps/train_dataset_overlaps which can be interdependent, depending on implementation
-                        "--satellite", str(SATELLITE),
-                        "--params="+params.as_string()])
-    """
+    # 60 / 120total overlap atm
+    #subprocess.check_call([interpreter,
+    #                    script,
+    #                    "--make_dataset",  # needed if cls definitions changed from fmask to gt or vice versa  
+    #                    # and for different overlaps/train_dataset_overlaps which can be interdependent, depending on implementation
+    #                    "--satellite", str(SATELLITE),
+    #                    "--params="+params.as_string()])
 
 
     # Params string format must fit with the HParams object
     # See more at https://www.tensorflow.org/api_docs/python/tf/contrib/training/HParams
-
 
     print('-------------STARTING NEW--------------------------')
     print(params.as_string(delimiter="\n"))
