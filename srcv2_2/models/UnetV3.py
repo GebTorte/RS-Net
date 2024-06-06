@@ -106,8 +106,20 @@ class UnetV3(object):
         # Note about BN and dropout: https://stackoverflow.com/questions/46316687/how-to-include-batch-normalization-in-non-sequential-keras-model
 
         # @ https://github.com/rklen/statistical_tests_for_CNNs/blob/main/stm.ipynb
-        """128 model
-        model = keras.models.Sequential([
+        
+        clip_pixels = np.int32(self.params.overlap / 2)  #(self.params.overlap) / 2  # Only used for input in Cropping2D function on next line
+        
+        #model128 =self._load_model_128()
+
+        model256 = self._load_model_256()
+
+        # model256_2 = self._load_model_256_2()
+        
+        model = model256
+        return model
+    
+    def _load_model_128(self):
+        return keras.models.Sequential([
             keras.layers.Conv2D(16, 3, activation='relu', input_shape=(self.params.patch_size, self.params.patch_size, self.n_bands)),
             keras.layers.Conv2D(16, 3, activation='relu'),
             keras.layers.MaxPooling2D(pool_size=(2, 2), strides=(2, 2)),
@@ -126,53 +138,130 @@ class UnetV3(object):
             keras.layers.Dense(32, activation='relu'),
             keras.layers.Dense(self.n_cls, activation='softmax')
         ] 
-        )"""
-        clip_pixels = np.int32(self.params.overlap / 2)  #(self.params.overlap) / 2  # Only used for input in Cropping2D function on next line
-        
-        model256 = keras.models.Sequential([
-            keras.layers.Conv2D(16, 3, activation='relu', input_shape=(self.params.patch_size, self.params.patch_size, self.n_bands),
+        )
+
+    def _load_model_256_2(self):
+        """
+        heavily modified and parametrized upscale of Rainio 2024
+        """
+        return keras.models.Sequential([
+            keras.layers.Conv2D(16, 3, activation=self.params.activation_func, input_shape=(self.params.patch_size, self.params.patch_size, self.n_bands),
                                 kernel_regularizer=regularizers.l2(self.params.L2reg),
                                 kernel_initializer=self.params.initialization,
+                                padding='same'),
+            keras.layers.Conv2D(16, 3, activation=self.params.activation_func,
+                                kernel_regularizer=regularizers.l2(self.params.L2reg),
+                                kernel_initializer=self.params.initialization,
+                                padding='same'),
+            keras.layers.MaxPooling2D(pool_size=(2, 2), strides=(2, 2)),
+            keras.layers.Conv2D(32, 3, activation=self.params.activation_func,
+                                kernel_regularizer=regularizers.l2(self.params.L2reg),
+                                kernel_initializer=self.params.initialization,
+                                padding='same'),
+            keras.layers.Conv2D(32, 3, activation=self.params.activation_func,
+                                kernel_regularizer=regularizers.l2(self.params.L2reg),
+                                kernel_initializer=self.params.initialization,
+                                padding='same'),
+            keras.layers.MaxPooling2D(pool_size=(2, 2), strides=(2, 2)),
+            keras.layers.Conv2D(64, 3, activation=self.params.activation_func,
+                                kernel_regularizer=regularizers.l2(self.params.L2reg),
+                                kernel_initializer=self.params.initialization,
+                                padding='same'),
+            keras.layers.Conv2D(64, 3, activation=self.params.activation_func,
+                                kernel_regularizer=regularizers.l2(self.params.L2reg),
+                                kernel_initializer=self.params.initialization,
+                                padding='same'),
+            keras.layers.MaxPooling2D(pool_size=(2, 2), strides=(2, 2)),
+            keras.layers.Conv2D(128, 3, activation=self.params.activation_func,
+                                kernel_regularizer=regularizers.l2(self.params.L2reg),
+                                kernel_initializer=self.params.initialization,
+                                padding='same'),
+            keras.layers.Conv2D(128, 3, activation=self.params.activation_func,
+                                kernel_regularizer=regularizers.l2(self.params.L2reg),
+                                kernel_initializer=self.params.initialization,
+                                padding='same'),
+            keras.layers.MaxPooling2D(pool_size=(2, 2), strides=(2, 2)),
+            keras.layers.Conv2D(256, 3, activation=self.params.activation_func,
+                                kernel_regularizer=regularizers.l2(self.params.L2reg),
+                                kernel_initializer=self.params.initialization,
+                                padding='same'),
+            keras.layers.Conv2D(256, 3, activation=self.params.activation_func,
+                                kernel_regularizer=regularizers.l2(self.params.L2reg),
+                                kernel_initializer=self.params.initialization,
+                                padding='same'),
+            keras.layers.MaxPooling2D(strides=(2, 2)),
+            keras.layers.Flatten(),
+            keras.layers.Dense(256, activation=self.params.activation_func,
+                               kernel_regularizer=regularizers.l2(self.params.L2reg),
+                                kernel_initializer=self.params.initialization),
+            keras.layers.Dense(128, activation=self.params.activation_func,
+                               kernel_regularizer=regularizers.l2(self.params.L2reg),
+                                kernel_initializer=self.params.initialization),
+            keras.layers.Dense(64, activation=self.params.activation_func,
+                               kernel_regularizer=regularizers.l2(self.params.L2reg),
+                                kernel_initializer=self.params.initialization),
+            keras.layers.Dense(32, activation=self.params.activation_func,
+                               kernel_regularizer=regularizers.l2(self.params.L2reg),
+                                kernel_initializer=self.params.initialization),
+            #keras.layers.Cropping2D(cropping=((clip_pixels, clip_pixels), (clip_pixels, clip_pixels))),
+            keras.layers.Dense(self.n_cls, activation=self.params.last_layer_activation_func,
+                               kernel_regularizer=regularizers.l2(self.params.L2reg),
+                                kernel_initializer=self.params.initialization)
+        ] 
+        )
+    
+    def _load_model_256(self):
+        """
+        slightly modified multi class model from Rainio 2024
+        scaled up to 256^2 input
+        for 4 (sparse) classes
+        @ 7 spectral bands depth
+        """
+        l2reg = 1e-4
+        return keras.models.Sequential([
+            keras.layers.Conv2D(16, 3, activation='relu', input_shape=(256, 256, 7),
+                                kernel_regularizer=regularizers.l2(l2reg),
+                                kernel_initializer='he_normal',
                                 padding='same'),
             keras.layers.Conv2D(16, 3, activation='relu',
-                                kernel_regularizer=regularizers.l2(self.params.L2reg),
-                                kernel_initializer=self.params.initialization,
+                                kernel_regularizer=regularizers.l2(l2reg),
+                                kernel_initializer='he_normal',
                                 padding='same'),
             keras.layers.MaxPooling2D(pool_size=(2, 2), strides=(2, 2)),
             keras.layers.Conv2D(32, 3, activation='relu',
-                                kernel_regularizer=regularizers.l2(self.params.L2reg),
-                                kernel_initializer=self.params.initialization,
+                                kernel_regularizer=regularizers.l2(l2reg),
+                                kernel_initializer='he_normal',
                                 padding='same'),
             keras.layers.Conv2D(32, 3, activation='relu',
-                                kernel_regularizer=regularizers.l2(self.params.L2reg),
-                                kernel_initializer=self.params.initialization,
+                                kernel_regularizer=regularizers.l2(l2reg),
+                                kernel_initializer='he_normal',
                                 padding='same'),
             keras.layers.MaxPooling2D(pool_size=(2, 2), strides=(2, 2)),
             keras.layers.Conv2D(64, 3, activation='relu',
-                                kernel_regularizer=regularizers.l2(self.params.L2reg),
-                                kernel_initializer=self.params.initialization,
+                                kernel_regularizer=regularizers.l2(l2reg),
+                                kernel_initializer='he_normal',
                                 padding='same'),
             keras.layers.Conv2D(64, 3, activation='relu',
-                                kernel_regularizer=regularizers.l2(self.params.L2reg),
-                                kernel_initializer=self.params.initialization,
+                                kernel_regularizer=regularizers.l2(l2reg),
+                                kernel_initializer='he_normal',
                                 padding='same'),
             keras.layers.MaxPooling2D(pool_size=(2, 2), strides=(2, 2)),
             keras.layers.Conv2D(128, 3, activation='relu',
-                                kernel_regularizer=regularizers.l2(self.params.L2reg),
-                                kernel_initializer=self.params.initialization,
+                                kernel_regularizer=regularizers.l2(l2reg),
+                                kernel_initializer='he_normal',
                                 padding='same'),
             keras.layers.Conv2D(128, 3, activation='relu',
-                                kernel_regularizer=regularizers.l2(self.params.L2reg),
-                                kernel_initializer=self.params.initialization,
+                                kernel_regularizer=regularizers.l2(l2reg),
+                                kernel_initializer='he_normal',
                                 padding='same'),
             keras.layers.MaxPooling2D(pool_size=(2, 2), strides=(2, 2)),
             keras.layers.Conv2D(256, 3, activation='relu',
-                                kernel_regularizer=regularizers.l2(self.params.L2reg),
-                                kernel_initializer=self.params.initialization,
+                                kernel_regularizer=regularizers.l2(l2reg),
+                                kernel_initializer='he_normal',
                                 padding='same'),
             keras.layers.Conv2D(256, 3, activation='relu',
-                                kernel_regularizer=regularizers.l2(self.params.L2reg),
-                                kernel_initializer=self.params.initialization,
+                                kernel_regularizer=regularizers.l2(l2reg),
+                                kernel_initializer='he_normal',
                                 padding='same'),
             keras.layers.MaxPooling2D(strides=(2, 2)),
             keras.layers.Flatten(),
@@ -181,112 +270,9 @@ class UnetV3(object):
             keras.layers.Dense(64, activation='relu'),
             keras.layers.Dense(32, activation='relu'),
             #keras.layers.Cropping2D(cropping=((clip_pixels, clip_pixels), (clip_pixels, clip_pixels))),
-            keras.layers.Dense(self.n_cls, activation='softmax')
+            keras.layers.Dense(4, activation='softmax')
         ] 
         )
-        
-        return model256
-
-        """
-        # -----------------------------------------------------------------------
-        conv1 = Conv2D(32, (3, 3), activation=activation_func, padding='same',
-                       kernel_regularizer=regularizers.l2(self.params.L2reg),
-                       kernel_initializer=self.params.initialization)(inputs)
-        conv1 = BatchNormalization(momentum=self.params.batch_norm_momentum)(conv1) if self.params.use_batch_norm else conv1
-        conv1 = Conv2D(32, (3, 3), activation=activation_func, padding='same',
-                       kernel_regularizer=regularizers.l2(self.params.L2reg),
-                       kernel_initializer=self.params.initialization)(conv1)
-        conv1 = BatchNormalization(momentum=self.params.batch_norm_momentum)(conv1) if self.params.use_batch_norm else conv1
-        pool1 = MaxPooling2D(pool_size=(2, 2))(conv1)
-        # -----------------------------------------------------------------------
-        conv2 = Conv2D(64, (3, 3), activation=activation_func, padding='same',
-                       kernel_regularizer=regularizers.l2(self.params.L2reg),
-                       kernel_initializer=self.params.initialization)(pool1)
-        conv2 = BatchNormalization(momentum=self.params.batch_norm_momentum)(conv2) if self.params.use_batch_norm else conv2
-        conv2 = Conv2D(64, (3, 3), activation=activation_func, padding='same',
-                       kernel_regularizer=regularizers.l2(self.params.L2reg),
-                       kernel_initializer=self.params.initialization)(conv2)
-        conv2 = BatchNormalization(momentum=self.params.batch_norm_momentum)(conv2) if self.params.use_batch_norm else conv2
-        pool2 = MaxPooling2D(pool_size=(2, 2))(conv2)
-        # -----------------------------------------------------------------------
-        conv3 = Conv2D(128, (3, 3), activation=activation_func, padding='same',
-                       kernel_regularizer=regularizers.l2(self.params.L2reg),
-                       kernel_initializer=self.params.initialization)(pool2)
-        conv3 = BatchNormalization(momentum=self.params.batch_norm_momentum)(conv3) if self.params.use_batch_norm else conv3
-        conv3 = Conv2D(128, (3, 3), activation=activation_func, padding='same',
-                       kernel_regularizer=regularizers.l2(self.params.L2reg),
-                       kernel_initializer=self.params.initialization)(conv3)
-        conv3 = BatchNormalization(momentum=self.params.batch_norm_momentum)(conv3) if self.params.use_batch_norm else conv3
-        pool3 = MaxPooling2D(pool_size=(2, 2))(conv3)
-        # -----------------------------------------------------------------------
-        conv4 = Conv2D(256, (3, 3), activation=activation_func, padding='same',
-                       kernel_regularizer=regularizers.l2(self.params.L2reg),
-                       kernel_initializer=self.params.initialization)(pool3)
-        conv4 = BatchNormalization(momentum=self.params.batch_norm_momentum)(conv4) if self.params.use_batch_norm else conv4
-        conv4 = Conv2D(256, (3, 3), activation=activation_func, padding='same',
-                       kernel_regularizer=regularizers.l2(self.params.L2reg),
-                       kernel_initializer=self.params.initialization)(conv4)
-        conv4 = BatchNormalization(momentum=self.params.batch_norm_momentum)(conv4) if self.params.use_batch_norm else conv4
-        pool4 = MaxPooling2D(pool_size=(2, 2))(conv4)
-        # -----------------------------------------------------------------------
-        conv5 = Conv2D(512, (3, 3), activation=activation_func, padding='same',
-                       kernel_regularizer=regularizers.l2(self.params.L2reg),
-                       kernel_initializer=self.params.initialization)(pool4)
-        conv5 = BatchNormalization(momentum=self.params.batch_norm_momentum)(conv5) if self.params.use_batch_norm else conv5
-        conv5 = Conv2D(512, (3, 3), activation=activation_func, padding='same',
-                       kernel_regularizer=regularizers.l2(self.params.L2reg),
-                       kernel_initializer=self.params.initialization)(conv5)
-        conv5 = BatchNormalization(momentum=self.params.batch_norm_momentum)(conv5) if self.params.use_batch_norm else conv5
-        # -----------------------------------------------------------------------
-        up6 = Concatenate(axis=3)([UpSampling2D(size=(2, 2))(conv5), conv4])
-        conv6 = Conv2D(256, (3, 3), activation=activation_func, padding='same',
-                       kernel_regularizer=regularizers.l2(self.params.L2reg),
-                       kernel_initializer=self.params.initialization)(up6)
-        conv6 = Dropout (self.params.dropout)(conv6) if not self.params.dropout_on_last_layer_only else conv6
-        conv6 = Conv2D(256, (3, 3), activation=activation_func, padding='same',
-                       kernel_regularizer=regularizers.l2(self.params.L2reg),
-                       kernel_initializer=self.params.initialization)(conv6)
-        conv6 = Dropout (self.params.dropout)(conv6) if not self.params.dropout_on_last_layer_only else conv6
-        # -----------------------------------------------------------------------
-        up7 = Concatenate(axis=3)([UpSampling2D(size=(2, 2))(conv6), conv3])
-        conv7 = Conv2D(128, (3, 3), activation=activation_func, padding='same',
-                       kernel_regularizer=regularizers.l2(self.params.L2reg),
-                       kernel_initializer=self.params.initialization)(up7)
-        conv7 = Dropout (self.params.dropout)(conv7) if not self.params.dropout_on_last_layer_only else conv7
-        conv7 = Conv2D(128, (3, 3), activation=activation_func, padding='same',
-                       kernel_regularizer=regularizers.l2(self.params.L2reg),
-                       kernel_initializer=self.params.initialization)(conv7)
-        conv7 = Dropout (self.params.dropout)(conv7) if not self.params.dropout_on_last_layer_only else conv7
-        # -----------------------------------------------------------------------
-        up8 = Concatenate(axis=3)([UpSampling2D(size=(2, 2))(conv7), conv2])
-        conv8 = Conv2D(64, (3, 3), activation=activation_func, padding='same',
-                       kernel_regularizer=regularizers.l2(self.params.L2reg),
-                       kernel_initializer=self.params.initialization)(up8)
-        conv8 = Dropout (self.params.dropout)(conv8) if not self.params.dropout_on_last_layer_only else conv8
-        conv8 = Conv2D(64, (3, 3), activation=activation_func, padding='same',
-                       kernel_regularizer=regularizers.l2(self.params.L2reg),
-                       kernel_initializer=self.params.initialization)(conv8)
-        conv8 = Dropout (self.params.dropout)(conv8) if not self.params.dropout_on_last_layer_only else conv8
-        # -----------------------------------------------------------------------
-        up9 = Concatenate(axis=3)([UpSampling2D(size=(2, 2))(conv8), conv1])
-        conv9 = Conv2D(32, (3, 3), activation=activation_func, padding='same',
-                       kernel_regularizer=regularizers.l2(self.params.L2reg),
-                       kernel_initializer=self.params.initialization)(up9)
-        conv9 = Dropout(self.params.dropout)(conv9) if not self.params.dropout_on_last_layer_only else conv9
-        conv9 = Conv2D(32, (3, 3), activation=activation_func, padding='same',
-                       kernel_regularizer=regularizers.l2(self.params.L2reg),
-                       kernel_initializer=self.params.initialization)(conv9)
-        conv9 = Dropout(self.params.dropout)(conv9)
-        # -----------------------------------------------------------------------
-        clip_pixels = np.int32(self.params.overlap / 2)  #(self.params.overlap) / 2  # Only used for input in Cropping2D function on next line
-        crop9 = Cropping2D(cropping=((clip_pixels, clip_pixels), (clip_pixels, clip_pixels)))(conv9)
-        # -----------------------------------------------------------------------
-        # SIS: change to softmax for multi class prediction
-        conv10 = Conv2D(self.n_cls, (1, 1), activation=self.params.last_layer_activation_func, 
-                        kernel_initializer=self.params.initialization)(crop9)
-        # -----------------------------------------------------------------------
-        model = Model(inputs=inputs, outputs=conv10)
-        """
 
     def get_config(self):
         return {'seed': self.seed, 'params': self.params, 'n_cls': self.n_cls, 'n_bands': self.n_bands, 'model_config': self.model.get_config()}
