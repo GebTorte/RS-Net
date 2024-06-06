@@ -103,9 +103,12 @@ def get_params(model, satellite):
             'project_path': '/home/mxh/RS-Net/',
             'satellite': 'Sentinel-2'
         }
+        
         return HParams(**hparams)
-
+    
     elif model == 'U-net' and satellite == 'Landsat8':
+        """old hparams
+        elif model == 'U-net' and satellite == 'Landsat8':
         hparams = {
             'modelNick': 'Unet-L8',
             'modelID': '180609113138',
@@ -151,18 +154,19 @@ def get_params(model, satellite):
             'split_dataset': True,
             'test_tiles': __data_split__('Biome_gt')
         }
-        return HParams(**hparams)
-    elif (model == 'U-net-v2' or model =='U-net')and (satellite == 'Landsat8' or satellite =='MODIS'):
+        return HParams(**hparams)"""
         hparams = HParams(
-            modelNick= 'Unet-v2-MOD09GA',
-            plateau_patience = 2,
-            early_patience = 3,
+            modelNick= 'Unet',
+            plateau_patience = 12,
+            early_patience = 100,
         )
         hparams_dict = {
             'modelID': '_',
+            'random':False,
+            'shuffle':False,
             'num_gpus': 1,
             'optimizer': 'Adam',
-            'loss_func': 'categorical_crossentropy',
+            'loss_func': 'binary_crossentropy',
             'activation_func': 'elu',
             'random': True,
             'last_layer_activation_func': 'softmax',
@@ -170,7 +174,141 @@ def get_params(model, satellite):
             'use_batch_norm': True,
             'dropout_on_last_layer_only': True,
             'early_stopping': False,
+            'use_cyclical_lr_scheduler':False,
+            'use_factorial_cyclical_lr_scheduler':False,
+            'use_round_cyclical_lr_scheduler':False,
             'reduce_lr': False,
+            'replace_fill_values': True,
+            'dataset_fill_cls':None, # if set to any number, fill values will be replaced by it and it will be ignored by loss calculation. 
+                # If set to None, fill values will be replaced by most probable cls and not ignored by sparse categorical crossentropy.
+            'patience': 12,
+            'save_best_only': False,
+            'use_ensemble_learning': False,
+            'ensemble_method': 'Bagging',
+            'learning_rate': 1e-4,
+            'dropout': 0.2,
+            'L1reg': 0.0,
+            'L2reg': 1e-4,
+            'L1L2reg': 0.0,
+            'decay': 0.0,
+            'batch_norm_momentum': 0.7,
+            'threshold': 0.5,
+            'patch_size': 256,
+            'overlap': 40,
+            'overlap_train_set': 0,
+            'batch_size': 40,
+            'steps_per_epoch': None,
+            'epochs': 5,
+            'norm_method': None, # 'enhance_contrast'
+            'norm_threshold': 65535,
+            'cls': ['cloud', 'thin'],
+            'collapse_cls': False,
+            'affine_transformation': True,
+            'brightness_augmentation': False,
+            'bands': [1, 2, 3, 4, 5, 6, 7],
+            'project_path': "/home/mxh/RS-Net/",
+            'toa_path': "data/processed/Biome_TOA/",
+            'data_path': 'data/raw/Biome_dataset/',
+            'satellite': 'Landsat8',
+            'usecase': 'MOD09GA',
+            'train_dataset': 'Biome_gt',  # train on ground truth by default # Choose Biome_gt, Biome_fmask, SPARCS_gt, or SPARCS_fmask
+            'test_dataset': 'Biome_gt', # Biome_gt # Choose Biome_gt, Biome_fmask, SPARCS_gt, or SPARCS_fmask
+            'split_dataset': True,
+            'test_tiles': __data_split__('Biome_gt') # Biome_gt # Chose test_dataset value
+        }
+        hparams.update(**hparams_dict)
+        return hparams
+    elif model == 'U-net-v2' and (satellite == 'Landsat8' or satellite =='MODIS'):
+        hparams = HParams(
+            modelNick= 'Unet-v2-MOD09GA',
+            plateau_patience = 2,
+            early_patience = 3,
+        )
+        hparams_dict = {
+            'modelID': '_',
+            'random':False,
+            'shuffle':False,
+            'num_gpus': 1,
+            'optimizer': 'Adam',
+            'loss_func': 'sparse_categorical_crossentropy',
+            'activation_func': 'elu',
+            'random': True,
+            'last_layer_activation_func': 'softmax',
+            'initialization': 'glorot_uniform',
+            'use_batch_norm': True,
+            'dropout_on_last_layer_only': True,
+            'early_stopping': False,
+            'use_cyclical_lr_scheduler':False,
+            'use_factorial_cyclical_lr_scheduler':False,
+            'use_round_cyclical_lr_scheduler':False,
+            'reduce_lr': False,
+            'replace_fill_values': True,
+            'dataset_fill_cls':None, # if set to any number, fill values will be replaced by it and it will be ignored by loss calculation. 
+                # If set to None, fill values will be replaced by most probable cls and not ignored by sparse categorical crossentropy.
+            'patience': 12,
+            'save_best_only': False,
+            'use_ensemble_learning': False,
+            'ensemble_method': 'Bagging',
+            'learning_rate': 1e-4,
+            'dropout': 0.2,
+            'L1reg': 0.0,
+            'L2reg': 1e-4,
+            'L1L2reg': 0.0,
+            'decay': 0.0,
+            'batch_norm_momentum': 0.7,
+            'threshold': 0.5,
+            'patch_size': 256,
+            'overlap': 40,
+            'overlap_train_set': 0,
+            'batch_size': 40,
+            'steps_per_epoch': None,
+            'epochs': 5,
+            'norm_method': None, # 'enhance_contrast'
+            'norm_threshold': 65535,
+            'cls': ['cloud', 'thin'],
+            'collapse_cls': False,
+            'affine_transformation': True,
+            'brightness_augmentation': False,
+            'bands': [1, 2, 3, 4, 5, 6, 7],
+            'project_path': "/home/mxh/RS-Net/",
+            'toa_path': "data/processed/Biome_TOA/",
+            'data_path': 'data/raw/Biome_dataset/',
+            'satellite': 'Landsat8',
+            'usecase': 'MOD09GA',
+            'train_dataset': 'Biome_gt',  # train on ground truth by default # Choose Biome_gt, Biome_fmask, SPARCS_gt, or SPARCS_fmask
+            'test_dataset': 'Biome_gt', # Biome_gt # Choose Biome_gt, Biome_fmask, SPARCS_gt, or SPARCS_fmask
+            'split_dataset': True,
+            'test_tiles': __data_split__('Biome_gt') # Biome_gt # Chose test_dataset value
+        }
+        hparams.update(**hparams_dict)
+        return hparams
+    elif model =="U-net-v3":
+        hparams = HParams(
+            modelNick= 'Unet-v3',
+            plateau_patience = 2,
+            early_patience = 3,
+        )
+        hparams_dict = {
+            'modelID': '_',
+            'random':False,
+            'shuffle':False,
+            'num_gpus': 1,
+            'optimizer': 'AdamW',
+            'loss_func': 'sparse_categorical_crossentropy',
+            'activation_func': 'relu',
+            'random': True,
+            'last_layer_activation_func': 'softmax',
+            'initialization': 'he_normal',
+            'use_batch_norm': True,
+            'dropout_on_last_layer_only': True,
+            'early_stopping': False,
+            'use_cyclical_lr_scheduler':False,
+            'use_factorial_cyclical_lr_scheduler':False,
+            'use_round_cyclical_lr_scheduler':False,
+            'reduce_lr': False,
+            'replace_fill_values': True,
+            'dataset_fill_cls':None, # if set to any number, fill values will be replaced by it and it will be ignored by loss calculation. 
+                # If set to None, fill values will be replaced by most probable cls and not ignored by sparse categorical crossentropy.
             'patience': 12,
             'save_best_only': False,
             'use_ensemble_learning': False,

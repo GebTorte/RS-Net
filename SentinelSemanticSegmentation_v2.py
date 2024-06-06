@@ -24,6 +24,7 @@ import tensorflow as tf
 from srcv2_2.data.make_dataset import make_numpy_dataset
 from srcv2_2.models.params import get_params, HParams
 from srcv2_2.models.Unet import Unet, UnetV2, get_model_name
+from srcv2_2.models.UnetV3 import UnetV3
 from srcv2_2.models.evaluate_model import evaluate_test_set, write_csv_files
 
 # Don't allow tensorflow to reserve all memory available
@@ -208,7 +209,12 @@ if __name__ == '__main__':
             #loaded_model = tf.keras.saving.load_model(f"../models/Unet/{params.modelID}.keras")
             model = UnetV2(params, model=loaded_model)  # to implement for V2: load model from file
         # out = model.evaluate(return_dict=True)
-
+        if args.model == 'U-net-v3':
+            loaded_model = tf.keras.saving.load_model(f"./models/Unet/{params.modelID}.keras")
+            # {get_model_name(params)}
+            #loaded_model = tf.keras.saving.load_model(f"../models/Unet/{params.modelID}.keras")
+            model = UnetV3(params, model=loaded_model)
+    
         print("Saving evaluation image output: ", store_flag)
         evaluate_test_set(model, params.test_dataset, params.num_gpus, params, save_output=store_flag) # todo: implement args.save_output
 
