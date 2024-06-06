@@ -361,29 +361,36 @@ def extract_cls_mask(mask, c):
 
 def shrink_cls_mask_to_indices(params, dataset, cls, mask):
     cls = get_cls(params.satellite, dataset, cls)
-
+    
     for i, c in enumerate(cls): # easiest method here. If dataset requires, use other method
         mask[mask==c] = i
+        mask[0,i] = c # set one pixel to class, so every mask has all classes occurring. Is in overlap area anyway.
 
     return mask
 
-def replace_fill_values(params, dataset, mask):
+def replace_fill_values(params, dataset, mask, fill_with_value=None):
                         
     # get fill pixel value
     fill_lst = get_cls(params.satellite, dataset, ['fill'])
-    fill_val = -1 # non uint8 value
+
+    # fill_val = -1 # non uint8 value
     if len(fill_lst) > 0:
         fill_val = fill_lst[0]
     
-    vals, counts = np.unique(mask, return_counts=True, axis=None)
-    # remove fill count from vals and counts
-    if fill_val in vals:
-        fill_idx = list(vals).index(fill_val) # ndarray has no index function
-        counts[fill_idx] = 0 # set fill value count, so it wont be argmax
+        vals, counts = np.unique(mask, return_counts=True, axis=None)
+        # remove fill count from vals and counts
+        if fill_val in vals:
+            fill_idx = list(vals).index(fill_val) # ndarray has no index function
+            counts[fill_idx] = 0 # set fill value count, so it wont be argmax
 
-        if len(vals) > 0:
-            # set fill pixel to most occuring pixel class that is not fill
-            mask[mask == fill_val] = vals[counts.argmax()] 
+            if fill_with_value == None:
+                if len(vals) > 0:
+                    # set fill pixel to most occuring pixel class that is not fill
+                    mask[mask == fill_val] = vals[counts.argmax()] 
+                else:
+                    pass # cannot be sure of fill value
+            else:
+                mask[mask == fill_val] = fill_with_value
     return mask
 
 def predict_img_v2(model, params, img, n_bands, n_cls, num_gpus):
