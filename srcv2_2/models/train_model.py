@@ -10,7 +10,7 @@ sys.path.insert(1, os.path.join(sys.path[0], '..'))
 from utils import get_cls, get_model_name
 from params import HParams
 
-
+MODEL = "U-net-v2"
 CLS=['thin', 'cloud'] # ['shadow', 'clear', 'thin', 'cloud'] # 'fill' has to be included for categorical? No., so model non-class option for fill pixel and thus wont learn bad habits.
 SATELLITE = "Landsat8"
 TRAIN_DATASET = "Biome_gt"

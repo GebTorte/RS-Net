@@ -109,14 +109,18 @@ class UnetV3(object):
         
         clip_pixels = np.int32(self.params.overlap / 2)  #(self.params.overlap) / 2  # Only used for input in Cropping2D function on next line
         
+        # original
         #model128 =self._load_model_128()
 
         #model256 = self._load_model_256()
 
-        model256_2 = self._load_model_256_2()
+        #model256_2 = self._load_model_256_2()
         
+        # merge
+        model512 = self._load_model_512()
 
-        return model256_2
+    
+        return model512
     
     def _load_model_128(self):
         return keras.models.Sequential([
@@ -137,6 +141,91 @@ class UnetV3(object):
             keras.layers.Dense(64, activation='relu'),
             keras.layers.Dense(32, activation='relu'),
             keras.layers.Dense(self.n_cls, activation='softmax')
+        ] 
+        )
+    
+    
+    def _load_model_512(self):
+        """
+        merge of @Jeppesen2018 and @Rainio2024
+
+        Note: might be nice to add some BN- and Dropout Layers here
+        """
+        return keras.models.Sequential([
+            keras.layers.Conv2D(16, 3, activation=self.params.activation_func, input_shape=(self.params.patch_size, self.params.patch_size, self.n_bands),
+                                kernel_regularizer=regularizers.l2(self.params.L2reg),
+                                kernel_initializer=self.params.initialization,
+                                padding='same'),
+            keras.layers.Conv2D(16, 3, activation=self.params.activation_func,
+                                kernel_regularizer=regularizers.l2(self.params.L2reg),
+                                kernel_initializer=self.params.initialization,
+                                padding='same'),
+            keras.layers.MaxPooling2D(pool_size=(2, 2), strides=(2, 2)),
+            keras.layers.Conv2D(32, 3, activation=self.params.activation_func,
+                                kernel_regularizer=regularizers.l2(self.params.L2reg),
+                                kernel_initializer=self.params.initialization,
+                                padding='same'),
+            keras.layers.Conv2D(32, 3, activation=self.params.activation_func,
+                                kernel_regularizer=regularizers.l2(self.params.L2reg),
+                                kernel_initializer=self.params.initialization,
+                                padding='same'),
+            keras.layers.MaxPooling2D(pool_size=(2, 2), strides=(2, 2)),
+            keras.layers.Conv2D(64, 3, activation=self.params.activation_func,
+                                kernel_regularizer=regularizers.l2(self.params.L2reg),
+                                kernel_initializer=self.params.initialization,
+                                padding='same'),
+            keras.layers.Conv2D(64, 3, activation=self.params.activation_func,
+                                kernel_regularizer=regularizers.l2(self.params.L2reg),
+                                kernel_initializer=self.params.initialization,
+                                padding='same'),
+            keras.layers.MaxPooling2D(pool_size=(2, 2), strides=(2, 2)),
+            keras.layers.Conv2D(128, 3, activation=self.params.activation_func,
+                                kernel_regularizer=regularizers.l2(self.params.L2reg),
+                                kernel_initializer=self.params.initialization,
+                                padding='same'),
+            keras.layers.Conv2D(128, 3, activation=self.params.activation_func,
+                                kernel_regularizer=regularizers.l2(self.params.L2reg),
+                                kernel_initializer=self.params.initialization,
+                                padding='same'),
+            keras.layers.MaxPooling2D(pool_size=(2, 2), strides=(2, 2)),
+            keras.layers.Conv2D(256, 3, activation=self.params.activation_func,
+                                kernel_regularizer=regularizers.l2(self.params.L2reg),
+                                kernel_initializer=self.params.initialization,
+                                padding='same'),
+            keras.layers.Conv2D(256, 3, activation=self.params.activation_func,
+                                kernel_regularizer=regularizers.l2(self.params.L2reg),
+                                kernel_initializer=self.params.initialization,
+                                padding='same'),
+            keras.layers.MaxPooling2D(pool_size=(2, 2), strides=(2, 2)),
+            keras.layers.Conv2D(512, 3, activation=self.params.activation_func,
+                                kernel_regularizer=regularizers.l2(self.params.L2reg),
+                                kernel_initializer=self.params.initialization,
+                                padding='same'),
+            keras.layers.Conv2D(512, 3, activation=self.params.activation_func,
+                                kernel_regularizer=regularizers.l2(self.params.L2reg),
+                                kernel_initializer=self.params.initialization,
+                                padding='same'),
+            keras.layers.MaxPooling2D(strides=(2, 2)),
+            keras.layers.Flatten(),
+            keras.layers.Dense(512, activation=self.params.activation_func,
+                               kernel_regularizer=regularizers.l2(self.params.L2reg),
+                                kernel_initializer=self.params.initialization),
+            keras.layers.Dense(256, activation=self.params.activation_func,
+                               kernel_regularizer=regularizers.l2(self.params.L2reg),
+                                kernel_initializer=self.params.initialization),
+            keras.layers.Dense(128, activation=self.params.activation_func,
+                               kernel_regularizer=regularizers.l2(self.params.L2reg),
+                                kernel_initializer=self.params.initialization),
+            keras.layers.Dense(64, activation=self.params.activation_func,
+                               kernel_regularizer=regularizers.l2(self.params.L2reg),
+                                kernel_initializer=self.params.initialization),
+            keras.layers.Dense(32, activation=self.params.activation_func,
+                               kernel_regularizer=regularizers.l2(self.params.L2reg),
+                                kernel_initializer=self.params.initialization),
+            #keras.layers.Cropping2D(cropping=((clip_pixels, clip_pixels), (clip_pixels, clip_pixels))),
+            keras.layers.Dense(self.n_cls, activation=self.params.last_layer_activation_func,
+                               kernel_regularizer=regularizers.l2(self.params.L2reg),
+                                kernel_initializer=self.params.initialization)
         ] 
         )
 

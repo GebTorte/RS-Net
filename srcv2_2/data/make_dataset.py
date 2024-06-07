@@ -320,6 +320,7 @@ def __make_landsat8_val_dataset__(params, normalize=False):
     random.shuffle(mask_files)
 
     # Remove the last 90% of the files (ie. keep 10% for validation data set)
+    # SIS -> change to 20% validation
     trn_files = trn_files[0: int(len(trn_files) * 0.10)]
     mask_files = mask_files[0: int(len(mask_files) * 0.10)]
 
