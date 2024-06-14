@@ -373,7 +373,6 @@ class UnetV2(object):
         txt = ""
         with open(self.params.project_path + 'models/Unet/' + self.params.modelID + '_params' + postfix, 'r') as f:
             txt = f.read().replace('\n', '')
-            print(txt)
 
         loaded_params = HParams()
         loaded_params.parse(txt, delimiter=delimiter)
