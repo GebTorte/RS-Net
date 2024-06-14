@@ -147,6 +147,26 @@ def learning_rate_scheduler(epoch, lr, epoch_cap=15):
         return lr * tf.math.exp(-0.1)
     return lr
 
+def custom_learning_rate_scheduler(epoch, lr, epoch_cap=2, exp=-0.5):
+    epsilon = 1e-10
+    default = 1e-7
+    if lr > epsilon: # dont drop below epsilon
+        if epoch > epoch_cap: # reduce lr exponentially
+            #return default
+            # return lr / 2
+            return lr * tf.math.exp(exp) # maybe drop more strongly
+        return lr
+    return epsilon
+
+def custom_learning_rate_scheduler_v2(epoch, lr, epoch_cap=1):
+    epsilon = 1e-10
+    default = 1e-7
+    if lr > epsilon: # dont drop below epsilon
+        if epoch > epoch_cap: # reduce lr exponentially
+            return default
+        return lr
+    return epsilon
+
 @keras.saving.register_keras_serializable()
 def get_catgorical_callbacks(params):
                 
@@ -179,7 +199,8 @@ def get_sparse_catgorical_callbacks(params):
 
     sparse_early_stopping = EarlyStopping(monitor='val_sparse_categorical_accuracy', patience=params.early_patience, verbose=2)
 
-    sparse_reduce_lr = ReduceLROnPlateau(factor=0.5, patience=params.plateau_patience, verbose=2, min_lr=1e-11)
+    sparse_reduce_lr = ReduceLROnPlateau(factor=0.2, patience=params.plateau_patience, verbose=2, min_lr=1e-10)
+
 
     return sparse_model_checkpoint, sparse_model_weights_checkpoint,  sparse_early_stopping
 
@@ -204,15 +225,17 @@ def get_callbacks(params):
 
     csv_logger = CSVLogger(params.project_path + 'reports/Unet/csvlogger/' + params.modelID + '.log')
 
-    reduce_lr = ReduceLROnPlateau(monitor='val_loss', factor=0.5, verbose=2,
-                                  patience=params.plateau_patience, min_lr=1e-11) # might have to set patience lower (according to num epochs perhaps)
+    reduce_lr = ReduceLROnPlateau(monitor='val_loss', factor=0.2, verbose=2,
+                                  patience=params.plateau_patience, min_lr=1e-10)
     
     cyclical_lr_scheduler = LearningRateScheduler(cyclical_learning_rate_scheduler, verbose=1)
     factorial_cyclical_lr_scheduler = LearningRateScheduler(cyclical_learning_rate_scheduler_factorial, verbose=1)
     round_cyclical_learning_rate_scheduler = LearningRateScheduler(round_learning_rate_scheduler, verbose=1)
+    
+    custom_1e2_learning_rate = LearningRateScheduler(custom_learning_rate_scheduler,verbose=1 )
 
 
-    return csv_logger, model_checkpoint, model_checkpoint_saving, reduce_lr, tensorboard, early_stopping, cyclical_lr_scheduler, factorial_cyclical_lr_scheduler, round_cyclical_learning_rate_scheduler
+    return csv_logger, model_checkpoint, model_checkpoint_saving, reduce_lr, tensorboard, early_stopping, cyclical_lr_scheduler, factorial_cyclical_lr_scheduler, round_cyclical_learning_rate_scheduler, custom_1e2_learning_rate
 
 class ImageSequence(Sequence):
     def __init__(self, params, shuffle, seed, augment_data, validation_generator=False):
@@ -360,7 +383,7 @@ class ImageSequence(Sequence):
             batch_y = tf.convert_to_tensor(keras.utils.to_categorical(np.int32(self.y)))
         elif self.params.loss_func == "sparse_categorical_crossentropy":
             batch_x = tf.convert_to_tensor(self.x) # tf.convert_to_tensor()
-            batch_y = tf.convert_to_tensor(np.squeeze(np.int32(self.y), axis=-1)) # cast to int
+            batch_y = tf.convert_to_tensor(np.squeeze(np.int32(self.y), axis=-1))# tf.convert_to_tensor(np.int32(self.y))# # cast to int
         else:# binary crossentropy
             batch_x = self.x
             batch_y = self.y

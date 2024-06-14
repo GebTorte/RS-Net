@@ -146,6 +146,7 @@ if __name__ == '__main__':
 
     # Check to see if a model should be trained
     if args.train:
+        
         print("Training " + args.model + " model")
         #training_history = {}
         #hist_index = 0
@@ -154,6 +155,9 @@ if __name__ == '__main__':
             params.modelID = params.modelID + '_' + datetime.datetime.now().strftime("%y%m%d%H%M%S")[:12]
             if args.model == 'U-net-v2':
                 model = UnetV2(params)
+                model.train()
+            elif args.model == 'U-net-v3':
+                model = UnetV3(params)
                 model.train()
             # Run model on test data set / leave for test flag
             # evaluate_test_set(model, params.test_dataset, params.num_gpus, params)
@@ -195,7 +199,12 @@ if __name__ == '__main__':
                 # Train and evaluate
                 time_stamp = datetime.datetime.now().strftime("%y%m%d%H%M%S")
                 params.modelID = time_stamp[0:12] + '-CV' + str(k+1) + 'of' + str(k_folds)  # Used for saving results
-                model = UnetV2(params)
+
+                if args.model == "U-net-v2":
+                    model = UnetV2(params)
+                elif args.model == 'U-net-v3':
+                    model = UnetV3(params)
+                
                 print("Training on fold " + str(k + 1) + " of " + str(k_folds))
                 model.train()
 

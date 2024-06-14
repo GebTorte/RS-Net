@@ -1,9 +1,5 @@
 #!/usr/bin/env python
-#  Needed to set seed for random generators for making reproducible experiments
-from numpy.random import seed
-seed(1)
-from tensorflow.random import set_seed
-set_seed(1)
+
 
 import numpy as np
 import tifffile as tiff
@@ -13,8 +9,12 @@ import shutil
 from PIL import Image
 from ..utils import patch_image, patch_v2, image_normalizer
 
-NON_NORMALIZED_PATH = "raw/"
-
+SEED = 1
+#  Needed to set seed for random generators for making reproducible experiments
+from numpy.random import seed
+seed(SEED)
+from tensorflow.random import set_seed
+set_seed(SEED)
 
 def make_numpy_dataset(params, normalize=True):
     """
@@ -26,9 +26,9 @@ def make_numpy_dataset(params, normalize=True):
         __make_sentinel2_val_dataset__(params)
     elif params.satellite == 'Landsat8':
         if 'Biome' in params.train_dataset:
-            __make_landsat8_biome_dataset__(params, normalize)
+            __make_landsat8_biome_dataset__(params)
             print('Processing validation data set')
-            __make_landsat8_val_dataset__(params, normalize)
+            __make_landsat8_val_dataset__(params)
         elif 'SPARCS' in params.train_dataset:
             __make_landsat8_sparcs_dataset__(params)
             print('Processing validation data set')
@@ -110,7 +110,7 @@ def __make_sentinel2_dataset__(params):
             date_old = f[11:19]
 
 
-def __make_landsat8_biome_dataset__(params, normalize=True):
+def __make_landsat8_biome_dataset__(params):
     """
     Loads the training data into numpy arrays
     """
@@ -298,7 +298,7 @@ def __make_sentinel2_val_dataset__(params):
         shutil.move(data_path + 'train/mask/' + f, data_path + 'val/mask/' + f)
 
 
-def __make_landsat8_val_dataset__(params, normalize=False):
+def __make_landsat8_val_dataset__(params):
     """
     Creates validation data set of 10% of the training data set (uses random patches)
     """
@@ -312,11 +312,10 @@ def __make_landsat8_val_dataset__(params, normalize=False):
     mask_files = sorted(os.listdir(data_path + 'train/mask/')) # += NORMALIZE_PATH # List all mask files
 
     # Shuffle the list (use the same seed such that images and masks match)
-    seed = 1
-    random.seed(seed)
+    random.seed(SEED)
     random.shuffle(trn_files)
 
-    random.seed(seed)
+    random.seed(SEED)
     random.shuffle(mask_files)
 
     # Remove the last 90% of the files (ie. keep 10% for validation data set)

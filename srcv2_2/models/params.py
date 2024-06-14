@@ -174,9 +174,9 @@ def get_params(model, satellite):
             'use_batch_norm': True,
             'dropout_on_last_layer_only': True,
             'early_stopping': False,
-            'use_cyclical_lr_scheduler':False,
-            'use_factorial_cyclical_lr_scheduler':False,
-            'use_round_cyclical_lr_scheduler':False,
+            #'use_cyclical_lr_scheduler':False,
+            #'use_factorial_cyclical_lr_scheduler':False,
+            #'use_round_cyclical_lr_scheduler':False,
             'reduce_lr': False,
             'replace_fill_values': True,
             'dataset_fill_cls':None, # if set to any number, fill values will be replaced by it and it will be ignored by loss calculation. 
@@ -238,9 +238,9 @@ def get_params(model, satellite):
             'use_batch_norm': True,
             'dropout_on_last_layer_only': True,
             'early_stopping': False,
-            'use_cyclical_lr_scheduler':False,
-            'use_factorial_cyclical_lr_scheduler':False,
-            'use_round_cyclical_lr_scheduler':False,
+            #'use_cyclical_lr_scheduler':False,
+            #'use_factorial_cyclical_lr_scheduler':False,
+            #'use_round_cyclical_lr_scheduler':False,
             'reduce_lr': False,
             'replace_fill_values': True,
             'dataset_fill_cls':None, # if set to any number, fill values will be replaced by it and it will be ignored by loss calculation. 
@@ -302,9 +302,10 @@ def get_params(model, satellite):
             'use_batch_norm': True,
             'dropout_on_last_layer_only': True,
             'early_stopping': False,
-            'use_cyclical_lr_scheduler':False,
-            'use_factorial_cyclical_lr_scheduler':False,
-            'use_round_cyclical_lr_scheduler':False,
+            #'use_cyclical_lr_scheduler':False,
+            #'use_factorial_cyclical_lr_scheduler':False,
+            #'use_round_cyclical_lr_scheduler':False,
+            "lr_scheduler":False,
             'reduce_lr': False,
             'replace_fill_values': True,
             'dataset_fill_cls':None, # if set to any number, fill values will be replaced by it and it will be ignored by loss calculation. 
@@ -342,6 +343,7 @@ def get_params(model, satellite):
             'train_dataset': 'Biome_gt',  # train on ground truth by default # Choose Biome_gt, Biome_fmask, SPARCS_gt, or SPARCS_fmask
             'test_dataset': 'Biome_gt', # Biome_gt # Choose Biome_gt, Biome_fmask, SPARCS_gt, or SPARCS_fmask
             'split_dataset': True,
+            'which_scheduler': "unknown",
             'test_tiles': __data_split__('Biome_gt') # Biome_gt # Chose test_dataset value
         }
         hparams.update(**hparams_dict)

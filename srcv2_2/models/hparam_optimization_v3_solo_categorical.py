@@ -59,31 +59,31 @@ new_params = HParams(activation_func="relu", # or elu or leaky relu?
                 shuffle=True,
                 optimizer='AdamW',
                 modelID="dummy", #"240515092709-CV1of2",
+                modelNick="U-net-v3_1024", # str(MODEL)
                 loss_func="sparse_categorical_crossentropy",
-                learning_rate=7e-4,
+                learning_rate=7e-5,
                 batch_size=40, 
-                use_cyclical_lr_scheduler=False,
-                use_factorial_cyclical_lr_scheduler=False,
-                use_round_cyclical_lr_scheduler=False,
-                reduce_lr=True, # True maybe?, as it monitors val_loss aswell
-                plateau_patience=5, # SET this to 1 next, so we hopefully stay at plateau < 10
+                reduce_lr=True, 
+                plateau_patience=1, # 1?
+                lr_scheduler=False,
+                which_scheduler="None",#"custom_scheduler_epoch-cap2_exp-0.5_epsilon1e-7", # manually adjust this; only for logging
                 early_stopping=True,
-                early_patience=35, # maybe up this to ~= epochs/2
+                early_patience=100, # maybe up this to ~= epochs/2
                 replace_fill_values = True,
                 dataset_fill_cls=4, # if set to any number, fill values will be replaced by it and it will be ignored by loss calculation. 
                 # If set to None, fill values will be replaced by most probable cls and not ignored by sparse categorical crossentropy.
                 affine_transformation = True,
-                L2reg=7e-4, 
-                #dropout=0.3, # --> 0.25 ? # this a significant bit? # or not?
-                dropout_on_last_layer_only=False, # if using dropout, definitely test both
-                decay=1e-5, # initial lr / nr epochs?
+                L2reg=1e-2, 
+                dropout=0, # --> 0.25 ? # this a significant bit? # or not?
+                dropout_on_last_layer_only=True, # if using dropout, definitely test both
+                decay=0.1, # initial lr / nr epochs?
                 bands=[1, 2, 3, 4, 5, 6, 7],
-                epochs=4, # set this to x \times modulator -1 to end on a low lr
+                epochs=8, # set this to x \times modulator -1 to end on a low lr
                 # steps_per_epoch=3,
                 norm_method="enhance_contrast", #"enhance_contrast"
                 use_batch_norm=True,
-                batch_norm_momentum=0.99, # try 0.99 perhaps?# increase for stability and learn-ability on lower lrs
-                initialization="he_normal", #glorot_normal #  he_normal? @rainio2024
+                batch_norm_momentum=0.7, # try 0.99 perhaps?# increase for stability and learn-ability on lower lrs
+                initialization="he_normal", #he_normal? @rainio2024
                 last_layer_activation_func='softmax', # 'softmax'
                 satellite=SATELLITE,
                 collapse_cls=False,
