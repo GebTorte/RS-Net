@@ -15,7 +15,7 @@ def normalize_int_x(px, scale=255.0, c_min = -200, c_max=16000):
 
 vectorized_normalize_int_255 = np.vectorize(normalize_int_x)
 
-def make_tc_corrected_img(path, img_name, refl_percent=0.15):
+def make_tc_corrected_img(path, img_name, refl_percent=0.15, mx=16000):
     # refl_percent = 0.15 # assuming 15 percent reflectance gets to sensor
     # img_name = "MOD09GA.A2023363.h18v04.061.2023365041515"
     img_path = path + img_name
@@ -26,13 +26,12 @@ def make_tc_corrected_img(path, img_name, refl_percent=0.15):
     band1 = img_path+ "_b1_2400.tiff"
 
     # get reflectance values from [0,1]
-    mx = 16000
     r_band_refl = np.clip(tiff.imread(band1)/mx, 0.0, mx)
     b_band_refl = np.clip(tiff.imread(band3)/mx, 0.0, mx)
     g_band_refl = np.clip(tiff.imread(band4)/mx, 0.0, mx)
 
     true_color_corrected_unscaled = np.dstack((r_band_refl, g_band_refl, b_band_refl))
-    true_color_corrected = np.dstack((r_band_refl, g_band_refl, b_band_refl)) * 1/refl_percent
+    true_color_corrected = np.clip(np.dstack((r_band_refl, g_band_refl, b_band_refl)) * 1/refl_percent, 0.0, 1.0) # upscale and clip
 
     return true_color_corrected, true_color_corrected_unscaled
 
@@ -45,7 +44,7 @@ def make_tc_corrected_img_from_bands(r_band, g_band, b_band, refl_percent=0.15, 
     g_band_refl = np.clip(np.divide(g_band, mx), 0.0, mx)
 
     true_color_corrected_unscaled = np.dstack((r_band_refl, g_band_refl, b_band_refl))
-    true_color_corrected = np.dstack((r_band_refl, g_band_refl, b_band_refl)) * 1/refl_percent
+    true_color_corrected = np.clip(np.dstack((r_band_refl, g_band_refl, b_band_refl)) * 1/refl_percent, 0.0, 1.0)
 
     return true_color_corrected, true_color_corrected_unscaled
 
