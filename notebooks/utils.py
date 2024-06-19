@@ -3,6 +3,8 @@ import tifffile as tiff
 from osgeo import gdal
 from osgeo_utils import gdal_merge
 from osgeo.gdalconst import GA_ReadOnly
+import matplotlib.pyplot as plt
+import skimage
 
 # SECTION: Images
 def normalize_float_x(px, scale=1.0, c_min = 0.0, c_max=1.0):
@@ -47,6 +49,16 @@ def make_tc_corrected_img_from_bands(r_band, g_band, b_band, refl_percent=0.15, 
     true_color_corrected = np.clip(np.dstack((r_band_refl, g_band_refl, b_band_refl)) * 1/refl_percent, 0.0, 1.0)
 
     return true_color_corrected, true_color_corrected_unscaled
+
+def save_true_color_img(path, filename, img, refl_percent, new_shape=None, extension=".png"):
+    postfix = f"_refl_{str(refl_percent)}"
+    
+    if new_shape is not None:
+        #width = new_shape[0]
+        #height = new_shape[1]
+        img = skimage.transform.resize(img, new_shape)
+        postfix += f"_{str(new_shape)}"
+    plt.imsave(path + filename + postfix + extension, img)
 
 
 # SECTION: MOD09GA
@@ -188,4 +200,8 @@ def merge_MOD09GA_refl_bands_to_tif(path, filename, size=2400, extension=".hdf")
     merge_params = ['', '-separate']+[f'{path+filename}_b{i}_{size}.tiff' for i in L8_order]+['-o', path+filename+f'_merged_{size}.tiff']
     gdal_merge.main(merge_params)
     #!{gdal_path}gdal_merge.py -separate {modis_path+day1}_b[1-7].tif -o {modis_path+day1}_merged.tif
+
+
+
+
 # SECTION: Models
