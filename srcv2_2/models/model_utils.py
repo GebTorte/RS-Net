@@ -357,11 +357,11 @@ class ImageSequence(Sequence):
             # Create the binary masks
             if self.params.collapse_cls:
                 mask = extract_collapsed_cls(mask, self.cls)
-            
+
             # Save the (binary) mask (cropped)
             self.y[i, :, :, :] = mask[self.clip_pixels:self.params.patch_size - self.clip_pixels,
-                                        self.clip_pixels:self.params.patch_size - self.clip_pixels,
-                                        :]
+                                            self.clip_pixels:self.params.patch_size - self.clip_pixels,
+                                            :]
         
         if self.augment_data:
             if self.random.randint(0, 1):
@@ -380,10 +380,10 @@ class ImageSequence(Sequence):
             # should theoretically work
             # but categorical with these batch sizes exhausts the gpu resources -> reduce batch size
             batch_x = tf.convert_to_tensor(self.x)
-            batch_y = tf.convert_to_tensor(keras.utils.to_categorical(np.int32(self.y)))
+            batch_y = keras.utils.to_categorical(np.int64(self.y))# tf.convert_to_tensor(keras.utils.to_categorical(np.int32(self.y)))
         elif self.params.loss_func == "sparse_categorical_crossentropy":
             batch_x = tf.convert_to_tensor(self.x) # tf.convert_to_tensor()
-            batch_y = tf.convert_to_tensor(np.squeeze(np.int32(self.y), axis=-1))# tf.convert_to_tensor(np.int32(self.y))# # cast to int
+            batch_y = tf.convert_to_tensor(np.squeeze(np.int32(self.y), axis=-1)) # tf.convert_to_tensor(np.int32(self.y))# # cast to int
         else:# binary crossentropy
             batch_x = self.x
             batch_y = self.y

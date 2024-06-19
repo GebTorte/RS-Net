@@ -59,9 +59,9 @@ new_params = HParams(activation_func="relu", # or elu or leaky relu?
                 shuffle=True,
                 optimizer='AdamW',
                 modelID="dummy", #"240515092709-CV1of2",
-                modelNick="U-net-v3_1024", # str(MODEL)
+                modelNick="U-net-rainio-deeper-p", # "U-net-v3_1024", # str(MODEL)
                 loss_func="sparse_categorical_crossentropy",
-                learning_rate=7e-5,
+                learning_rate=1e-4,
                 batch_size=40, 
                 reduce_lr=True, 
                 plateau_patience=1, # 1?
@@ -73,12 +73,12 @@ new_params = HParams(activation_func="relu", # or elu or leaky relu?
                 dataset_fill_cls=4, # if set to any number, fill values will be replaced by it and it will be ignored by loss calculation. 
                 # If set to None, fill values will be replaced by most probable cls and not ignored by sparse categorical crossentropy.
                 affine_transformation = True,
-                L2reg=1e-2, 
+                L2reg=1e-4, 
                 dropout=0, # --> 0.25 ? # this a significant bit? # or not?
                 dropout_on_last_layer_only=True, # if using dropout, definitely test both
                 decay=0.1, # initial lr / nr epochs?
                 bands=[1, 2, 3, 4, 5, 6, 7],
-                epochs=8, # set this to x \times modulator -1 to end on a low lr
+                epochs=12, # set this to x \times modulator -1 to end on a low lr
                 # steps_per_epoch=3,
                 norm_method="enhance_contrast", #"enhance_contrast"
                 use_batch_norm=True,
