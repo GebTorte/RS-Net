@@ -50,19 +50,49 @@ def make_tc_corrected_img_from_bands(r_band, g_band, b_band, refl_percent=0.15, 
 
     return true_color_corrected, true_color_corrected_unscaled
 
-def save_true_color_img(path, filename, img, refl_percent, new_shape=None, extension=".png"):
+
+def save_img_to(path, filename, img, format="svg", dpi=300):
+    extension = "." + str(format)
+    plt.imsave(path + filename + extension, img, dpi=dpi, format=format)
+
+def save_true_color_img(path, filename, img, refl_percent, new_shape=None, format="svg", dpi=300):
     postfix = f"_refl_{str(refl_percent)}"
     
     if new_shape is not None:
         #width = new_shape[0]
         #height = new_shape[1]
         img = skimage.transform.resize(img, new_shape)
-        postfix += f"_{str(new_shape)}"
-    plt.imsave(path + filename + postfix + extension, img)
+        postfix += f"_{new_shape[0]}"
+    
+    extension = "." + str(format)
+    plt.imsave(path + filename + postfix + extension, img, dpi=dpi, format=format)
 
+def write_bit_mask_to_file(path, bitmask, cmap="viridis", format="svg", new_shape=None):
+    postfix=""
+    if new_shape is not None:
+        #width = new_shape[0]
+        #height = new_shape[1]
+        img = skimage.transform.resize(bitmask, new_shape)
+        postfix += f"_{new_shape[0]}"
+
+    plt.imsave(path + postfix + "." + str(format), bitmask, cmap=cmap, format=format)
+
+def read_bit_mask_from_file(path, bitmask_name, format="svg"):
+    return plt.imread(path + bitmask_name, format=format)
 
 # SECTION: MOD09GA
-def read_mod09ga_tiff_refl_bands(path, filename, bands=(0,3,2)):
+def read_mod09ga_tifffile_refl_bands(path, filename, bands=(0,3,2)):
+    #Order (before interpolation) from:
+    #hdf:  [0,3,2]
+    #tiff (reordered to landsat 8): [2,1,0]
+    outputs=[]
+    file_data = tiff.imread(path + filename)
+    file_data = file_data.transpose((2, 0, 1)) # transpose to (depth, width, height)
+    for b in bands:
+        outputs.append(file_data[b,:,:]) #[:,:,b] tifffile reads in different order from gdal
+    return outputs
+
+def read_mod09ga_tiff_gdal_refl_bands(path, filename, bands=(0,3,2)):
     """
     Order (before interpolation) from:
     hdf:  [0,3,2]
