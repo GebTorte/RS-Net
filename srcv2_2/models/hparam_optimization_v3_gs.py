@@ -20,13 +20,13 @@ TEST_DATASET= TRAIN_DATASET
 activation_functions = ['relu'] 
 loss_functions = ['sparse_categorical_crossentropy'] # , 'categorical_crossentropy'] # ['binary_crossentropy']
 initializers = ["he_normal"]
-learning_rates = [1e-3, 1e-5] # , 1e-7, 1e-8]
+learning_rates = [1e-3, 7e-4] # , 1e-7, 1e-8]
 img_enhance_funcs = ["enhance_contrast"]
-l2regs = [0.1, 1e-2, 1e-4]
-decays = [0.1, 1e-2, 1e-4]
-dropouts=[0.0, 0.2]
+l2regs = [0.2, 0.1, 1e-3]
+decays = [0.3,0.2]
+dropouts=[0.2, 0.0]
 band_combinations = [[1, 2, 3, 4, 5, 6, 7]] # [[1, 2, 3, 4, 5, 6, 7, 9, 10, 11], [1, 2, 3, 4, 5, 6, 7, 9], [2, 3, 4, 5], [2, 3, 4], [3]]
-epochs = [4]# [3, 10, 20, 40, 80, 160, 200, 200, 200, 200, 200, 200, 200, 200]  # Only used to run random search for longer
+epochs = [12]# [3, 10, 20, 40, 80, 160, 200, 200, 200, 200, 200, 200, 200, 200]  # Only used to run random search for longer
 collapse_cls = False
 
 interpreter = "/home/mxh/anaconda3/envs/tf2+gpu_v2/bin/python3"
@@ -66,15 +66,16 @@ if __name__ == "__main__":
                             
                             params = HParams(activation_func="relu", # or elu or leaky relu?
                                 modelID="dummy", #"240515092709-CV1of2",
-                                modelNick="Unet-v3-1024_16",
+                                modelNick="U-net-rainio-deeper-v2-16-256",# "Unet-v3-1024_16",
                                 random=False,
                                 shuffle=True,
                                 optimizer='AdamW',
                                 loss_func="sparse_categorical_crossentropy",
                                 learning_rate=learning_rate,
                                 reduce_lr=True,
-                                plateau_patience=12, 
-                                which_scheduler="custom_scheduler_epoch-cap1_exp-1.0_epsilon1e-7",
+                                plateau_patience=4,
+                                lr_scheduler=True,
+                                which_scheduler="custom_scheduler_epoch-cap4_exp-0.5_epsilon1e-8", # manually adjust this; only for logging
                                 early_stopping=False,
                                 early_patience=100, # maybe up this to ~= epochs/2
                                 replace_fill_values = True,

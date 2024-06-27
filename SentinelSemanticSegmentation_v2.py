@@ -25,6 +25,7 @@ from srcv2_2.data.make_dataset import make_numpy_dataset
 from srcv2_2.models.params import get_params, HParams
 from srcv2_2.models.Unet import Unet, UnetV2, get_model_name
 from srcv2_2.models.UnetV3 import UnetV3
+from srcv2_2.models.UnetV4_CXN import UnetV4_CXN
 from srcv2_2.models.evaluate_model import evaluate_test_set, write_csv_files
 
 # Don't allow tensorflow to reserve all memory available
@@ -159,6 +160,9 @@ if __name__ == '__main__':
             elif args.model == 'U-net-v3':
                 model = UnetV3(params)
                 model.train()
+            elif args.model == 'U-net-v4-CXN':
+                model = UnetV4_CXN(params)
+                model.train()
             # Run model on test data set / leave for test flag
             # evaluate_test_set(model, params.test_dataset, params.num_gpus, params)
         else:  # With k-fold cross-validation
@@ -204,6 +208,8 @@ if __name__ == '__main__':
                     model = UnetV2(params)
                 elif args.model == 'U-net-v3':
                     model = UnetV3(params)
+                elif args.model == 'U-net-v4-CXN':
+                    model = UnetV4_CXN(params)
                 
                 print("Training on fold " + str(k + 1) + " of " + str(k_folds))
                 model.train()
@@ -223,6 +229,12 @@ if __name__ == '__main__':
             # {get_model_name(params)}
             #loaded_model = tf.keras.saving.load_model(f"../models/Unet/{params.modelID}.keras")
             model = UnetV3(params, model=loaded_model)
+
+        if args.model == 'U-net-v4-CXN':
+            loaded_model = tf.keras.saving.load_model(f"./models/Unet/{params.modelID}.keras")
+            # {get_model_name(params)}
+            #loaded_model = tf.keras.saving.load_model(f"../models/Unet/{params.modelID}.keras")
+            model = UnetV4_CXN(params, model=loaded_model)
     
         print("Saving evaluation image output: ", store_flag)
         evaluate_test_set(model, params.test_dataset, params.num_gpus, params, save_output=store_flag) # todo: implement args.save_output

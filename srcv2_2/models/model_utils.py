@@ -147,13 +147,10 @@ def learning_rate_scheduler(epoch, lr, epoch_cap=15):
         return lr * tf.math.exp(-0.1)
     return lr
 
-def custom_learning_rate_scheduler(epoch, lr, epoch_cap=2, exp=-0.5):
+def custom_learning_rate_scheduler(epoch, lr, epoch_cap=1, exp=-0.7):
     epsilon = 1e-10
-    default = 1e-7
     if lr > epsilon: # dont drop below epsilon
-        if epoch > epoch_cap: # reduce lr exponentially
-            #return default
-            # return lr / 2
+        if epoch >= epoch_cap: # reduce lr exponentially
             return lr * tf.math.exp(exp) # maybe drop more strongly
         return lr
     return epsilon
@@ -162,8 +159,17 @@ def custom_learning_rate_scheduler_v2(epoch, lr, epoch_cap=1):
     epsilon = 1e-10
     default = 1e-7
     if lr > epsilon: # dont drop below epsilon
-        if epoch > epoch_cap: # reduce lr exponentially
+        if epoch >= epoch_cap: # reduce lr exponentially
             return default
+        return lr
+    return epsilon
+
+def custom_defined_learning_rate_scheduler(epoch, lr, exp=-0.5):
+    epoch_steps = [6, 13, 20]
+    epsilon = 1e-10
+    if lr > epsilon: # dont drop below epsilon
+        if epoch in epoch_steps: # reduce lr exponentially
+            return lr * tf.math.exp(exp)
         return lr
     return epsilon
 
@@ -232,7 +238,7 @@ def get_callbacks(params):
     factorial_cyclical_lr_scheduler = LearningRateScheduler(cyclical_learning_rate_scheduler_factorial, verbose=1)
     round_cyclical_learning_rate_scheduler = LearningRateScheduler(round_learning_rate_scheduler, verbose=1)
     
-    custom_1e2_learning_rate = LearningRateScheduler(custom_learning_rate_scheduler,verbose=1 )
+    custom_1e2_learning_rate = LearningRateScheduler(custom_learning_rate_scheduler,verbose=1)
 
 
     return csv_logger, model_checkpoint, model_checkpoint_saving, reduce_lr, tensorboard, early_stopping, cyclical_lr_scheduler, factorial_cyclical_lr_scheduler, round_cyclical_learning_rate_scheduler, custom_1e2_learning_rate
