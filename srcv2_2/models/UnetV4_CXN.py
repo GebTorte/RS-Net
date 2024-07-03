@@ -118,11 +118,12 @@ class UnetV4_CXN(object):
         # Note about BN and dropout: https://stackoverflow.com/questions/46316687/how-to-include-batch-normalization-in-non-sequential-keras-model
 
 
-        model = self.model_arch_128(input_rows=self.params.patch_size,
+        model = self.model_arch_256(input_rows=self.params.patch_size,
                                 input_cols=self.params.patch_size, 
                                 num_of_channels=self.n_bands, 
                                 num_of_classes=self.n_cls, 
-                                conv2d_kernel_shape=(7,7))
+                                conv2d_kernel_shape=(7,7),
+                                initialization=self.params.initialization)
         #model.compile(optimizer = Adam(lr = 1e-4), loss = self.params., metrics = [self.jacc_coef,'accuracy'])
 
         model.build(tf.TensorShape(dims=[self.params.batch_size, self.params.patch_size, self.params.patch_size, self.n_bands]))
@@ -139,8 +140,8 @@ class UnetV4_CXN(object):
             f.write(s + "\n")
 
     @staticmethod
-    def aspp(x,out_shape, L2reg):
-        b0=SeparableConv2D(256,(1,1),padding="same",use_bias=False, depthwise_regularizer=regularizers.l2(L2reg))(x)
+    def aspp(x,out_shape, L2reg, initialization):
+        b0=SeparableConv2D(256,(1,1),padding="same",use_bias=False, depthwise_regularizer=regularizers.l2(L2reg), depthwise_initializer=initialization)(x)
         b0=BatchNormalization()(b0)
         b0=Activation("relu")(b0)
 
@@ -151,29 +152,29 @@ class UnetV4_CXN(object):
         #b5=BatchNormalization()(b5)
         #b5=Activation("relu")(b5)
         
-        b1=DepthwiseConv2D((3,3),dilation_rate=(6,6),padding="same",use_bias=False, depthwise_regularizer=regularizers.l2(L2reg))(x)
+        b1=DepthwiseConv2D((3,3),dilation_rate=(6,6),padding="same",use_bias=False, depthwise_regularizer=regularizers.l2(L2reg), depthwise_initializer=initialization)(x)
         b1=BatchNormalization()(b1)
         b1=Activation("relu")(b1)
-        b1=SeparableConv2D(256,(1,1),padding="same",use_bias=False, depthwise_regularizer=regularizers.l2(L2reg))(b1)
+        b1=SeparableConv2D(256,(1,1),padding="same",use_bias=False, depthwise_regularizer=regularizers.l2(L2reg), depthwise_initializer=initialization)(b1)
         b1=BatchNormalization()(b1)
         b1=Activation("relu")(b1)
         
-        b2=DepthwiseConv2D((3,3),dilation_rate=(12,12),padding="same",use_bias=False, depthwise_regularizer=regularizers.l2(L2reg))(x)
+        b2=DepthwiseConv2D((3,3),dilation_rate=(12,12),padding="same",use_bias=False, depthwise_regularizer=regularizers.l2(L2reg), depthwise_initializer=initialization)(x)
         b2=BatchNormalization()(b2)
         b2=Activation("relu")(b2)
-        b2=SeparableConv2D(256,(1,1),padding="same",use_bias=False, depthwise_regularizer=regularizers.l2(L2reg))(b2)
+        b2=SeparableConv2D(256,(1,1),padding="same",use_bias=False, depthwise_regularizer=regularizers.l2(L2reg), depthwise_initializer=initialization)(b2)
         b2=BatchNormalization()(b2)
         b2=Activation("relu")(b2)	
         
-        b3=DepthwiseConv2D((3,3),dilation_rate=(18,18),padding="same",use_bias=False, depthwise_regularizer=regularizers.l2(L2reg))(x)
+        b3=DepthwiseConv2D((3,3),dilation_rate=(18,18),padding="same",use_bias=False, depthwise_regularizer=regularizers.l2(L2reg), depthwise_initializer=initialization)(x)
         b3=BatchNormalization()(b3)
         b3=Activation("relu")(b3)
-        b3=SeparableConv2D(256,(1,1),padding="same",use_bias=False, depthwise_regularizer=regularizers.l2(L2reg))(b3)
+        b3=SeparableConv2D(256,(1,1),padding="same",use_bias=False, depthwise_regularizer=regularizers.l2(L2reg), depthwise_initializer=initialization)(b3)
         b3=BatchNormalization()(b3)
         b3=Activation("relu")(b3)
         
         b4=AveragePooling2D(pool_size=(out_shape,out_shape))(x)
-        b4=SeparableConv2D(256,(1,1),padding="same",use_bias=False, depthwise_regularizer=regularizers.l2(L2reg))(b4)
+        b4=SeparableConv2D(256,(1,1),padding="same",use_bias=False, depthwise_regularizer=regularizers.l2(L2reg), depthwise_initializer=initialization)(b4)
         b4=BatchNormalization()(b4)
         b4=Activation("relu")(b4)
         b4=UpSampling2D((out_shape,out_shape), interpolation='bilinear')(b4)
@@ -199,21 +200,21 @@ class UnetV4_CXN(object):
 
 
     @staticmethod
-    def contr_arm(input_tensor, filters, kernel_size, L2reg):
+    def contr_arm(input_tensor, filters, kernel_size, L2reg, initialization):
         """It adds a feedforward signal to the output of two following conv layers in contracting path
         TO DO: remove keras.layers.add and replace it with add only
         """
 
-        x = SeparableConv2D(filters, kernel_size, padding='same', depthwise_regularizer=regularizers.l2(L2reg))(input_tensor)
+        x = SeparableConv2D(filters, kernel_size, padding='same', depthwise_regularizer=regularizers.l2(L2reg), depthwise_initializer=initialization)(input_tensor)
         x = UnetV4_CXN.bn_relu(x)
 
-        x = SeparableConv2D(filters, kernel_size, padding='same', depthwise_regularizer=regularizers.l2(L2reg))(x)
+        x = SeparableConv2D(filters, kernel_size, padding='same', depthwise_regularizer=regularizers.l2(L2reg), depthwise_initializer=initialization)(x)
         x = UnetV4_CXN.bn_relu(x)
 
         filters_b = filters // 2
         kernel_size_b = (kernel_size[0]-2, kernel_size[0]-2)  # creates a kernl size of (1,1) out of (3,3)
 
-        x1 = SeparableConv2D(filters_b, kernel_size_b, padding='same', depthwise_regularizer=regularizers.l2(L2reg))(input_tensor)
+        x1 = SeparableConv2D(filters_b, kernel_size_b, padding='same', depthwise_regularizer=regularizers.l2(L2reg), depthwise_initializer=initialization)(input_tensor)
         x1 = UnetV4_CXN.bn_relu(x1)
 
         x1 = concatenate([input_tensor, x1], axis=3)
@@ -225,28 +226,28 @@ class UnetV4_CXN(object):
 
 
     @staticmethod
-    def imprv_contr_arm(input_tensor, filters, kernel_size, L2reg):
+    def imprv_contr_arm(input_tensor, filters, kernel_size, L2reg, initialization):
         """It adds a feedforward signal to the output of two following conv layers in contracting path
         """
 
-        x = SeparableConv2D(filters, kernel_size, padding='same', depthwise_regularizer=regularizers.l2(L2reg))(input_tensor)
+        x = SeparableConv2D(filters, kernel_size, padding='same', depthwise_regularizer=regularizers.l2(L2reg), depthwise_initializer=initialization)(input_tensor)
         x = UnetV4_CXN.bn_relu(x)
 
-        x0 = SeparableConv2D(filters, kernel_size, padding='same', depthwise_regularizer=regularizers.l2(L2reg))(x)
+        x0 = SeparableConv2D(filters, kernel_size, padding='same', depthwise_regularizer=regularizers.l2(L2reg), depthwise_initializer=initialization)(x)
         x0 = UnetV4_CXN.bn_relu(x0)
 
-        x = SeparableConv2D(filters, kernel_size, padding='same', depthwise_regularizer=regularizers.l2(L2reg))(x0)
+        x = SeparableConv2D(filters, kernel_size, padding='same', depthwise_regularizer=regularizers.l2(L2reg), depthwise_initializer=initialization)(x0)
         x = UnetV4_CXN.bn_relu(x)
 
         filters_b = filters // 2
         kernel_size_b = (kernel_size[0]-2, kernel_size[0]-2)  # creates a kernl size of (1,1) out of (3,3)
 
-        x1 = SeparableConv2D(filters_b, kernel_size_b, padding='same', depthwise_regularizer=regularizers.l2(L2reg))(input_tensor)
+        x1 = SeparableConv2D(filters_b, kernel_size_b, padding='same', depthwise_regularizer=regularizers.l2(L2reg), depthwise_initializer=initialization)(input_tensor)
         x1 = UnetV4_CXN.bn_relu(x1)
 
         x1 = concatenate([input_tensor, x1], axis=3)
 
-        x2 = SeparableConv2D(filters, kernel_size_b, padding='same', depthwise_regularizer=regularizers.l2(L2reg))(x0)
+        x2 = SeparableConv2D(filters, kernel_size_b, padding='same', depthwise_regularizer=regularizers.l2(L2reg), depthwise_initializer=initialization)(x0)
         x2 = UnetV4_CXN.bn_relu(x2)
 
         x = keras.layers.add([x, x1, x2])
@@ -255,21 +256,24 @@ class UnetV4_CXN(object):
 
 
     @staticmethod
-    def bridge(input_tensor, filters, kernel_size, L2reg):
+    def bridge(input_tensor, filters, kernel_size, L2reg, initialization):
         """It is exactly like the identity_block plus a dropout layer. This block only uses in the valley of the UNet
         """
 
-        x = SeparableConv2D(filters, kernel_size, padding='same', depthwise_regularizer=regularizers.l2(L2reg), bias_regularizer=regularizers.l2(L2reg))(input_tensor)
+        x = SeparableConv2D(filters, kernel_size, padding='same', depthwise_regularizer=regularizers.l2(L2reg), bias_regularizer=regularizers.l2(L2reg),
+                             depthwise_initializer=initialization)(input_tensor)
         x = UnetV4_CXN.bn_relu(x)
 
-        x = SeparableConv2D(filters, kernel_size, padding='same', depthwise_regularizer=regularizers.l2(L2reg), bias_regularizer=regularizers.l2(L2reg))(x)
+        x = SeparableConv2D(filters, kernel_size, padding='same', depthwise_regularizer=regularizers.l2(L2reg), bias_regularizer=regularizers.l2(L2reg),
+                             depthwise_initializer=initialization)(x)
         x = Dropout(.15)(x)
         x = UnetV4_CXN.bn_relu(x)
 
         filters_b = filters // 2
         kernel_size_b = (kernel_size[0]-2, kernel_size[0]-2)  # creates a kernl size of (1,1) out of (3,3)
 
-        x1 =SeparableConv2D(filters_b, kernel_size_b, padding='same', depthwise_regularizer=regularizers.l2(L2reg), bias_regularizer=regularizers.l2(L2reg))(input_tensor)
+        x1 =SeparableConv2D(filters_b, kernel_size_b, padding='same', depthwise_regularizer=regularizers.l2(L2reg), bias_regularizer=regularizers.l2(L2reg),
+                             depthwise_initializer=initialization)(input_tensor)
         x1 = UnetV4_CXN.bn_relu(x1)
 
         x1 = concatenate([input_tensor, x1], axis=3)
@@ -279,30 +283,35 @@ class UnetV4_CXN(object):
 
 
     @staticmethod
-    def conv_block_exp_path(input_tensor, filters, kernel_size, l2reg):
+    def conv_block_exp_path(input_tensor, filters, kernel_size, l2reg, initialization):
         """It Is only the convolution part inside each expanding path's block
         """
 
-        x = Conv2D(filters, kernel_size, padding='same', kernel_regularizer=regularizers.l2(l2reg))(input_tensor)
+        x = Conv2D(filters, kernel_size, padding='same', kernel_regularizer=regularizers.l2(l2reg),
+                        kernel_initializer=initialization)(input_tensor)
         x = UnetV4_CXN.bn_relu(x)
 
-        x = Conv2D(filters, kernel_size, padding='same', kernel_regularizer=regularizers.l2(l2reg))(x)
+        x = Conv2D(filters, kernel_size, padding='same', kernel_regularizer=regularizers.l2(l2reg),
+                        kernel_initializer=initialization)(x)
         x = UnetV4_CXN.bn_relu(x)
         return x
 
 
     @staticmethod
-    def conv_block_exp_path3(input_tensor, filters, kernel_size, l2reg):
+    def conv_block_exp_path3(input_tensor, filters, kernel_size, l2reg, initialization):
         """It Is only the convolution part inside each expanding path's block
         """
 
-        x = Conv2D(filters, kernel_size, padding='same', kernel_regularizer=regularizers.l2(l2reg))(input_tensor)
+        x = Conv2D(filters, kernel_size, padding='same', kernel_regularizer=regularizers.l2(l2reg),
+                        kernel_initializer=initialization)(input_tensor)
         x = UnetV4_CXN.bn_relu(x)
 
-        x = Conv2D(filters, kernel_size, padding='same', kernel_regularizer=regularizers.l2(l2reg))(x)
+        x = Conv2D(filters, kernel_size, padding='same', kernel_regularizer=regularizers.l2(l2reg),
+                        kernel_initializer=initialization)(x)
         x = UnetV4_CXN.bn_relu(x)
 
-        x = Conv2D(filters, kernel_size, padding='same', kernel_regularizer=regularizers.l2(l2reg))(x)
+        x = Conv2D(filters, kernel_size, padding='same', kernel_regularizer=regularizers.l2(l2reg),
+                        kernel_initializer=initialization)(x)
         x = UnetV4_CXN.bn_relu(x)
         return x
 
@@ -417,38 +426,39 @@ class UnetV4_CXN(object):
         x = Activation("relu")(x)
         return x
     
-    def model_arch_128(self, input_rows=256, input_cols=256, num_of_channels=7, num_of_classes=4, conv2d_kernel_shape=(3,3)):
+    def model_arch_128(self, input_rows=256, input_cols=256, num_of_channels=7, num_of_classes=4, conv2d_kernel_shape=(3,3), initialization="glorot_uniform"):
         inputs = Input((input_rows, input_cols, num_of_channels))
-        conv1 = Conv2D(16, conv2d_kernel_shape, activation='relu', padding='same', kernel_regularizer=regularizers.l2(self.params.L2reg))(inputs)
+        conv1 = Conv2D(16, conv2d_kernel_shape, activation='relu', padding='same', kernel_regularizer=regularizers.l2(self.params.L2reg),
+                        kernel_initializer=initialization)(inputs)
 
-        conv1 = UnetV4_CXN.contr_arm(conv1, 32, conv2d_kernel_shape, self.params.L2reg)
+        conv1 = UnetV4_CXN.contr_arm(conv1, 32, conv2d_kernel_shape, self.params.L2reg, initialization)
         pool1 = MaxPooling2D(pool_size=(2, 2))(conv1)
 
-        conv2 = UnetV4_CXN.contr_arm(pool1, 64, conv2d_kernel_shape, self.params.L2reg)
+        conv2 = UnetV4_CXN.contr_arm(pool1, 64, conv2d_kernel_shape, self.params.L2reg, initialization)
         pool2 = MaxPooling2D(pool_size=(2, 2))(conv2)
 
-        conv3 = UnetV4_CXN.imprv_contr_arm(pool2, 128, conv2d_kernel_shape, self.params.L2reg)
+        conv3 = UnetV4_CXN.imprv_contr_arm(pool2, 128, conv2d_kernel_shape, self.params.L2reg, initialization)
         pool3 = MaxPooling2D(pool_size=(2, 2))(conv3)
 
-        conv4 = UnetV4_CXN.bridge(pool3, 256, conv2d_kernel_shape, L2reg=self.params.L2reg)
+        conv4 = UnetV4_CXN.bridge(pool3, 256, conv2d_kernel_shape, L2reg=self.params.L2reg, initialization=initialization)
         
-        conv6  = UnetV4_CXN.aspp(conv4,input_rows/32, L2reg=self.params.L2reg)
+        conv6  = UnetV4_CXN.aspp(conv4,input_rows/32, L2reg=self.params.L2reg, initialization=initialization)
 
-        convT9 = Conv2DTranspose(128, (2, 2), strides=(2, 2), padding='same', kernel_regularizer=regularizers.l2(self.params.L2reg))(conv6)
+        convT9 = Conv2DTranspose(128, (2, 2), strides=(2, 2), padding='same', kernel_regularizer=regularizers.l2(self.params.L2reg), kernel_initializer=initialization)(conv6)
         prevup9 = UnetV4_CXN.improve_ff_block2(input_tensor1=conv2, input_tensor2=conv1, pure_ff=conv3)
         up9 = concatenate([convT9, prevup9], axis=3)
-        conv9 = UnetV4_CXN.conv_block_exp_path(input_tensor=up9, filters=128, kernel_size=conv2d_kernel_shape, l2reg=self.params.L2reg)
+        conv9 = UnetV4_CXN.conv_block_exp_path(input_tensor=up9, filters=128, kernel_size=conv2d_kernel_shape, l2reg=self.params.L2reg, initialization=initialization)
         conv9 = UnetV4_CXN.add_block_exp_path(input_tensor1=conv9, input_tensor2=conv3, input_tensor3=convT9)
 
-        convT10 = Conv2DTranspose(64, (2, 2), strides=(2, 2), padding='same', kernel_regularizer=regularizers.l2(self.params.L2reg))(conv9)
+        convT10 = Conv2DTranspose(64, (2, 2), strides=(2, 2), padding='same', kernel_regularizer=regularizers.l2(self.params.L2reg), kernel_initializer=initialization)(conv9)
         prevup10 = UnetV4_CXN.improve_ff_block1(input_tensor1=conv1, pure_ff=conv2)
         up10 = concatenate([convT10, prevup10], axis=3)
-        conv10 = UnetV4_CXN.conv_block_exp_path(input_tensor=up10, filters=64, kernel_size=conv2d_kernel_shape, l2reg=self.params.L2reg)
+        conv10 = UnetV4_CXN.conv_block_exp_path(input_tensor=up10, filters=64, kernel_size=conv2d_kernel_shape, l2reg=self.params.L2reg, initialization=initialization)
         conv10 = UnetV4_CXN.add_block_exp_path(input_tensor1=conv10, input_tensor2=conv2, input_tensor3=convT10)
 
-        convT11 = Conv2DTranspose(32, (2, 2), strides=(2, 2), padding='same', kernel_regularizer=regularizers.l2(self.params.L2reg))(conv10)
+        convT11 = Conv2DTranspose(32, (2, 2), strides=(2, 2), padding='same', kernel_regularizer=regularizers.l2(self.params.L2reg), kernel_initializer=initialization)(conv10)
         up11 = concatenate([convT11, conv1], axis=3)
-        conv11 = UnetV4_CXN.conv_block_exp_path(input_tensor=up11, filters=32, kernel_size=conv2d_kernel_shape, l2reg=self.params.L2reg)
+        conv11 = UnetV4_CXN.conv_block_exp_path(input_tensor=up11, filters=32, kernel_size=conv2d_kernel_shape, l2reg=self.params.L2reg, initialization=initialization)
         conv11 = UnetV4_CXN.add_block_exp_path(input_tensor1=conv11, input_tensor2=conv1, input_tensor3=convT11)
 
         # -----------------------------------------------------------------------
@@ -462,47 +472,53 @@ class UnetV4_CXN(object):
 
         return Model(inputs=[inputs], outputs=[conv12])
     
-    def model_arch_256(self, input_rows=256, input_cols=256, num_of_channels=7, num_of_classes=4, conv2d_kernel_shape=(3,3)):
+    def model_arch_256(self, input_rows=256, input_cols=256, num_of_channels=7, num_of_classes=4, conv2d_kernel_shape=(3,3), initialization="glorot_uniform"):
         inputs = Input((input_rows, input_cols, num_of_channels))
-        conv1 = Conv2D(16, conv2d_kernel_shape, activation='relu', padding='same', kernel_regularizer=regularizers.l2(self.params.L2reg))(inputs)
+        conv1 = Conv2D(16, conv2d_kernel_shape, activation='relu', padding='same',
+                        kernel_regularizer=regularizers.l2(self.params.L2reg),
+                        kernel_initializer=initialization)(inputs)
 
-        conv1 = UnetV4_CXN.contr_arm(conv1, 32, conv2d_kernel_shape, self.params.L2reg)
+        conv1 = UnetV4_CXN.contr_arm(conv1, 32, conv2d_kernel_shape, self.params.L2reg, initialization)
         pool1 = MaxPooling2D(pool_size=(2, 2))(conv1)
 
-        conv2 = UnetV4_CXN.contr_arm(pool1, 64, conv2d_kernel_shape, self.params.L2reg)
+        conv2 = UnetV4_CXN.contr_arm(pool1, 64, conv2d_kernel_shape, self.params.L2reg, initialization)
         pool2 = MaxPooling2D(pool_size=(2, 2))(conv2)
 
-        conv3 = UnetV4_CXN.contr_arm(pool2, 128, conv2d_kernel_shape, self.params.L2reg)
+        conv3 = UnetV4_CXN.contr_arm(pool2, 128, conv2d_kernel_shape, self.params.L2reg, initialization)
         pool3 = MaxPooling2D(pool_size=(2, 2))(conv3)
 
-        conv4 = UnetV4_CXN.imprv_contr_arm(pool3, 256, conv2d_kernel_shape, self.params.L2reg)
+        conv4 = UnetV4_CXN.imprv_contr_arm(pool3, 256, conv2d_kernel_shape, self.params.L2reg, initialization)
         pool4 = MaxPooling2D(pool_size=(2, 2))(conv4)
 
-        conv5 = UnetV4_CXN.bridge(pool4, 512, conv2d_kernel_shape, self.params.L2reg)
+        conv5 = UnetV4_CXN.bridge(pool4, 512, conv2d_kernel_shape, self.params.L2reg, initialization)
         
-        conv6  = UnetV4_CXN.aspp(conv5,input_rows/32, self.params.L2reg)
+        conv6  = UnetV4_CXN.aspp(conv5,input_rows/32, self.params.L2reg, initialization=initialization)
 
-        convT8 = Conv2DTranspose(256, (2, 2), strides=(2, 2), padding='same', kernel_regularizer=regularizers.l2(self.params.L2reg))(conv6)
+        convT8 = Conv2DTranspose(256, (2, 2), strides=(2, 2), padding='same', kernel_regularizer=regularizers.l2(self.params.L2reg),
+                        kernel_initializer=initialization)(conv6)
         prevup8 = UnetV4_CXN.improve_ff_block3(input_tensor1=conv3, input_tensor2=conv2, input_tensor3=conv1, pure_ff=conv4)
         up8 = concatenate([convT8, prevup8], axis=3)
-        conv8 = UnetV4_CXN.conv_block_exp_path(input_tensor=up8, filters=256, kernel_size=conv2d_kernel_shape, l2reg=self.params.L2reg)
+        conv8 = UnetV4_CXN.conv_block_exp_path(input_tensor=up8, filters=256, kernel_size=conv2d_kernel_shape, l2reg=self.params.L2reg, initialization=initialization)
         conv8 = UnetV4_CXN.add_block_exp_path(input_tensor1=conv8, input_tensor2=conv4, input_tensor3=convT8)
 
-        convT9 = Conv2DTranspose(128, (2, 2), strides=(2, 2), padding='same', kernel_regularizer=regularizers.l2(self.params.L2reg))(conv8)
+        convT9 = Conv2DTranspose(128, (2, 2), strides=(2, 2), padding='same', kernel_regularizer=regularizers.l2(self.params.L2reg),
+                        kernel_initializer=initialization)(conv8)
         prevup9 = UnetV4_CXN.improve_ff_block2(input_tensor1=conv2, input_tensor2=conv1, pure_ff=conv3)
         up9 = concatenate([convT9, prevup9], axis=3)
-        conv9 = UnetV4_CXN.conv_block_exp_path(input_tensor=up9, filters=128, kernel_size=conv2d_kernel_shape, l2reg=self.params.L2reg)
+        conv9 = UnetV4_CXN.conv_block_exp_path(input_tensor=up9, filters=128, kernel_size=conv2d_kernel_shape, l2reg=self.params.L2reg, initialization=initialization)
         conv9 = UnetV4_CXN.add_block_exp_path(input_tensor1=conv9, input_tensor2=conv3, input_tensor3=convT9)
 
-        convT10 = Conv2DTranspose(64, (2, 2), strides=(2, 2), padding='same', kernel_regularizer=regularizers.l2(self.params.L2reg))(conv9)
+        convT10 = Conv2DTranspose(64, (2, 2), strides=(2, 2), padding='same', kernel_regularizer=regularizers.l2(self.params.L2reg),
+                        kernel_initializer=initialization)(conv9)
         prevup10 = UnetV4_CXN.improve_ff_block1(input_tensor1=conv1, pure_ff=conv2)
         up10 = concatenate([convT10, prevup10], axis=3)
-        conv10 = UnetV4_CXN.conv_block_exp_path(input_tensor=up10, filters=64, kernel_size=conv2d_kernel_shape, l2reg=self.params.L2reg)
+        conv10 = UnetV4_CXN.conv_block_exp_path(input_tensor=up10, filters=64, kernel_size=conv2d_kernel_shape, l2reg=self.params.L2reg, initialization=initialization)
         conv10 = UnetV4_CXN.add_block_exp_path(input_tensor1=conv10, input_tensor2=conv2, input_tensor3=convT10)
 
-        convT11 = Conv2DTranspose(32, (2, 2), strides=(2, 2), padding='same', kernel_regularizer=regularizers.l2(self.params.L2reg))(conv10)
+        convT11 = Conv2DTranspose(32, (2, 2), strides=(2, 2), padding='same', kernel_regularizer=regularizers.l2(self.params.L2reg),
+                        kernel_initializer=initialization)(conv10)
         up11 = concatenate([convT11, conv1], axis=3)
-        conv11 = UnetV4_CXN.conv_block_exp_path(input_tensor=up11, filters=32, kernel_size=conv2d_kernel_shape, l2reg=self.params.L2reg)
+        conv11 = UnetV4_CXN.conv_block_exp_path(input_tensor=up11, filters=32, kernel_size=conv2d_kernel_shape, l2reg=self.params.L2reg, initialization=initialization)
         conv11 = UnetV4_CXN.add_block_exp_path(input_tensor1=conv11, input_tensor2=conv1, input_tensor3=convT11)
 
         # -----------------------------------------------------------------------
@@ -518,56 +534,56 @@ class UnetV4_CXN(object):
         return Model(inputs=[inputs], outputs=[conv12])
 
 
-    def model_arch(self, input_rows=256, input_cols=256, num_of_channels=7, num_of_classes=4, conv2d_kernel_shape=(3,3)):
+    def model_arch(self, input_rows=256, input_cols=256, num_of_channels=7, num_of_classes=4, conv2d_kernel_shape=(3,3), initialization="glorot_uniform"):
         inputs = Input((input_rows, input_cols, num_of_channels))
         conv1 = Conv2D(16, conv2d_kernel_shape, activation='relu', padding='same')(inputs)
 
-        conv1 = UnetV4_CXN.contr_arm(conv1, 32, conv2d_kernel_shape, self.params.L2reg)
+        conv1 = UnetV4_CXN.contr_arm(conv1, 32, conv2d_kernel_shape, self.params.L2reg, initialization=initialization)
         pool1 = MaxPooling2D(pool_size=(2, 2))(conv1)
 
-        conv2 = UnetV4_CXN.contr_arm(pool1, 64, conv2d_kernel_shape, self.params.L2reg)
+        conv2 = UnetV4_CXN.contr_arm(pool1, 64, conv2d_kernel_shape, self.params.L2reg, initialization=initialization)
         pool2 = MaxPooling2D(pool_size=(2, 2))(conv2)
 
-        conv3 = UnetV4_CXN.contr_arm(pool2, 128, conv2d_kernel_shape, self.params.L2reg)
+        conv3 = UnetV4_CXN.contr_arm(pool2, 128, conv2d_kernel_shape, self.params.L2reg, initialization=initialization)
         pool3 = MaxPooling2D(pool_size=(2, 2))(conv3)
 
-        conv4 = UnetV4_CXN.contr_arm(pool3, 256, conv2d_kernel_shape, self.params.L2reg)
+        conv4 = UnetV4_CXN.contr_arm(pool3, 256, conv2d_kernel_shape, self.params.L2reg, initialization=initialization)
         pool4 = MaxPooling2D(pool_size=(2, 2))(conv4)
 
-        conv5 = UnetV4_CXN.imprv_contr_arm(pool4, 512, conv2d_kernel_shape, self.params.L2reg)
+        conv5 = UnetV4_CXN.imprv_contr_arm(pool4, 512, conv2d_kernel_shape, self.params.L2reg, initialization=initialization)
         pool5 = MaxPooling2D(pool_size=(2, 2))(conv5)
 
-        conv6 = UnetV4_CXN.bridge(pool5, 1024, conv2d_kernel_shape, self.params.L2reg)
+        conv6 = UnetV4_CXN.bridge(pool5, 1024, conv2d_kernel_shape, self.params.L2reg, initialization=initialization)
         
-        conv6  = UnetV4_CXN.aspp(conv6,input_rows/32, self.params.L2reg)
+        conv6  = UnetV4_CXN.aspp(conv6,input_rows/32, self.params.L2reg, initialization=initialization)
 
         convT7 = Conv2DTranspose(512, (2, 2), strides=(2, 2), padding='same', kernel_regularizer=regularizers.l2(self.params.L2reg))(conv6)
         prevup7 = UnetV4_CXN.improve_ff_block4(input_tensor1=conv4, input_tensor2=conv3, input_tensor3=conv2, input_tensor4=conv1, pure_ff=conv5)
         up7 = concatenate([convT7, prevup7], axis=3)
-        conv7 = UnetV4_CXN.conv_block_exp_path3(input_tensor=up7, filters=512, kernel_size=conv2d_kernel_shape, l2reg=self.params.L2reg)
+        conv7 = UnetV4_CXN.conv_block_exp_path3(input_tensor=up7, filters=512, kernel_size=conv2d_kernel_shape, l2reg=self.params.L2reg, initialization=initialization)
         conv7 = UnetV4_CXN.add_block_exp_path(conv7, conv5, convT7)
 
         convT8 = Conv2DTranspose(256, (2, 2), strides=(2, 2), padding='same', kernel_regularizer=regularizers.l2(self.params.L2reg))(conv7)
         prevup8 = UnetV4_CXN.improve_ff_block3(input_tensor1=conv3, input_tensor2=conv2, input_tensor3=conv1, pure_ff=conv4)
         up8 = concatenate([convT8, prevup8], axis=3)
-        conv8 = UnetV4_CXN.conv_block_exp_path(input_tensor=up8, filters=256, kernel_size=conv2d_kernel_shape, l2reg=self.params.L2reg)
+        conv8 = UnetV4_CXN.conv_block_exp_path(input_tensor=up8, filters=256, kernel_size=conv2d_kernel_shape, l2reg=self.params.L2reg, initialization=initialization)
         conv8 = UnetV4_CXN.add_block_exp_path(input_tensor1=conv8, input_tensor2=conv4, input_tensor3=convT8)
 
         convT9 = Conv2DTranspose(128, (2, 2), strides=(2, 2), padding='same', kernel_regularizer=regularizers.l2(self.params.L2reg))(conv8)
         prevup9 = UnetV4_CXN.improve_ff_block2(input_tensor1=conv2, input_tensor2=conv1, pure_ff=conv3)
         up9 = concatenate([convT9, prevup9], axis=3)
-        conv9 = UnetV4_CXN.conv_block_exp_path(input_tensor=up9, filters=128, kernel_size=conv2d_kernel_shape, l2reg=self.params.L2reg)
+        conv9 = UnetV4_CXN.conv_block_exp_path(input_tensor=up9, filters=128, kernel_size=conv2d_kernel_shape, l2reg=self.params.L2reg, initialization=initialization)
         conv9 = UnetV4_CXN.add_block_exp_path(input_tensor1=conv9, input_tensor2=conv3, input_tensor3=convT9)
 
         convT10 = Conv2DTranspose(64, (2, 2), strides=(2, 2), padding='same', kernel_regularizer=regularizers.l2(self.params.L2reg))(conv9)
         prevup10 = UnetV4_CXN.improve_ff_block1(input_tensor1=conv1, pure_ff=conv2)
         up10 = concatenate([convT10, prevup10], axis=3)
-        conv10 = UnetV4_CXN.conv_block_exp_path(input_tensor=up10, filters=64, kernel_size=conv2d_kernel_shape, l2reg=self.params.L2reg)
+        conv10 = UnetV4_CXN.conv_block_exp_path(input_tensor=up10, filters=64, kernel_size=conv2d_kernel_shape, l2reg=self.params.L2reg, initialization=initialization)
         conv10 = UnetV4_CXN.add_block_exp_path(input_tensor1=conv10, input_tensor2=conv2, input_tensor3=convT10)
 
         convT11 = Conv2DTranspose(32, (2, 2), strides=(2, 2), padding='same', kernel_regularizer=regularizers.l2(self.params.L2reg))(conv10)
         up11 = concatenate([convT11, conv1], axis=3)
-        conv11 = UnetV4_CXN.conv_block_exp_path(input_tensor=up11, filters=32, kernel_size=conv2d_kernel_shape, l2reg=self.params.L2reg)
+        conv11 = UnetV4_CXN.conv_block_exp_path(input_tensor=up11, filters=32, kernel_size=conv2d_kernel_shape, l2reg=self.params.L2reg, initialization=initialization)
         conv11 = UnetV4_CXN.add_block_exp_path(input_tensor1=conv11, input_tensor2=conv1, input_tensor3=convT11)
 
         # -----------------------------------------------------------------------
@@ -599,30 +615,34 @@ class UnetV4_CXN(object):
         print()
 
         # Define callbacks
-        csv_logger, model_checkpoint, model_checkpoint_saving, reduce_lr_on_plat, tensorboard, early_stopping, cyclical_lr_scheduler, factorial_cyclical_lr_scheduler, round_cyclical_learning_rate_scheduler, custom_1e2_scheduler = get_callbacks(self.params)
+        csv_logger, model_checkpoint, model_checkpoint_saving, model_checkpoint_saving_loss, reduce_lr_on_plat, tensorboard, early_stopping, round_learning_rate_scheduler, smith_cyclical_callback = get_callbacks(self.params)
         used_callbacks = [csv_logger,  tensorboard]
         
         if self.params.reduce_lr:
             used_callbacks.append(reduce_lr_on_plat)
         if self.params.lr_scheduler:
-            used_callbacks.append(custom_1e2_scheduler)
+            used_callbacks.append(smith_cyclical_callback)
+            #used_callbacks.append(round_learning_rate_scheduler)
         if self.params.loss_func == "binary_crossentropy":
             if self.params.early_stopping:
                 used_callbacks.append(early_stopping)
             used_callbacks.append(model_checkpoint)
             used_callbacks.append(model_checkpoint_saving)
+            used_callbacks.append(model_checkpoint_saving_loss)
         elif self.params.loss_func == "sparse_categorical_crossentropy":
             sparse_model_checkpoint, sparse_model_weights_checkpoint,  sparse_early_stopping = get_sparse_catgorical_callbacks(self.params)
             if self.params.early_stopping:
                 used_callbacks.append(sparse_early_stopping)
             used_callbacks.append(sparse_model_checkpoint)
             used_callbacks.append(sparse_model_weights_checkpoint)
+            used_callbacks.append(model_checkpoint_saving_loss)
         elif self.params.loss_func == "categorical_crossentropy":
             categorical_model_checkpoint, categorical_model_weights_checkpoint, categorical_early_stopping = get_catgorical_callbacks(self.params)
             if self.params.early_stopping:
                 used_callbacks.append(categorical_early_stopping)
             used_callbacks.append(categorical_model_checkpoint)
             used_callbacks.append(categorical_model_weights_checkpoint)
+            used_callbacks.append(model_checkpoint_saving_loss)
 
         # Configure optimizer (use Nadam or Adam and 'binary_crossentropy' or jaccard_coef_loss)
         if self.params.optimizer == 'Adam':

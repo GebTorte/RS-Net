@@ -20,11 +20,12 @@ from keras.backend import binary_crossentropy, sparse_categorical_crossentropy
 from keras.callbacks import ModelCheckpoint, TensorBoard, ReduceLROnPlateau, CSVLogger, EarlyStopping, LearningRateScheduler
 from keras.utils import Sequence
 from keras.utils import to_categorical
+
 # from tensorflow.metrics import SparseCategoricalAccuracy
 
 sys.path.insert(0, '../')
 from srcv2_2.utils import extract_collapsed_cls, extract_cls_mask, image_normalizer, get_cls, shrink_cls_mask_to_indices, replace_fill_values
-
+from srcv2_2.models.clr_callback import CyclicLR
 
 def swish(x):
     return (K.sigmoid(x) * x)
@@ -120,7 +121,7 @@ def step_learning_rate_scheduler(epoch, lr, epoch_step=10, divisor=2):
         return lr/divisor
     return lr
 
-def round_learning_rate_scheduler(epoch, lr, modulator=6, epoch_cap=100, divifactsor=1.5):
+def round_learning_rate_scheduler(epoch, lr, modulator=6, epoch_cap=100, divifactsor=tf.math.exp(1.5)):
     """
     Note: modulator has to be of even.
 
@@ -141,6 +142,29 @@ def round_learning_rate_scheduler(epoch, lr, modulator=6, epoch_cap=100, divifac
         return lr * divifactsor
     else: # down
         return lr / divifactsor
+
+
+def round_factorial_learning_rate_scheduler(epoch, lr, modulator=6, epoch_cap=100):
+    """
+    Note: modulator has to be of even.
+
+    cyclical learning rate @ Smith 2015 
+    """
+    if epoch > epoch_cap or epoch==0: # or epoch%modulator==0: # stop cycling / @ middle of cycle and stick with current lr
+        return lr
+    
+    epoch = epoch - 1 # reset mod position to start @ zero
+    
+    up = False
+    signed_mod = epoch % modulator  -  modulator / 2
+
+    if signed_mod >= 0:
+        up = not up # switch every modulator/2 epochs
+        
+    if up:
+        return lr * math.factorial(abs(signed_mod))
+    else: # down
+        return lr / math.factorial(abs(signed_mod))
 
 def learning_rate_scheduler(epoch, lr, epoch_cap=15):
     if epoch > epoch_cap: # reduce lr exponentially
@@ -202,6 +226,11 @@ def get_sparse_catgorical_callbacks(params):
                                        monitor='val_sparse_categorical_accuracy',
                                        save_weights_only=True,
                                        save_best_only=params.save_best_only)
+    
+    model_checkpoint_saving_acc = ModelCheckpoint(params.project_path + f'models/Unet/{params.modelID}-best-val-acc.keras',
+                                       monitor='val_sparse_categorical_accuracy',
+                                       save_weights_only=False,
+                                       save_best_only=params.save_best_only)
 
     sparse_early_stopping = EarlyStopping(monitor='val_sparse_categorical_accuracy', patience=params.early_patience, verbose=2)
 
@@ -213,13 +242,18 @@ def get_sparse_catgorical_callbacks(params):
 @keras.saving.register_keras_serializable()
 def get_callbacks(params):
     # Must use save_weights_only=True in model_checkpoint (BUG: https://github.com/fchollet/keras/issues/8123)
-    model_checkpoint = ModelCheckpoint(params.project_path + 'models/Unet/unet_tmp.hdf5',
+    model_checkpoint = ModelCheckpoint(params.project_path + 'models/Unet/{params.modelID}.h5',
                                        monitor='val_acc',
                                        save_weights_only=True,
                                        save_best_only=params.save_best_only)
 
     model_checkpoint_saving = ModelCheckpoint(params.project_path + f'models/Unet/{params.modelID}.keras',
                                        monitor='val_acc',
+                                       save_weights_only=False,
+                                       save_best_only=False)
+    
+    model_checkpoint_saving_loss = ModelCheckpoint(params.project_path + f'models/Unet/{params.modelID}-best-val-loss.keras',
+                                       monitor='val_loss',
                                        save_weights_only=False,
                                        save_best_only=params.save_best_only)
 
@@ -237,11 +271,16 @@ def get_callbacks(params):
     cyclical_lr_scheduler = LearningRateScheduler(cyclical_learning_rate_scheduler, verbose=1)
     factorial_cyclical_lr_scheduler = LearningRateScheduler(cyclical_learning_rate_scheduler_factorial, verbose=1)
     round_cyclical_learning_rate_scheduler = LearningRateScheduler(round_learning_rate_scheduler, verbose=1)
-    
     custom_1e2_learning_rate = LearningRateScheduler(custom_learning_rate_scheduler,verbose=1)
 
+    # https://github.com/bckenstler/CLR
+    # step size = (2-8) * training iterations in epoch
+    cyclical_lr_callback = CyclicLR(base_lr=params.base_lr, max_lr=params.learning_rate,
+                                     step_size=params.cyclical_lr_step_size,
+                                       mode=params.cyclical_lr_mode,
+                                         gamma=params.cyclical_lr_gamma, verbose=1)
 
-    return csv_logger, model_checkpoint, model_checkpoint_saving, reduce_lr, tensorboard, early_stopping, cyclical_lr_scheduler, factorial_cyclical_lr_scheduler, round_cyclical_learning_rate_scheduler, custom_1e2_learning_rate
+    return csv_logger, model_checkpoint, model_checkpoint_saving, model_checkpoint_saving_loss, reduce_lr, tensorboard, early_stopping, round_cyclical_learning_rate_scheduler, cyclical_lr_callback
 
 class ImageSequence(Sequence):
     def __init__(self, params, shuffle, seed, augment_data, validation_generator=False):
@@ -354,7 +393,7 @@ class ImageSequence(Sequence):
                     mask = replace_fill_values(self.params, self.params.train_dataset, mask, fill_with_value=self.params.dataset_fill_cls)
 
                 # normalize the (biome_gt) mask values to range(0, len(cls)-1) 
-                # loss will only compile then
+                # loss will compile only then
                 # do this after replacing fill values!
                 mask = shrink_cls_mask_to_indices(self.params, self.params.train_dataset, self.params.cls, mask)
 
