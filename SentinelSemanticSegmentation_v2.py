@@ -54,6 +54,10 @@ parser.add_argument('--train',
                     action='store_true',
                     help='Run the training step')
 
+parser.add_argument('--load_model',
+                    action='store_true',
+                    help='Try loading a saved model')
+
 parser.add_argument('--hparam_optimization',
                     action='store_true',
                     help='Do hyperparameter optimization')
@@ -145,9 +149,12 @@ if __name__ == '__main__':
         #    normalize_flag = False   
         make_numpy_dataset(params)
 
+    loaded_model = None
+    if args.load_model:
+        loaded_model = tf.keras.saving.load_model(params.project_path +f"models/Unet/{params.modelID}.keras")
+
     # Check to see if a model should be trained
     if args.train:
-        
         print("Training " + args.model + " model")
         #training_history = {}
         #hist_index = 0
@@ -155,13 +162,13 @@ if __name__ == '__main__':
             # Load the model
             params.modelID = params.modelID + '_' + datetime.datetime.now().strftime("%y%m%d%H%M%S")[:12]
             if args.model == 'U-net-v2':
-                model = UnetV2(params)
+                model = UnetV2(params, loaded_model)
                 model.train()
             elif args.model == 'U-net-v3':
-                model = UnetV3(params)
+                model = UnetV3(params, loaded_model)
                 model.train()
             elif args.model == 'U-net-v4-CXN':
-                model = UnetV4_CXN(params)
+                model = UnetV4_CXN(params, loaded_model)
                 model.train()
             # Run model on test data set / leave for test flag
             # evaluate_test_set(model, params.test_dataset, params.num_gpus, params)
@@ -205,11 +212,11 @@ if __name__ == '__main__':
                 params.modelID = time_stamp[0:12] + '-CV' + str(k+1) + 'of' + str(k_folds)  # Used for saving results
 
                 if args.model == "U-net-v2":
-                    model = UnetV2(params)
+                    model = UnetV2(params, model)
                 elif args.model == 'U-net-v3':
-                    model = UnetV3(params)
+                    model = UnetV3(params, model)
                 elif args.model == 'U-net-v4-CXN':
-                    model = UnetV4_CXN(params)
+                    model = UnetV4_CXN(params, model)
                 
                 print("Training on fold " + str(k + 1) + " of " + str(k_folds))
                 model.train()
@@ -219,19 +226,19 @@ if __name__ == '__main__':
 
     if args.test:
         if args.model == 'U-net-v2':
-            loaded_model = tf.keras.saving.load_model(f"./models/Unet/{params.modelID}.keras")
+            #loaded_model = tf.keras.saving.load_model(f"./models/Unet/{params.modelID}.keras")
             # {get_model_name(params)}
             #loaded_model = tf.keras.saving.load_model(f"../models/Unet/{params.modelID}.keras")
             model = UnetV2(params, model=loaded_model)  # to implement for V2: load model from file
         # out = model.evaluate(return_dict=True)
         if args.model == 'U-net-v3':
-            loaded_model = tf.keras.saving.load_model(f"./models/Unet/{params.modelID}.keras")
+            #loaded_model = tf.keras.saving.load_model(f"./models/Unet/{params.modelID}.keras")
             # {get_model_name(params)}
             #loaded_model = tf.keras.saving.load_model(f"../models/Unet/{params.modelID}.keras")
             model = UnetV3(params, model=loaded_model)
 
         if args.model == 'U-net-v4-CXN':
-            loaded_model = tf.keras.saving.load_model(f"./models/Unet/{params.modelID}.keras")
+            #loaded_model = tf.keras.saving.load_model(f"./models/Unet/{params.modelID}.keras")
             # {get_model_name(params)}
             #loaded_model = tf.keras.saving.load_model(f"../models/Unet/{params.modelID}.keras")
             model = UnetV4_CXN(params, model=loaded_model)

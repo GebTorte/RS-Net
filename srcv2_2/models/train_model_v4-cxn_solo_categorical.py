@@ -46,7 +46,7 @@ new_params = HParams(activation_func="relu", # or elu or leaky relu?
                 random=False,
                 shuffle=True,
                 optimizer='AdamW',
-                modelID="SIS_categorical", #"240515092709-CV1of2",
+                modelID="dummy_240629081953-best-val-loss", #"240515092709-CV1of2",
                 modelNick="U-net-v4-cxn-256-kernel77", # "U-net-v4-cxn-128-kernel77"
                 loss_func="sparse_categorical_crossentropy",
                 learning_rate=1e-7, #1e-5
@@ -111,8 +111,10 @@ if __name__ == '__main__':
                         script,
                         "--model", str(MODEL),
                         #"--make_dataset",  # needed if cls definitions changed from fmask to gt or vice versa    
+                        
                         "--train",
-                        #"--dev_dataset",
+                        "--load_model",
+
                         #"--test", # works now, but takes a loong time. # needed for writing csv output.
                         
                         "--save_output", # every model has like 3G output

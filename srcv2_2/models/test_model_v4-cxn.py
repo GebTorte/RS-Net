@@ -70,6 +70,7 @@ if __name__ == '__main__':
                         #"--make_dataset",  # needed if cls definitions changed from fmask to gt or vice versa    
                         #"--train",
                         #"--dev_dataset",
+                        "--load_model",
                         "--test", # works now, but takes a loong time. # needed for writing csv output.
                         
                         "--save_output", # every model has like 3G output
