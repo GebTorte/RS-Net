@@ -31,7 +31,7 @@ Order: 3, 4, 1, 2, 6, 7, 5
 """
 
 MODEL = "U-net-v4-CXN"
-CLS=['shadow', 'clear', 'thin', 'cloud'] # 'fill' has to be included for categorical? No., so model non-class option for fill pixel and thus wont learn bad habits.
+CLS=['shadow', 'clear', 'thin', 'cloud'] # try reorder, might reduce loss? ['clear', 'shadow', 'thin', 'cloud']
 SATELLITE = "Landsat8"
 TRAIN_DATASET = "Biome_gt"
 TEST_DATASET= TRAIN_DATASET
@@ -47,14 +47,19 @@ new_params = HParams(activation_func="relu", # or elu or leaky relu?
                 shuffle=True,
                 optimizer='AdamW',
                 modelID="dummy", #"240515092709-CV1of2",
-                modelNick="U-net-v4-cxn-128-kernel77", # "U-net-v3_1024", # str(MODEL)
+                modelNick="U-net-v4-cxn-256-kernel77", # "U-net-v4-cxn-128-kernel77"
                 loss_func="sparse_categorical_crossentropy",
-                learning_rate=1e-5, # 1e-6, 1e-4
+                learning_rate=1e-5, # 1e-6, 1e-4 # 1e-3??
+                base_lr=1e-7,
+                cyclical_lr_step_size=2*165, # number iterations per epoch = number batches in epoch # for training on full dataset, double?
+                cyclical_lr_mode="exp_range", 
+                cyclical_lr_gamma = 0.99994,
                 batch_size=20, 
-                reduce_lr=True, 
-                plateau_patience=3, # 1?
-                lr_scheduler=False,
-                which_scheduler="None",#"custom_scheduler_epoch-cap1_exp-0.7_epsilon1e-10", #"step-6-13--0.5",# "custom_scheduler_epoch-cap4_exp-0.5_epsilon1e-6", # manually adjust this; only for logging
+                reduce_lr=False, 
+                plateau_patience=1,
+                lr_scheduler=True,
+                # actually use cyclical lr, to combine low val loss of 1e-2 lr and high acc of 1e-5 to 1e-7 ??
+                which_scheduler="smith cyclical lr class", #"cyclical-mod6-exp-1.5",#"cyclical-mod6-exp-2", # "custom_scheduler_epoch-cap1_exp-0.7_epsilon1e-10", #"step-6-13--0.5",# "custom_scheduler_epoch-cap4_exp-0.5_epsilon1e-6", # manually adjust this; only for logging
                 early_stopping=True,
                 early_patience=100, # maybe up this to ~= epochs/2
                 replace_fill_values = True,
@@ -62,13 +67,13 @@ new_params = HParams(activation_func="relu", # or elu or leaky relu?
                 # If set to None, fill values will be replaced by most probable cls and not ignored by sparse categorical crossentropy.
                 affine_transformation = True,
                 dropout_on_last_layer_only=True, # if using dropout, definitely test both
-                decay=0.5, # 1e-3 # initial lr / nr epochs?
-                L2reg=1e-2,
+                decay=0.75, # 1e-3 # initial lr / nr epochs?
+                L2reg=3e-3,
                 bands=[1, 2, 3, 4, 5, 6, 7],
-                epochs=24, # set this to x \times modulator -1 to end on a low lr
+                epochs=50, # set this to x \times modulator -1 to end on a low lr
                 # steps_per_epoch=3,
                 norm_method="enhance_contrast", #"enhance_contrast"
-                initialization="he_normal", #he_normal? @rainio2024
+                initialization="glorot_normal", #he_normal? @rainio2024
                 last_layer_activation_func='softmax', # 'softmax'
                 satellite=SATELLITE,
                 collapse_cls=False,

@@ -1,5 +1,6 @@
 from tensorflow.keras.callbacks import *
 from tensorflow.keras import backend as K
+from keras.src.utils import io_utils
 import numpy as np
 
 class CyclicLR(Callback):
@@ -132,3 +133,12 @@ class CyclicLR(Callback):
             self.history.setdefault(k, []).append(v)
         
         K.set_value(self.model.optimizer.lr, self.clr())
+
+    def on_epoch_begin(self, epoch, logs={}):
+        lr = self.model.optimizer.lr
+        if self.verbose > 0:
+            io_utils.print_msg(
+            f"\nEpoch {epoch +1}: "
+            "CLR Callback current "
+            f"learning rate {str(lr)}."
+            )
