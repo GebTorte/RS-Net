@@ -1,6 +1,8 @@
 # Instructions for SentinelSemanticSegmentation_v2.py
 
-Params are now semi-colon-separeted!
+Params are now semi-colon-separated!
+
+Scripts have been implemented to succeed most of the following commands. It is recommended to run via script.
 
 ## Making a dataset
 Train_dataset defines the processing step
