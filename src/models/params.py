@@ -25,7 +25,7 @@ def get_params(model, satellite):
                                            # Get absolute path of the project (https://stackoverflow.com/questions/50499
                                            # /how-do-i-get-the-path-and-name-of-the-file-that-is-currently-executing)
                                            #project_path=os.path.dirname(os.path.abspath(inspect.stack()[-1][1])) + "/")
-                                           project_path="/home/jhj/phd/GitProjects/SentinelSemanticSegmentation/",
+                                           project_path="/home/mxh/RS-Net/",
                                            satellite='Sentinel-2')
 
     elif model == 'U-net' and satellite == 'Landsat8':
@@ -68,7 +68,7 @@ def get_params(model, satellite):
                                            # Get absolute path of the project (https://stackoverflow.com/questions/50499
                                            # /how-do-i-get-the-path-and-name-of-the-file-that-is-currently-executing)
                                            # project_path=os.path.dirname(os.path.abspath(inspect.stack()[-1][1])) + "/")
-                                           project_path="/home/jhj/phd/GitProjects/SentinelSemanticSegmentation/",
+                                           project_path="/home/mxh/RS-Net/",
                                            satellite='Landsat8',
                                            train_dataset='Biome_fmask',  # Training dataset (gt/fmask/sen2cor)
                                            test_dataset='Biome_gt',  # Test dataset (gt/fmask/sen2cor)

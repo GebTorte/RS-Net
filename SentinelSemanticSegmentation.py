@@ -121,7 +121,7 @@ if __name__ == '__main__':
 
     # If you want to use local files (else it uses network drive)
     if args.dev_dataset:
-        params.data_path = "/home/jhj/phd/GitProjects/SentinelSemanticSegmentation/data/processed/dev_dataset/"
+        params.data_path = "/home/mxh/RS-Net/dev_dataset/"
 
     # Check to see if a new data set should be processed from the raw data
     if args.make_dataset:
@@ -148,7 +148,7 @@ if __name__ == '__main__':
                 k_folds = 5  # SPARCS contains 80 scenes, so split it nicely
 
                 # Create a list of names for the splitting
-                sparcs_products = sorted(os.listdir(params.project_path + "data/raw/SPARCS_dataset/"))
+                sparcs_products = sorted(os.listdir(params.project_path + "data/raw/SPARCS_dataset/l8cloudmasks/sending/"))
                 sparcs_products = [f for f in sparcs_products if 'data.tif' in f]
                 sparcs_products = [f for f in sparcs_products if 'aux' not in f]
 

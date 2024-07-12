@@ -8,10 +8,12 @@ set_random_seed(1)
 import numpy as np
 import tensorflow as tf
 from keras.models import Model
-from keras.layers import Input, Conv2D, MaxPooling2D, UpSampling2D, Concatenate, Dropout, regularizers, Cropping2D, Activation
+from keras.layers import Input, Conv2D, MaxPooling2D, UpSampling2D, Concatenate, Dropout, Cropping2D, Activation
 from keras.layers.normalization import BatchNormalization
+from keras import regularizers
 from keras.optimizers import Adam, Nadam
-from keras.utils.training_utils import multi_gpu_model
+#from keras.utils.training_utils import multi_gpu_model
+from keras.utils import multi_gpu_model
 from ..utils import get_model_name
 from src.models.model_utils import jaccard_coef, jaccard_coef_thresholded, jaccard_coef_loss, swish, get_callbacks, ImageSequence
 from keras.utils.generic_utils import get_custom_objects  # To use swish activation function

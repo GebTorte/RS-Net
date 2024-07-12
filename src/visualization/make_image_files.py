@@ -31,7 +31,9 @@ def visualize_test_data(model, num_gpus, params):
             for product in products:
                 print('Evaluating tile no.', i,':', folder, ' - ', product)
                 data_path = params.project_path + "data/raw/" + folder + "/BC/" + product + "/"
-                __visualize_landsat8_tile__(model, product, data_path, num_gpus, params)
+                toa_path = params.project_path + "data/processed/Biome_TOA/"+ folder + "/BC/" + product + "/"
+
+                __visualize_landsat8_tile__(model, product, data_path, num_gpus, params, toa_path)
                 print('---')
 
                 i += 1
@@ -133,7 +135,7 @@ def __visualize_sentinel2_tile__(model, file, num_gpus, params):
             break
 
 
-def __visualize_landsat8_tile__(model, file, data_path, num_gpus, params):
+def __visualize_landsat8_tile__(model, file, data_path, num_gpus, params, toa_path):
     # Measure the time it takes to load data
     start_time = time.time()
 
@@ -145,13 +147,13 @@ def __visualize_landsat8_tile__(model, file, data_path, num_gpus, params):
     n_bands = np.size(params.bands)
 
     # Load the RGB data for the scene
-    img, img_rgb = load_product(file, params, data_path)
+    img, img_rgb = load_product(file, params, data_path, toa_path)
 
     # Load the true classification mask
     mask_true = tiff.imread(data_path + file + '_fixedmask.TIF')  # The 30 m is the native resolution
 
     # Get the masks
-    cls = get_cls(params)
+    cls = get_cls(params, params.test_dataset, [c.strip("\"\'") for c in params.cls])
 
     # Create the binary masks
     if params.collapse_cls:

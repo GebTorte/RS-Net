@@ -1,0 +1,14 @@
+{
+    "terminal.integrated.profiles.linux": {
+        "bash": {
+            "path": "bash",
+        },
+        "tmux": {
+            "path": "bash",
+            "args": ["-c", "tmux new -ADs ${PWD##*/}"],
+            "icon": "terminal-tmux",
+        },
+        
+    },
+    "terminal.integrated.defaultProfile.linux": "tmux",
+}
