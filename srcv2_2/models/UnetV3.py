@@ -145,7 +145,7 @@ class UnetV3(object):
 
         #---------------------------------------------------------#
         # JEPPESEN 
-        model = self._load_model_v2_1024(kernel_shape=(7,7))
+        model = self._load_model_v2(kernel_shape=(7,7))
         model.build(tf.TensorShape(dims=[self.params.batch_size, self.params.patch_size, self.params.patch_size, self.n_bands]))
         model.summary(print_fn=UnetV3.print_summary)
         print(model.summary())
@@ -701,7 +701,7 @@ class UnetV3(object):
         model = Model(inputs=[inputs], outputs=[outputs])
         return model
     
-    def _load_rainio_deeper_unet_v3_16_512(self):
+    def _load_rainio_deeper_unet_v3_16_512(self, kernel_shape=(3,3)):
             
         #U-Net model
         inputs = keras.layers.Input(shape=(self.params.patch_size,self.params.patch_size,self.n_bands))
@@ -715,77 +715,77 @@ class UnetV3(object):
         dropout2 = dropout1 + .1 if dropout1 != 0 else 0
 
         #Contraction path
-        c1 = keras.layers.Conv2D(16, (3, 3), activation=activation, kernel_initializer=kernel_init, kernel_regularizer=regularizers.l2(self.params.L2reg), padding='same')(inputs)
+        c1 = keras.layers.Conv2D(16, kernel_shape, activation=activation, kernel_initializer=kernel_init, kernel_regularizer=regularizers.l2(self.params.L2reg), padding='same')(inputs)
         c1 = BatchNormalization(momentum=self.params.batch_norm_momentum)(c1) if self.params.use_batch_norm else c1
         c1 = keras.layers.Dropout(dropout1)(c1)
-        c1 = keras.layers.Conv2D(16, (3, 3), activation=activation, kernel_initializer=kernel_init, kernel_regularizer=regularizers.l2(self.params.L2reg),padding='same')(c1)
+        c1 = keras.layers.Conv2D(16, kernel_shape, activation=activation, kernel_initializer=kernel_init, kernel_regularizer=regularizers.l2(self.params.L2reg),padding='same')(c1)
         c1 = BatchNormalization(momentum=self.params.batch_norm_momentum)(c1) if self.params.use_batch_norm else c1
         p1 = keras.layers.MaxPooling2D((2, 2))(c1)
 
-        c2 = keras.layers.Conv2D(32, (3, 3), activation=activation, kernel_initializer=kernel_init, kernel_regularizer=regularizers.l2(self.params.L2reg),padding='same')(p1)
+        c2 = keras.layers.Conv2D(32, kernel_shape, activation=activation, kernel_initializer=kernel_init, kernel_regularizer=regularizers.l2(self.params.L2reg),padding='same')(p1)
         c2 = BatchNormalization(momentum=self.params.batch_norm_momentum)(c2) if self.params.use_batch_norm else c2
         c2 = keras.layers.Dropout(dropout1)(c2)
-        c2 = keras.layers.Conv2D(32, (3, 3), activation=activation, kernel_initializer=kernel_init, kernel_regularizer=regularizers.l2(self.params.L2reg),padding='same')(c2)
+        c2 = keras.layers.Conv2D(32, kernel_shape, activation=activation, kernel_initializer=kernel_init, kernel_regularizer=regularizers.l2(self.params.L2reg),padding='same')(c2)
         c2 = BatchNormalization(momentum=self.params.batch_norm_momentum)(c2) if self.params.use_batch_norm else c2
         p2 = keras.layers.MaxPooling2D((2, 2))(c2)
 
-        c3 = keras.layers.Conv2D(64, (3, 3), activation=activation, kernel_initializer=kernel_init, kernel_regularizer=regularizers.l2(self.params.L2reg),padding='same')(p2)
+        c3 = keras.layers.Conv2D(64, kernel_shape, activation=activation, kernel_initializer=kernel_init, kernel_regularizer=regularizers.l2(self.params.L2reg),padding='same')(p2)
         c3 = BatchNormalization(momentum=self.params.batch_norm_momentum)(c3) if self.params.use_batch_norm else c3
         c3 = keras.layers.Dropout(dropout2)(c3)
-        c3 = keras.layers.Conv2D(64, (3, 3), activation=activation, kernel_initializer=kernel_init, kernel_regularizer=regularizers.l2(self.params.L2reg),padding='same')(c3)
+        c3 = keras.layers.Conv2D(64, kernel_shape, activation=activation, kernel_initializer=kernel_init, kernel_regularizer=regularizers.l2(self.params.L2reg),padding='same')(c3)
         c3 = BatchNormalization(momentum=self.params.batch_norm_momentum)(c3) if self.params.use_batch_norm else c3
         p3 = keras.layers.MaxPooling2D((2, 2))(c3)
 
-        c4 = keras.layers.Conv2D(128, (3, 3), activation=activation, kernel_initializer=kernel_init, kernel_regularizer=regularizers.l2(self.params.L2reg),padding='same')(p3)
+        c4 = keras.layers.Conv2D(128, kernel_shape, activation=activation, kernel_initializer=kernel_init, kernel_regularizer=regularizers.l2(self.params.L2reg),padding='same')(p3)
         c4 = BatchNormalization(momentum=self.params.batch_norm_momentum)(c4) if self.params.use_batch_norm else c4
         c4 = keras.layers.Dropout(dropout2)(c4)
-        c4 = keras.layers.Conv2D(128, (3, 3), activation=activation, kernel_initializer=kernel_init, kernel_regularizer=regularizers.l2(self.params.L2reg),padding='same')(c4)
+        c4 = keras.layers.Conv2D(128, kernel_shape, activation=activation, kernel_initializer=kernel_init, kernel_regularizer=regularizers.l2(self.params.L2reg),padding='same')(c4)
         c4 = BatchNormalization(momentum=self.params.batch_norm_momentum)(c4) if self.params.use_batch_norm else c4
         p4 = keras.layers.MaxPooling2D((2, 2))(c4)
 
-        c5 = keras.layers.Conv2D(256, (3, 3), activation=activation, kernel_initializer=kernel_init, kernel_regularizer=regularizers.l2(self.params.L2reg),padding='same')(p4)
+        c5 = keras.layers.Conv2D(256, kernel_shape, activation=activation, kernel_initializer=kernel_init, kernel_regularizer=regularizers.l2(self.params.L2reg),padding='same')(p4)
         c5 = BatchNormalization(momentum=self.params.batch_norm_momentum)(c5) if self.params.use_batch_norm else c5
         c5 = keras.layers.Dropout(dropout2)(c5)
-        c5 = keras.layers.Conv2D(256, (3, 3), activation=activation, kernel_initializer=kernel_init, kernel_regularizer=regularizers.l2(self.params.L2reg),padding='same')(c5)
+        c5 = keras.layers.Conv2D(256, kernel_shape, activation=activation, kernel_initializer=kernel_init, kernel_regularizer=regularizers.l2(self.params.L2reg),padding='same')(c5)
         c5 = BatchNormalization(momentum=self.params.batch_norm_momentum)(c5) if self.params.use_batch_norm else c5
         p5 = keras.layers.MaxPooling2D((2, 2))(c5)
 
-        c51 = keras.layers.Conv2D(512, (3, 3), activation=activation, kernel_initializer=kernel_init, kernel_regularizer=regularizers.l2(self.params.L2reg),padding='same')(p5)
+        c51 = keras.layers.Conv2D(512, kernel_shape, activation=activation, kernel_initializer=kernel_init, kernel_regularizer=regularizers.l2(self.params.L2reg),padding='same')(p5)
         c51 = BatchNormalization(momentum=self.params.batch_norm_momentum)(c51) if self.params.use_batch_norm else c51
         c51 = keras.layers.Dropout(dropout2)(c51)
-        c51 = keras.layers.Conv2D(512, (3, 3), activation=activation, kernel_initializer=kernel_init, kernel_regularizer=regularizers.l2(self.params.L2reg),padding='same')(c51)
+        c51 = keras.layers.Conv2D(512, kernel_shape, activation=activation, kernel_initializer=kernel_init, kernel_regularizer=regularizers.l2(self.params.L2reg),padding='same')(c51)
         c51 = BatchNormalization(momentum=self.params.batch_norm_momentum)(c51) if self.params.use_batch_norm else c51
 
         #Expansive path
         u52 = keras.layers.Conv2DTranspose(256, (2, 2), strides=(2, 2), padding='same')(c51)
         u52 = keras.layers.concatenate([u52, c5])
-        c52 = keras.layers.Conv2D(256, (3, 3), activation=activation, kernel_initializer=kernel_init, kernel_regularizer=regularizers.l2(self.params.L2reg),padding='same')(u52)
+        c52 = keras.layers.Conv2D(256, kernel_shape, activation=activation, kernel_initializer=kernel_init, kernel_regularizer=regularizers.l2(self.params.L2reg),padding='same')(u52)
         c52 = keras.layers.Dropout(dropout1)(c52)
-        c52 = keras.layers.Conv2D(256, (3, 3), activation=activation, kernel_initializer=kernel_init, kernel_regularizer=regularizers.l2(self.params.L2reg),padding='same')(c52)
+        c52 = keras.layers.Conv2D(256, kernel_shape, activation=activation, kernel_initializer=kernel_init, kernel_regularizer=regularizers.l2(self.params.L2reg),padding='same')(c52)
 
         u6 = keras.layers.Conv2DTranspose(128, (2, 2), strides=(2, 2), padding='same')(c52)
         u6 = keras.layers.concatenate([u6, c4])
-        c6 = keras.layers.Conv2D(128, (3, 3), activation=activation, kernel_initializer=kernel_init, kernel_regularizer=regularizers.l2(self.params.L2reg),padding='same')(u6)
+        c6 = keras.layers.Conv2D(128, kernel_shape, activation=activation, kernel_initializer=kernel_init, kernel_regularizer=regularizers.l2(self.params.L2reg),padding='same')(u6)
         c6 = keras.layers.Dropout(dropout1)(c6)
-        c6 = keras.layers.Conv2D(128, (3, 3), activation=activation, kernel_initializer=kernel_init, kernel_regularizer=regularizers.l2(self.params.L2reg),padding='same')(c6)
+        c6 = keras.layers.Conv2D(128, kernel_shape, activation=activation, kernel_initializer=kernel_init, kernel_regularizer=regularizers.l2(self.params.L2reg),padding='same')(c6)
 
         u7 = keras.layers.Conv2DTranspose(64, (2, 2), strides=(2, 2), padding='same')(c6)
         u7 = keras.layers.concatenate([u7, c3])
-        c7 = keras.layers.Conv2D(64, (3, 3), activation=activation, kernel_initializer=kernel_init, kernel_regularizer=regularizers.l2(self.params.L2reg),padding='same')(u7)
+        c7 = keras.layers.Conv2D(64, kernel_shape, activation=activation, kernel_initializer=kernel_init, kernel_regularizer=regularizers.l2(self.params.L2reg),padding='same')(u7)
         c7 = keras.layers.Dropout(dropout1)(c7)
-        c7 = keras.layers.Conv2D(64, (3, 3), activation=activation, kernel_initializer=kernel_init, kernel_regularizer=regularizers.l2(self.params.L2reg),padding='same')(c7)
+        c7 = keras.layers.Conv2D(64, kernel_shape, activation=activation, kernel_initializer=kernel_init, kernel_regularizer=regularizers.l2(self.params.L2reg),padding='same')(c7)
 
         u8 = keras.layers.Conv2DTranspose(32, (2, 2), strides=(2, 2), padding='same')(c7)
         u8 = keras.layers.concatenate([u8, c2])
-        c8 = keras.layers.Conv2D(32, (3, 3), activation=activation, kernel_initializer=kernel_init, kernel_regularizer=regularizers.l2(self.params.L2reg),padding='same')(u8)
+        c8 = keras.layers.Conv2D(32, kernel_shape, activation=activation, kernel_initializer=kernel_init, kernel_regularizer=regularizers.l2(self.params.L2reg),padding='same')(u8)
         c8 = keras.layers.Dropout(dropout1)(c8)
-        c8 = keras.layers.Conv2D(32, (3, 3), activation=activation, kernel_initializer=kernel_init, kernel_regularizer=regularizers.l2(self.params.L2reg),padding='same')(c8)
+        c8 = keras.layers.Conv2D(32, kernel_shape, activation=activation, kernel_initializer=kernel_init, kernel_regularizer=regularizers.l2(self.params.L2reg),padding='same')(c8)
 
         u9 = keras.layers.Conv2DTranspose(16, (2, 2), strides=(2, 2), padding='same')(c8)
         u9 = keras.layers.concatenate([u9, c1], axis=3)
-        c9 = Conv2D(16, (3, 3), activation=activation, kernel_initializer=kernel_init, kernel_regularizer=regularizers.l2(self.params.L2reg),padding='same')(u9)
+        c9 = Conv2D(16, kernel_shape, activation=activation, kernel_initializer=kernel_init, kernel_regularizer=regularizers.l2(self.params.L2reg),padding='same')(u9)
         c9 = Dropout(dropout1)(c9)
-        c9 = keras.layers.Conv2D(16, (3, 3), activation=activation, kernel_initializer=kernel_init, kernel_regularizer=regularizers.l2(self.params.L2reg),padding='same')(c9)
+        c9 = keras.layers.Conv2D(16, kernel_shape, activation=activation, kernel_initializer=kernel_init, kernel_regularizer=regularizers.l2(self.params.L2reg),padding='same')(c9)
 
         # ------------------------------------------------------------------------------------------------------------------------------------
         # clipping to (216,216) (@ 40 overlap)
@@ -1795,13 +1795,13 @@ class UnetV3(object):
         print()
 
         # Define callbacks
-        csv_logger, model_checkpoint, model_checkpoint_saving, reduce_lr_on_plat, tensorboard, early_stopping, cyclical_lr_scheduler, factorial_cyclical_lr_scheduler, round_cyclical_learning_rate_scheduler, custom_1e2_scheduler = get_callbacks(self.params)
+        csv_logger, model_checkpoint, model_checkpoint_saving, model_checkpoint_saving_loss, reduce_lr, tensorboard, early_stopping, round_cyclical_learning_rate_scheduler, cyclical_lr_callback = get_callbacks(self.params)
         used_callbacks = [csv_logger,  tensorboard]
         
         if self.params.reduce_lr:
-            used_callbacks.append(reduce_lr_on_plat)
+            used_callbacks.append(reduce_lr)
         if self.params.lr_scheduler:
-            used_callbacks.append(custom_1e2_scheduler)
+            used_callbacks.append(cyclical_lr_callback)
         if self.params.loss_func == "binary_crossentropy":
             if self.params.early_stopping:
                 used_callbacks.append(early_stopping)

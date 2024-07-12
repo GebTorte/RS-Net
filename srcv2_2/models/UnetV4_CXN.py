@@ -621,8 +621,8 @@ class UnetV4_CXN(object):
         if self.params.reduce_lr:
             used_callbacks.append(reduce_lr_on_plat)
         if self.params.lr_scheduler:
-            #used_callbacks.append(smith_cyclical_callback)
-            used_callbacks.append(round_learning_rate_scheduler)
+            used_callbacks.append(smith_cyclical_callback)
+            #used_callbacks.append(round_learning_rate_scheduler)
         if self.params.loss_func == "binary_crossentropy":
             if self.params.early_stopping:
                 used_callbacks.append(early_stopping)

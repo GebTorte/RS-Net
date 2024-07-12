@@ -121,7 +121,7 @@ def step_learning_rate_scheduler(epoch, lr, epoch_step=10, divisor=2):
         return lr/divisor
     return lr
 
-def round_learning_rate_scheduler(epoch, lr, modulator=6, epoch_cap=128, divifactsor=tf.math.exp(1.5), up=True):
+def round_learning_rate_scheduler(epoch, lr, modulator=6, epoch_cap=129, divifactsor=tf.math.exp(1.5), up=False):
     """
     Note: modulator has to be of even.
 
@@ -274,11 +274,11 @@ def get_callbacks(params):
 
     # https://github.com/bckenstler/CLR
     # step size = (2-8) * training iterations in epoch
-    cyclical_lr_callback=None
-    #cyclical_lr_callback = CyclicLR(base_lr=params.base_lr, max_lr=params.learning_rate,
-    #                                 step_size=params.cyclical_lr_step_size,
-    #                                   mode=params.cyclical_lr_mode,
-    #                                     gamma=params.cyclical_lr_gamma, verbose=1)
+    #cyclical_lr_callback=None
+    cyclical_lr_callback = CyclicLR(base_lr=params.base_lr, max_lr=params.learning_rate,
+                                     step_size=params.cyclical_lr_step_size,
+                                       mode=params.cyclical_lr_mode,
+                                         gamma=params.cyclical_lr_gamma, verbose=1)
 
     return csv_logger, model_checkpoint, model_checkpoint_saving, model_checkpoint_saving_loss, reduce_lr, tensorboard, early_stopping, round_cyclical_learning_rate_scheduler, cyclical_lr_callback
 

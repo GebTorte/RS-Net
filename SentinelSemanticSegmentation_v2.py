@@ -212,11 +212,11 @@ if __name__ == '__main__':
                 params.modelID = time_stamp[0:12] + '-CV' + str(k+1) + 'of' + str(k_folds)  # Used for saving results
 
                 if args.model == "U-net-v2":
-                    model = UnetV2(params, model)
+                    model = UnetV2(params, loaded_model)
                 elif args.model == 'U-net-v3':
-                    model = UnetV3(params, model)
+                    model = UnetV3(params, loaded_model)
                 elif args.model == 'U-net-v4-CXN':
-                    model = UnetV4_CXN(params, model)
+                    model = UnetV4_CXN(params, loaded_model)
                 
                 print("Training on fold " + str(k + 1) + " of " + str(k_folds))
                 model.train()
