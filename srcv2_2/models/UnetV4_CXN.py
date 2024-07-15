@@ -14,7 +14,7 @@ from keras.models import Model
 from keras import regularizers
 from keras.metrics import Precision, Recall
 from keras.initializers import GlorotNormal, HeNormal
-from keras.layers import Input, Conv2D, MaxPooling2D, UpSampling2D, Concatenate, Dropout, Cropping2D, Activation, BatchNormalization, LeakyReLU
+from keras.layers import Input, Conv2D, MaxPooling2D, UpSampling2D, Concatenate, Dropout, Cropping2D, Activation, BatchNormalization
 from keras.optimizers.legacy import Adam, Nadam
 from keras.optimizers import AdamW
 from keras.utils import get_custom_objects  # To use swish activation function
@@ -35,6 +35,9 @@ from keras import backend as K
 
 smooth = 0.0000001
 
+activation_func = "relu"
+initialization = "glorot_uniform"
+l2_reg = 1e-3
 
 class UnetV4_CXN(object):
     def __init__(self, params, model=None):
@@ -117,13 +120,18 @@ class UnetV4_CXN(object):
     def __create_inference__(self):
         # Note about BN and dropout: https://stackoverflow.com/questions/46316687/how-to-include-batch-normalization-in-non-sequential-keras-model
 
+        # set params
+        activation_func = self.params.activation_func
+        initialization = self.params.initialization
+        l2_reg = self.params.L2reg
 
         model = self.model_arch_256(input_rows=self.params.patch_size,
                                 input_cols=self.params.patch_size, 
                                 num_of_channels=self.n_bands, 
                                 num_of_classes=self.n_cls, 
                                 conv2d_kernel_shape=(7,7),
-                                initialization=self.params.initialization)
+                                depth_separable_kernel_shape=(7,7))
+        
         #model.compile(optimizer = Adam(lr = 1e-4), loss = self.params., metrics = [self.jacc_coef,'accuracy'])
 
         model.build(tf.TensorShape(dims=[self.params.batch_size, self.params.patch_size, self.params.patch_size, self.n_bands]))
@@ -140,43 +148,43 @@ class UnetV4_CXN(object):
             f.write(s + "\n")
 
     @staticmethod
-    def aspp(x,out_shape, L2reg, initialization):
-        b0=SeparableConv2D(256,(1,1),padding="same",use_bias=False, depthwise_regularizer=regularizers.l2(L2reg), depthwise_initializer=initialization)(x)
+    def aspp(x,out_shape, kernel_shape=(3,3), kernel_shape2=(3,3)):
+        b0=SeparableConv2D(256,kernel_shape2,padding="same",use_bias=False, depthwise_regularizer=regularizers.l2(l2_reg), depthwise_initializer=initialization)(x)
         b0=BatchNormalization()(b0)
-        b0=Activation("relu")(b0)
+        b0=Activation(activation_func)(b0)
 
         #b5=DepthwiseConv2D((3,3),dilation_rate=(3,3),padding="same",use_bias=False)(x)
         #b5=BatchNormalization()(b5)
-        #b5=Activation("relu")(b5)
-        #b5=SeparableConv2D(256,(1,1),padding="same",use_bias=False)(b5)
+        #b5=Activation(activation_func)(b5)
+        #b5=SeparableConv2D(256,kernel_shape2,padding="same",use_bias=False)(b5)
         #b5=BatchNormalization()(b5)
-        #b5=Activation("relu")(b5)
+        #b5=Activation(activation_func)(b5)
         
-        b1=DepthwiseConv2D((3,3),dilation_rate=(6,6),padding="same",use_bias=False, depthwise_regularizer=regularizers.l2(L2reg), depthwise_initializer=initialization)(x)
+        b1=DepthwiseConv2D(kernel_shape,dilation_rate=(6,6),padding="same",use_bias=False, depthwise_regularizer=regularizers.l2(l2_reg), depthwise_initializer=initialization)(x)
         b1=BatchNormalization()(b1)
-        b1=Activation("relu")(b1)
-        b1=SeparableConv2D(256,(1,1),padding="same",use_bias=False, depthwise_regularizer=regularizers.l2(L2reg), depthwise_initializer=initialization)(b1)
+        b1=Activation(activation_func)(b1)
+        b1=SeparableConv2D(256,kernel_shape2,padding="same",use_bias=False, depthwise_regularizer=regularizers.l2(l2_reg), depthwise_initializer=initialization)(b1)
         b1=BatchNormalization()(b1)
-        b1=Activation("relu")(b1)
+        b1=Activation(activation_func)(b1)
         
-        b2=DepthwiseConv2D((3,3),dilation_rate=(12,12),padding="same",use_bias=False, depthwise_regularizer=regularizers.l2(L2reg), depthwise_initializer=initialization)(x)
+        b2=DepthwiseConv2D(kernel_shape,dilation_rate=(12,12),padding="same",use_bias=False, depthwise_regularizer=regularizers.l2(l2_reg), depthwise_initializer=initialization)(x)
         b2=BatchNormalization()(b2)
-        b2=Activation("relu")(b2)
-        b2=SeparableConv2D(256,(1,1),padding="same",use_bias=False, depthwise_regularizer=regularizers.l2(L2reg), depthwise_initializer=initialization)(b2)
+        b2=Activation(activation_func)(b2)
+        b2=SeparableConv2D(256,kernel_shape2,padding="same",use_bias=False, depthwise_regularizer=regularizers.l2(l2_reg), depthwise_initializer=initialization)(b2)
         b2=BatchNormalization()(b2)
-        b2=Activation("relu")(b2)	
+        b2=Activation(activation_func)(b2)	
         
-        b3=DepthwiseConv2D((3,3),dilation_rate=(18,18),padding="same",use_bias=False, depthwise_regularizer=regularizers.l2(L2reg), depthwise_initializer=initialization)(x)
+        b3=DepthwiseConv2D(kernel_shape,dilation_rate=(18,18),padding="same",use_bias=False, depthwise_regularizer=regularizers.l2(l2_reg), depthwise_initializer=initialization)(x)
         b3=BatchNormalization()(b3)
-        b3=Activation("relu")(b3)
-        b3=SeparableConv2D(256,(1,1),padding="same",use_bias=False, depthwise_regularizer=regularizers.l2(L2reg), depthwise_initializer=initialization)(b3)
+        b3=Activation(activation_func)(b3)
+        b3=SeparableConv2D(256,kernel_shape2,padding="same",use_bias=False, depthwise_regularizer=regularizers.l2(l2_reg), depthwise_initializer=initialization)(b3)
         b3=BatchNormalization()(b3)
-        b3=Activation("relu")(b3)
+        b3=Activation(activation_func)(b3)
         
         b4=AveragePooling2D(pool_size=(out_shape,out_shape))(x)
-        b4=SeparableConv2D(256,(1,1),padding="same",use_bias=False, depthwise_regularizer=regularizers.l2(L2reg), depthwise_initializer=initialization)(b4)
+        b4=SeparableConv2D(256,kernel_shape2,padding="same",use_bias=False, depthwise_regularizer=regularizers.l2(l2_reg), depthwise_initializer=initialization)(b4)
         b4=BatchNormalization()(b4)
-        b4=Activation("relu")(b4)
+        b4=Activation(activation_func)(b4)
         b4=UpSampling2D((out_shape,out_shape), interpolation='bilinear')(b4)
         x=Concatenate()([b4,b0,b1,b2,b3])
         return x
@@ -196,121 +204,122 @@ class UnetV4_CXN(object):
         """It adds a Batch_normalization layer before a Relu
         """
         input_tensor = BatchNormalization(axis=3)(input_tensor)
-        return Activation("relu")(input_tensor)
+        return Activation(activation_func)(input_tensor)
 
 
     @staticmethod
-    def contr_arm(input_tensor, filters, kernel_size, L2reg, initialization):
+    def contr_arm(input_tensor, filters, kernel_shape):
         """It adds a feedforward signal to the output of two following conv layers in contracting path
         TO DO: remove keras.layers.add and replace it with add only
         """
 
-        x = SeparableConv2D(filters, kernel_size, padding='same', depthwise_regularizer=regularizers.l2(L2reg), depthwise_initializer=initialization)(input_tensor)
+        x = SeparableConv2D(filters, kernel_shape, padding='same', depthwise_regularizer=regularizers.l2(l2_reg), depthwise_initializer=initialization)(input_tensor)
         x = UnetV4_CXN.bn_relu(x)
 
-        x = SeparableConv2D(filters, kernel_size, padding='same', depthwise_regularizer=regularizers.l2(L2reg), depthwise_initializer=initialization)(x)
+        x = SeparableConv2D(filters, kernel_shape, padding='same', depthwise_regularizer=regularizers.l2(l2_reg), depthwise_initializer=initialization)(x)
         x = UnetV4_CXN.bn_relu(x)
 
         filters_b = filters // 2
-        kernel_size_b = (kernel_size[0]-2, kernel_size[0]-2)  # creates a kernl size of (1,1) out of (3,3)
+        kernel_size_b = (kernel_shape[0]-2, kernel_shape[0]-2)  # creates a kernl size of (1,1) out of (3,3)
 
-        x1 = SeparableConv2D(filters_b, kernel_size_b, padding='same', depthwise_regularizer=regularizers.l2(L2reg), depthwise_initializer=initialization)(input_tensor)
+        x1 = SeparableConv2D(filters_b, kernel_size_b, padding='same', depthwise_regularizer=regularizers.l2(l2_reg), depthwise_initializer=initialization)(input_tensor)
         x1 = UnetV4_CXN.bn_relu(x1)
 
         x1 = concatenate([input_tensor, x1], axis=3)
         x = keras.layers.add([x, x1])
-        x = Activation("relu")(x)
+        x = Activation(activation_func)(x)
         return x
     
 
 
 
     @staticmethod
-    def imprv_contr_arm(input_tensor, filters, kernel_size, L2reg, initialization):
+    def imprv_contr_arm(input_tensor, filters, kernel_shape=(3,3)):
         """It adds a feedforward signal to the output of two following conv layers in contracting path
         """
 
-        x = SeparableConv2D(filters, kernel_size, padding='same', depthwise_regularizer=regularizers.l2(L2reg), depthwise_initializer=initialization)(input_tensor)
+        x = SeparableConv2D(filters, kernel_shape, padding='same', depthwise_regularizer=regularizers.l2(l2_reg), depthwise_initializer=initialization)(input_tensor)
         x = UnetV4_CXN.bn_relu(x)
 
-        x0 = SeparableConv2D(filters, kernel_size, padding='same', depthwise_regularizer=regularizers.l2(L2reg), depthwise_initializer=initialization)(x)
+        x0 = SeparableConv2D(filters, kernel_shape, padding='same', depthwise_regularizer=regularizers.l2(l2_reg), depthwise_initializer=initialization)(x)
         x0 = UnetV4_CXN.bn_relu(x0)
 
-        x = SeparableConv2D(filters, kernel_size, padding='same', depthwise_regularizer=regularizers.l2(L2reg), depthwise_initializer=initialization)(x0)
+        x = SeparableConv2D(filters, kernel_shape, padding='same', depthwise_regularizer=regularizers.l2(l2_reg), depthwise_initializer=initialization)(x0)
         x = UnetV4_CXN.bn_relu(x)
 
         filters_b = filters // 2
-        kernel_size_b = (kernel_size[0]-2, kernel_size[0]-2)  # creates a kernl size of (1,1) out of (3,3)
+        kernel_size_b = (kernel_shape[0]-2, kernel_shape[0]-2)  # creates a kernl size of (1,1) out of (3,3)
 
-        x1 = SeparableConv2D(filters_b, kernel_size_b, padding='same', depthwise_regularizer=regularizers.l2(L2reg), depthwise_initializer=initialization)(input_tensor)
+        x1 = SeparableConv2D(filters_b, kernel_size_b, padding='same', depthwise_regularizer=regularizers.l2(l2_reg), depthwise_initializer=initialization)(input_tensor)
         x1 = UnetV4_CXN.bn_relu(x1)
 
         x1 = concatenate([input_tensor, x1], axis=3)
 
-        x2 = SeparableConv2D(filters, kernel_size_b, padding='same', depthwise_regularizer=regularizers.l2(L2reg), depthwise_initializer=initialization)(x0)
+        x2 = SeparableConv2D(filters, kernel_size_b, padding='same', depthwise_regularizer=regularizers.l2(l2_reg), depthwise_initializer=initialization)(x0)
         x2 = UnetV4_CXN.bn_relu(x2)
 
         x = keras.layers.add([x, x1, x2])
-        x = Activation("relu")(x)
+        x = Activation(activation_func)(x)
         return x
 
 
     @staticmethod
-    def bridge(input_tensor, filters, kernel_size, L2reg, initialization):
+    def bridge(input_tensor, filters, kernel_shape=(3,3), dropout=0.15):
         """It is exactly like the identity_block plus a dropout layer. This block only uses in the valley of the UNet
         """
 
-        x = SeparableConv2D(filters, kernel_size, padding='same', depthwise_regularizer=regularizers.l2(L2reg), bias_regularizer=regularizers.l2(L2reg),
+        x = SeparableConv2D(filters, kernel_shape, padding='same', depthwise_regularizer=regularizers.l2(l2_reg), bias_regularizer=regularizers.l2(l2_reg),
                              depthwise_initializer=initialization)(input_tensor)
         x = UnetV4_CXN.bn_relu(x)
 
-        x = SeparableConv2D(filters, kernel_size, padding='same', depthwise_regularizer=regularizers.l2(L2reg), bias_regularizer=regularizers.l2(L2reg),
+        x = SeparableConv2D(filters, kernel_shape, padding='same', depthwise_regularizer=regularizers.l2(l2_reg), bias_regularizer=regularizers.l2(l2_reg),
                              depthwise_initializer=initialization)(x)
-        x = Dropout(.15)(x)
+        # x = Dropout(.15)(x)
+        x = Dropout(dropout)(x)
         x = UnetV4_CXN.bn_relu(x)
 
         filters_b = filters // 2
-        kernel_size_b = (kernel_size[0]-2, kernel_size[0]-2)  # creates a kernl size of (1,1) out of (3,3)
+        kernel_size_b = (kernel_shape[0]-2, kernel_shape[0]-2)  # creates a kernl size of (1,1) out of (3,3)
 
-        x1 =SeparableConv2D(filters_b, kernel_size_b, padding='same', depthwise_regularizer=regularizers.l2(L2reg), bias_regularizer=regularizers.l2(L2reg),
+        x1 =SeparableConv2D(filters_b, kernel_size_b, padding='same', depthwise_regularizer=regularizers.l2(l2_reg), bias_regularizer=regularizers.l2(l2_reg),
                              depthwise_initializer=initialization)(input_tensor)
         x1 = UnetV4_CXN.bn_relu(x1)
 
         x1 = concatenate([input_tensor, x1], axis=3)
         x = keras.layers.add([x, x1])
-        x = Activation("relu")(x)
+        x = Activation(activation_func)(x)
         return x
 
 
     @staticmethod
-    def conv_block_exp_path(input_tensor, filters, kernel_size, l2reg, initialization):
+    def conv_block_exp_path(input_tensor, filters, kernel_shape=(3,3)):
         """It Is only the convolution part inside each expanding path's block
         """
 
-        x = Conv2D(filters, kernel_size, padding='same', kernel_regularizer=regularizers.l2(l2reg),
+        x = Conv2D(filters, kernel_shape, padding='same', kernel_regularizer=regularizers.l2(l2_reg),
                         kernel_initializer=initialization)(input_tensor)
         x = UnetV4_CXN.bn_relu(x)
 
-        x = Conv2D(filters, kernel_size, padding='same', kernel_regularizer=regularizers.l2(l2reg),
+        x = Conv2D(filters, kernel_shape, padding='same', kernel_regularizer=regularizers.l2(l2_reg),
                         kernel_initializer=initialization)(x)
         x = UnetV4_CXN.bn_relu(x)
         return x
 
 
     @staticmethod
-    def conv_block_exp_path3(input_tensor, filters, kernel_size, l2reg, initialization):
+    def conv_block_exp_path3(input_tensor, filters, kernel_shape=(3,3)):
         """It Is only the convolution part inside each expanding path's block
         """
 
-        x = Conv2D(filters, kernel_size, padding='same', kernel_regularizer=regularizers.l2(l2reg),
+        x = Conv2D(filters, kernel_shape, padding='same', kernel_regularizer=regularizers.l2(l2_reg),
                         kernel_initializer=initialization)(input_tensor)
         x = UnetV4_CXN.bn_relu(x)
 
-        x = Conv2D(filters, kernel_size, padding='same', kernel_regularizer=regularizers.l2(l2reg),
+        x = Conv2D(filters, kernel_shape, padding='same', kernel_regularizer=regularizers.l2(l2_reg),
                         kernel_initializer=initialization)(x)
         x = UnetV4_CXN.bn_relu(x)
 
-        x = Conv2D(filters, kernel_size, padding='same', kernel_regularizer=regularizers.l2(l2reg),
+        x = Conv2D(filters, kernel_shape, padding='same', kernel_regularizer=regularizers.l2(l2_reg),
                         kernel_initializer=initialization)(x)
         x = UnetV4_CXN.bn_relu(x)
         return x
@@ -322,7 +331,7 @@ class UnetV4_CXN(object):
         """
 
         x = keras.layers.add([input_tensor1, input_tensor2, input_tensor3])
-        x = Activation("relu")(x)
+        x = Activation(activation_func)(x)
         return x
 
 
@@ -357,7 +366,7 @@ class UnetV4_CXN(object):
         x4 = MaxPooling2D(pool_size=(16, 16))(x4)
 
         x = keras.layers.add([x1, x2, x3, x4, pure_ff])
-        x = Activation("relu")(x)
+        x = Activation(activation_func)(x)
         return x
 
 
@@ -385,7 +394,7 @@ class UnetV4_CXN(object):
         x3 = MaxPooling2D(pool_size=(8, 8))(x3)
 
         x = keras.layers.add([x1, x2, x3, pure_ff])
-        x = Activation("relu")(x)
+        x = Activation(activation_func)(x)
         return x
 
 
@@ -407,7 +416,7 @@ class UnetV4_CXN(object):
         x2 = MaxPooling2D(pool_size=(4, 4))(x2)
 
         x = keras.layers.add([x1, x2, pure_ff])
-        x = Activation("relu")(x)
+        x = Activation(activation_func)(x)
         return x
 
 
@@ -423,42 +432,42 @@ class UnetV4_CXN(object):
         x1 = MaxPooling2D(pool_size=(2, 2))(x1)
 
         x = keras.layers.add([x1, pure_ff])
-        x = Activation("relu")(x)
+        x = Activation(activation_func)(x)
         return x
     
-    def model_arch_128(self, input_rows=256, input_cols=256, num_of_channels=7, num_of_classes=4, conv2d_kernel_shape=(3,3), initialization="glorot_uniform"):
+    def model_arch_128(self, input_rows=256, input_cols=256, num_of_channels=7, num_of_classes=4, conv2d_kernel_shape=(3,3), depth_separable_kernel_shape=(3,3)):
         inputs = Input((input_rows, input_cols, num_of_channels))
         conv1 = Conv2D(16, conv2d_kernel_shape, activation='relu', padding='same', kernel_regularizer=regularizers.l2(self.params.L2reg),
                         kernel_initializer=initialization)(inputs)
 
-        conv1 = UnetV4_CXN.contr_arm(conv1, 32, conv2d_kernel_shape, self.params.L2reg, initialization)
+        conv1 = UnetV4_CXN.contr_arm(conv1, 32, conv2d_kernel_shape)
         pool1 = MaxPooling2D(pool_size=(2, 2))(conv1)
 
-        conv2 = UnetV4_CXN.contr_arm(pool1, 64, conv2d_kernel_shape, self.params.L2reg, initialization)
+        conv2 = UnetV4_CXN.contr_arm(pool1, 64, conv2d_kernel_shape)
         pool2 = MaxPooling2D(pool_size=(2, 2))(conv2)
 
-        conv3 = UnetV4_CXN.imprv_contr_arm(pool2, 128, conv2d_kernel_shape, self.params.L2reg, initialization)
+        conv3 = UnetV4_CXN.imprv_contr_arm(pool2, 128, conv2d_kernel_shape)
         pool3 = MaxPooling2D(pool_size=(2, 2))(conv3)
 
-        conv4 = UnetV4_CXN.bridge(pool3, 256, conv2d_kernel_shape, L2reg=self.params.L2reg, initialization=initialization)
+        conv4 = UnetV4_CXN.bridge(pool3, 256, depth_separable_kernel_shape, dropout=self.params.dropout)
         
-        conv6  = UnetV4_CXN.aspp(conv4,input_rows/32, L2reg=self.params.L2reg, initialization=initialization)
+        conv6  = UnetV4_CXN.aspp(conv4,input_rows/32, kernel_shape=conv2d_kernel_shape, kernel_shape2=depth_separable_kernel_shape)
 
-        convT9 = Conv2DTranspose(128, (2, 2), strides=(2, 2), padding='same', kernel_regularizer=regularizers.l2(self.params.L2reg), kernel_initializer=initialization)(conv6)
+        convT9 = Conv2DTranspose(128, (2, 2), strides=(2, 2), padding='same', kernel_regularizer=regularizers.l2(l2_reg), kernel_initializer=initialization)(conv6)
         prevup9 = UnetV4_CXN.improve_ff_block2(input_tensor1=conv2, input_tensor2=conv1, pure_ff=conv3)
         up9 = concatenate([convT9, prevup9], axis=3)
-        conv9 = UnetV4_CXN.conv_block_exp_path(input_tensor=up9, filters=128, kernel_size=conv2d_kernel_shape, l2reg=self.params.L2reg, initialization=initialization)
+        conv9 = UnetV4_CXN.conv_block_exp_path(input_tensor=up9, filters=128, kernel_shape=conv2d_kernel_shape)
         conv9 = UnetV4_CXN.add_block_exp_path(input_tensor1=conv9, input_tensor2=conv3, input_tensor3=convT9)
 
-        convT10 = Conv2DTranspose(64, (2, 2), strides=(2, 2), padding='same', kernel_regularizer=regularizers.l2(self.params.L2reg), kernel_initializer=initialization)(conv9)
+        convT10 = Conv2DTranspose(64, (2, 2), strides=(2, 2), padding='same', kernel_regularizer=regularizers.l2(l2_reg), kernel_initializer=initialization)(conv9)
         prevup10 = UnetV4_CXN.improve_ff_block1(input_tensor1=conv1, pure_ff=conv2)
         up10 = concatenate([convT10, prevup10], axis=3)
-        conv10 = UnetV4_CXN.conv_block_exp_path(input_tensor=up10, filters=64, kernel_size=conv2d_kernel_shape, l2reg=self.params.L2reg, initialization=initialization)
+        conv10 = UnetV4_CXN.conv_block_exp_path(input_tensor=up10, filters=64, kernel_shape=conv2d_kernel_shape)
         conv10 = UnetV4_CXN.add_block_exp_path(input_tensor1=conv10, input_tensor2=conv2, input_tensor3=convT10)
 
-        convT11 = Conv2DTranspose(32, (2, 2), strides=(2, 2), padding='same', kernel_regularizer=regularizers.l2(self.params.L2reg), kernel_initializer=initialization)(conv10)
+        convT11 = Conv2DTranspose(32, (2, 2), strides=(2, 2), padding='same', kernel_regularizer=regularizers.l2(l2_reg), kernel_initializer=initialization)(conv10)
         up11 = concatenate([convT11, conv1], axis=3)
-        conv11 = UnetV4_CXN.conv_block_exp_path(input_tensor=up11, filters=32, kernel_size=conv2d_kernel_shape, l2reg=self.params.L2reg, initialization=initialization)
+        conv11 = UnetV4_CXN.conv_block_exp_path(input_tensor=up11, filters=32, kernel_shape=conv2d_kernel_shape)
         conv11 = UnetV4_CXN.add_block_exp_path(input_tensor1=conv11, input_tensor2=conv1, input_tensor3=convT11)
 
         # -----------------------------------------------------------------------
@@ -472,53 +481,53 @@ class UnetV4_CXN(object):
 
         return Model(inputs=[inputs], outputs=[conv12])
     
-    def model_arch_256(self, input_rows=256, input_cols=256, num_of_channels=7, num_of_classes=4, conv2d_kernel_shape=(3,3), initialization="glorot_uniform"):
+    def model_arch_256(self, input_rows=256, input_cols=256, num_of_channels=7, num_of_classes=4, conv2d_kernel_shape=(3,3), depth_separable_kernel_shape=(3,3)):
         inputs = Input((input_rows, input_cols, num_of_channels))
         conv1 = Conv2D(16, conv2d_kernel_shape, activation='relu', padding='same',
                         kernel_regularizer=regularizers.l2(self.params.L2reg),
                         kernel_initializer=initialization)(inputs)
 
-        conv1 = UnetV4_CXN.contr_arm(conv1, 32, conv2d_kernel_shape, self.params.L2reg, initialization)
+        conv1 = UnetV4_CXN.contr_arm(conv1, 32, conv2d_kernel_shape)
         pool1 = MaxPooling2D(pool_size=(2, 2))(conv1)
 
-        conv2 = UnetV4_CXN.contr_arm(pool1, 64, conv2d_kernel_shape, self.params.L2reg, initialization)
+        conv2 = UnetV4_CXN.contr_arm(pool1, 64, conv2d_kernel_shape)
         pool2 = MaxPooling2D(pool_size=(2, 2))(conv2)
 
-        conv3 = UnetV4_CXN.contr_arm(pool2, 128, conv2d_kernel_shape, self.params.L2reg, initialization)
+        conv3 = UnetV4_CXN.contr_arm(pool2, 128, conv2d_kernel_shape)
         pool3 = MaxPooling2D(pool_size=(2, 2))(conv3)
 
-        conv4 = UnetV4_CXN.imprv_contr_arm(pool3, 256, conv2d_kernel_shape, self.params.L2reg, initialization)
+        conv4 = UnetV4_CXN.imprv_contr_arm(pool3, 256, depth_separable_kernel_shape)
         pool4 = MaxPooling2D(pool_size=(2, 2))(conv4)
 
-        conv5 = UnetV4_CXN.bridge(pool4, 512, conv2d_kernel_shape, self.params.L2reg, initialization)
+        conv5 = UnetV4_CXN.bridge(pool4, 512, depth_separable_kernel_shape, self.params.dropout)
         
-        conv6  = UnetV4_CXN.aspp(conv5,input_rows/32, self.params.L2reg, initialization=initialization)
+        conv6  = UnetV4_CXN.aspp(conv5,input_rows/32, kernel_shape=conv2d_kernel_shape, kernel_shape2=depth_separable_kernel_shape)
 
-        convT8 = Conv2DTranspose(256, (2, 2), strides=(2, 2), padding='same', kernel_regularizer=regularizers.l2(self.params.L2reg),
+        convT8 = Conv2DTranspose(256, (2, 2), strides=(2, 2), padding='same', kernel_regularizer=regularizers.l2(l2_reg),
                         kernel_initializer=initialization)(conv6)
         prevup8 = UnetV4_CXN.improve_ff_block3(input_tensor1=conv3, input_tensor2=conv2, input_tensor3=conv1, pure_ff=conv4)
         up8 = concatenate([convT8, prevup8], axis=3)
-        conv8 = UnetV4_CXN.conv_block_exp_path(input_tensor=up8, filters=256, kernel_size=conv2d_kernel_shape, l2reg=self.params.L2reg, initialization=initialization)
+        conv8 = UnetV4_CXN.conv_block_exp_path(input_tensor=up8, filters=256, kernel_shape=conv2d_kernel_shape)
         conv8 = UnetV4_CXN.add_block_exp_path(input_tensor1=conv8, input_tensor2=conv4, input_tensor3=convT8)
 
-        convT9 = Conv2DTranspose(128, (2, 2), strides=(2, 2), padding='same', kernel_regularizer=regularizers.l2(self.params.L2reg),
+        convT9 = Conv2DTranspose(128, (2, 2), strides=(2, 2), padding='same', kernel_regularizer=regularizers.l2(l2_reg),
                         kernel_initializer=initialization)(conv8)
         prevup9 = UnetV4_CXN.improve_ff_block2(input_tensor1=conv2, input_tensor2=conv1, pure_ff=conv3)
         up9 = concatenate([convT9, prevup9], axis=3)
-        conv9 = UnetV4_CXN.conv_block_exp_path(input_tensor=up9, filters=128, kernel_size=conv2d_kernel_shape, l2reg=self.params.L2reg, initialization=initialization)
+        conv9 = UnetV4_CXN.conv_block_exp_path(input_tensor=up9, filters=128, kernel_shape=conv2d_kernel_shape)
         conv9 = UnetV4_CXN.add_block_exp_path(input_tensor1=conv9, input_tensor2=conv3, input_tensor3=convT9)
 
-        convT10 = Conv2DTranspose(64, (2, 2), strides=(2, 2), padding='same', kernel_regularizer=regularizers.l2(self.params.L2reg),
+        convT10 = Conv2DTranspose(64, (2, 2), strides=(2, 2), padding='same', kernel_regularizer=regularizers.l2(l2_reg),
                         kernel_initializer=initialization)(conv9)
         prevup10 = UnetV4_CXN.improve_ff_block1(input_tensor1=conv1, pure_ff=conv2)
         up10 = concatenate([convT10, prevup10], axis=3)
-        conv10 = UnetV4_CXN.conv_block_exp_path(input_tensor=up10, filters=64, kernel_size=conv2d_kernel_shape, l2reg=self.params.L2reg, initialization=initialization)
+        conv10 = UnetV4_CXN.conv_block_exp_path(input_tensor=up10, filters=64, kernel_shape=conv2d_kernel_shape)
         conv10 = UnetV4_CXN.add_block_exp_path(input_tensor1=conv10, input_tensor2=conv2, input_tensor3=convT10)
 
-        convT11 = Conv2DTranspose(32, (2, 2), strides=(2, 2), padding='same', kernel_regularizer=regularizers.l2(self.params.L2reg),
+        convT11 = Conv2DTranspose(32, (2, 2), strides=(2, 2), padding='same', kernel_regularizer=regularizers.l2(l2_reg),
                         kernel_initializer=initialization)(conv10)
         up11 = concatenate([convT11, conv1], axis=3)
-        conv11 = UnetV4_CXN.conv_block_exp_path(input_tensor=up11, filters=32, kernel_size=conv2d_kernel_shape, l2reg=self.params.L2reg, initialization=initialization)
+        conv11 = UnetV4_CXN.conv_block_exp_path(input_tensor=up11, filters=32, kernel_shape=conv2d_kernel_shape)
         conv11 = UnetV4_CXN.add_block_exp_path(input_tensor1=conv11, input_tensor2=conv1, input_tensor3=convT11)
 
         # -----------------------------------------------------------------------
@@ -534,56 +543,56 @@ class UnetV4_CXN(object):
         return Model(inputs=[inputs], outputs=[conv12])
 
 
-    def model_arch(self, input_rows=256, input_cols=256, num_of_channels=7, num_of_classes=4, conv2d_kernel_shape=(3,3), initialization="glorot_uniform"):
+    def model_arch(self, input_rows=256, input_cols=256, num_of_channels=7, num_of_classes=4, conv2d_kernel_shape=(3,3), depth_separable_kernel_shape=(3,3)):
         inputs = Input((input_rows, input_cols, num_of_channels))
         conv1 = Conv2D(16, conv2d_kernel_shape, activation='relu', padding='same')(inputs)
 
-        conv1 = UnetV4_CXN.contr_arm(conv1, 32, conv2d_kernel_shape, self.params.L2reg, initialization=initialization)
+        conv1 = UnetV4_CXN.contr_arm(conv1, 32, conv2d_kernel_shape)
         pool1 = MaxPooling2D(pool_size=(2, 2))(conv1)
 
-        conv2 = UnetV4_CXN.contr_arm(pool1, 64, conv2d_kernel_shape, self.params.L2reg, initialization=initialization)
+        conv2 = UnetV4_CXN.contr_arm(pool1, 64, conv2d_kernel_shape)
         pool2 = MaxPooling2D(pool_size=(2, 2))(conv2)
 
-        conv3 = UnetV4_CXN.contr_arm(pool2, 128, conv2d_kernel_shape, self.params.L2reg, initialization=initialization)
+        conv3 = UnetV4_CXN.contr_arm(pool2, 128, conv2d_kernel_shape)
         pool3 = MaxPooling2D(pool_size=(2, 2))(conv3)
 
-        conv4 = UnetV4_CXN.contr_arm(pool3, 256, conv2d_kernel_shape, self.params.L2reg, initialization=initialization)
+        conv4 = UnetV4_CXN.contr_arm(pool3, 256, conv2d_kernel_shape)
         pool4 = MaxPooling2D(pool_size=(2, 2))(conv4)
 
-        conv5 = UnetV4_CXN.imprv_contr_arm(pool4, 512, conv2d_kernel_shape, self.params.L2reg, initialization=initialization)
+        conv5 = UnetV4_CXN.imprv_contr_arm(pool4, 512, conv2d_kernel_shape)
         pool5 = MaxPooling2D(pool_size=(2, 2))(conv5)
 
-        conv6 = UnetV4_CXN.bridge(pool5, 1024, conv2d_kernel_shape, self.params.L2reg, initialization=initialization)
+        conv6 = UnetV4_CXN.bridge(pool5, 1024, depth_separable_kernel_shape, dropout=self.params.dropout)
         
-        conv6  = UnetV4_CXN.aspp(conv6,input_rows/32, self.params.L2reg, initialization=initialization)
+        conv6  = UnetV4_CXN.aspp(conv6,input_rows/32, kernel_shape=conv2d_kernel_shape, kernel_shape2=depth_separable_kernel_shape)
 
-        convT7 = Conv2DTranspose(512, (2, 2), strides=(2, 2), padding='same', kernel_regularizer=regularizers.l2(self.params.L2reg))(conv6)
+        convT7 = Conv2DTranspose(512, (2, 2), strides=(2, 2), padding='same', kernel_regularizer=regularizers.l2(l2_reg), kernel_initializer=initialization)(conv6)
         prevup7 = UnetV4_CXN.improve_ff_block4(input_tensor1=conv4, input_tensor2=conv3, input_tensor3=conv2, input_tensor4=conv1, pure_ff=conv5)
         up7 = concatenate([convT7, prevup7], axis=3)
-        conv7 = UnetV4_CXN.conv_block_exp_path3(input_tensor=up7, filters=512, kernel_size=conv2d_kernel_shape, l2reg=self.params.L2reg, initialization=initialization)
+        conv7 = UnetV4_CXN.conv_block_exp_path3(input_tensor=up7, filters=512, kernel_shape=conv2d_kernel_shape)
         conv7 = UnetV4_CXN.add_block_exp_path(conv7, conv5, convT7)
 
-        convT8 = Conv2DTranspose(256, (2, 2), strides=(2, 2), padding='same', kernel_regularizer=regularizers.l2(self.params.L2reg))(conv7)
+        convT8 = Conv2DTranspose(256, (2, 2), strides=(2, 2), padding='same', kernel_regularizer=regularizers.l2(l2_reg), kernel_initializer=initialization)(conv7)
         prevup8 = UnetV4_CXN.improve_ff_block3(input_tensor1=conv3, input_tensor2=conv2, input_tensor3=conv1, pure_ff=conv4)
         up8 = concatenate([convT8, prevup8], axis=3)
-        conv8 = UnetV4_CXN.conv_block_exp_path(input_tensor=up8, filters=256, kernel_size=conv2d_kernel_shape, l2reg=self.params.L2reg, initialization=initialization)
+        conv8 = UnetV4_CXN.conv_block_exp_path(input_tensor=up8, filters=256, kernel_shape=conv2d_kernel_shape)
         conv8 = UnetV4_CXN.add_block_exp_path(input_tensor1=conv8, input_tensor2=conv4, input_tensor3=convT8)
 
-        convT9 = Conv2DTranspose(128, (2, 2), strides=(2, 2), padding='same', kernel_regularizer=regularizers.l2(self.params.L2reg))(conv8)
+        convT9 = Conv2DTranspose(128, (2, 2), strides=(2, 2), padding='same', kernel_regularizer=regularizers.l2(l2_reg), kernel_initializer=initialization)(conv8)
         prevup9 = UnetV4_CXN.improve_ff_block2(input_tensor1=conv2, input_tensor2=conv1, pure_ff=conv3)
         up9 = concatenate([convT9, prevup9], axis=3)
-        conv9 = UnetV4_CXN.conv_block_exp_path(input_tensor=up9, filters=128, kernel_size=conv2d_kernel_shape, l2reg=self.params.L2reg, initialization=initialization)
+        conv9 = UnetV4_CXN.conv_block_exp_path(input_tensor=up9, filters=128, kernel_shape=conv2d_kernel_shape)
         conv9 = UnetV4_CXN.add_block_exp_path(input_tensor1=conv9, input_tensor2=conv3, input_tensor3=convT9)
 
-        convT10 = Conv2DTranspose(64, (2, 2), strides=(2, 2), padding='same', kernel_regularizer=regularizers.l2(self.params.L2reg))(conv9)
+        convT10 = Conv2DTranspose(64, (2, 2), strides=(2, 2), padding='same', kernel_regularizer=regularizers.l2(l2_reg), kernel_initializer=initialization)(conv9)
         prevup10 = UnetV4_CXN.improve_ff_block1(input_tensor1=conv1, pure_ff=conv2)
         up10 = concatenate([convT10, prevup10], axis=3)
-        conv10 = UnetV4_CXN.conv_block_exp_path(input_tensor=up10, filters=64, kernel_size=conv2d_kernel_shape, l2reg=self.params.L2reg, initialization=initialization)
+        conv10 = UnetV4_CXN.conv_block_exp_path(input_tensor=up10, filters=64, kernel_shape=conv2d_kernel_shape)
         conv10 = UnetV4_CXN.add_block_exp_path(input_tensor1=conv10, input_tensor2=conv2, input_tensor3=convT10)
 
-        convT11 = Conv2DTranspose(32, (2, 2), strides=(2, 2), padding='same', kernel_regularizer=regularizers.l2(self.params.L2reg))(conv10)
+        convT11 = Conv2DTranspose(32, (2, 2), strides=(2, 2), padding='same', kernel_regularizer=regularizers.l2(l2_reg), kernel_initializer=initialization)(conv10)
         up11 = concatenate([convT11, conv1], axis=3)
-        conv11 = UnetV4_CXN.conv_block_exp_path(input_tensor=up11, filters=32, kernel_size=conv2d_kernel_shape, l2reg=self.params.L2reg, initialization=initialization)
+        conv11 = UnetV4_CXN.conv_block_exp_path(input_tensor=up11, filters=32, kernel_shape=conv2d_kernel_shape)
         conv11 = UnetV4_CXN.add_block_exp_path(input_tensor1=conv11, input_tensor2=conv1, input_tensor3=convT11)
 
         # -----------------------------------------------------------------------
