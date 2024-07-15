@@ -31,7 +31,7 @@ Order: 3, 4, 1, 2, 6, 7, 5
 """
 
 MODEL = "U-net-v4-CXN"
-CLS=['shadow', 'clear', 'thin', 'cloud'] # try reorder, might reduce loss? ['clear', 'shadow', 'thin', 'cloud']
+CLS=['shadow','clear', 'thin', 'cloud'] # try reorder, might reduce loss? ['clear', 'shadow', 'thin', 'cloud']
 SATELLITE = "Landsat8"
 TRAIN_DATASET = "Biome_gt"
 TEST_DATASET= TRAIN_DATASET
@@ -42,16 +42,16 @@ script = "/home/mxh/RS-Net/SentinelSemanticSegmentation_v2.py"
 params = get_params(MODEL, SATELLITE)
 
 # define additional parameters
-new_params = HParams(activation_func="relu", # or elu or leaky relu?
+new_params = HParams(activation_func="leaky_relu", # or elu or leaky relu?
                 random=False,
                 shuffle=True,
                 optimizer='AdamW',
-                modelID="dummy_240629081953-best-val-loss", #"240515092709-CV1of2",
+                modelID="CXN-256-bn", # "dummy_240629081953-best-val-loss", #"240515092709-CV1of2",
                 modelNick="U-net-v4-cxn-256-kernel77", # "U-net-v4-cxn-128-kernel77"
                 loss_func="sparse_categorical_crossentropy",
-                learning_rate=1e-8,# 1e-6, 1e-4 # 1e-3??
-                base_lr=1e-12,
-                cyclical_lr_step_size=2*3349, # 2*165 for full? # number iterations per epoch = number batches in epoch ? # for training on full dataset, double?
+                learning_rate=1e-4,# 1e-6, 1e-4 # 1e-3??
+                base_lr=1e-8,
+                cyclical_lr_step_size=2*3349, # 2*3349# 2*165 for full? # number iterations per epoch = number batches in epoch ? # for training on full dataset, double?
                 cyclical_lr_mode="exp_range", 
                 cyclical_lr_gamma = 0.99994,
                 batch_size=20, 
@@ -67,10 +67,12 @@ new_params = HParams(activation_func="relu", # or elu or leaky relu?
                 # If set to None, fill values will be replaced by most probable cls and not ignored by sparse categorical crossentropy.
                 affine_transformation = True,
                 dropout_on_last_layer_only=True, # if using dropout, definitely test both
-                decay=0.5, # 1e-3 # initial lr / nr epochs?
-                L2reg=1e-3,
+                decay=0.99, # 1e-3 # initial lr / nr epochs?
+                L2reg=1e-5,
+                dropout=0.15, # 0.15
+                batch_norm_momentum=0,
                 bands=[1, 2, 3, 4, 5, 6, 7],
-                epochs=24, # set this to x \times modulator -1 to end on a low lr
+                epochs=42, # set this to x \times modulator -1 to end on a low lr
                 # steps_per_epoch=3,
                 norm_method="enhance_contrast", #"enhance_contrast"
                 initialization="glorot_normal", #he_normal? @rainio2024
@@ -115,7 +117,7 @@ if __name__ == '__main__':
                         script,
                         "--model", str(MODEL),
                         #"--make_dataset",  # needed if cls definitions changed from fmask to gt or vice versa    
-                        "--load_model",
+                        #"--load_model",
                         "--train",
                         #"--dev_dataset",
                         #"--test", # works now, but takes a loong time. # needed for writing csv output.

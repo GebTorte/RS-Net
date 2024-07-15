@@ -381,7 +381,7 @@ def get_params(model, satellite):
             'use_ensemble_learning': False,
             'ensemble_method': 'Bagging',
             'learning_rate': 1e-4,
-            'dropout': 0.2,
+            'dropout': 0.15,
             'L1reg': 0.0,
             'L2reg': 1e-4,
             'L1L2reg': 0.0,
