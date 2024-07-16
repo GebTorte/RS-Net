@@ -1039,7 +1039,7 @@ def write_csv_files(evaluation_metrics, params):
                 elif key == "categorical_cross_entropy":
                     cat_cross_entropy_sum += evaluation_metrics[product][threshold][key]
                 elif key == "categorical_f1_score":
-                    cat_f1_sum = evaluation_metrics[product][threshold][key]
+                    cat_f1_sum += evaluation_metrics[product][threshold][key]
 
         # Add mean values to string
         n_products = np.size(list(evaluation_metrics))
