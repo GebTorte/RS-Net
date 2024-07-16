@@ -42,11 +42,9 @@ class UnetV4_CXN(object):
         # Seed for the random generators
         self.seed = 1
 
-        self.activation_func = "relu"
-        self.initialization = "glorot_uniform"
-        self.L2reg = 1e-3
-        self.conv2d_kernel_shape = 3 # (3,3)
-        self.depth_separable_kernel_shape = 3 # (3,3)
+        #self.activation_func = "relu"
+        #self.params.initialization = "glorot_uniform"
+        #self.L2reg = 1e-3
 
         self.params = params
         self.model = model
@@ -126,7 +124,7 @@ class UnetV4_CXN(object):
 
         # set params (redundant)
         #self.activation_func = self.params.activation_func
-        #self.initialization = self.params.initialization
+        #self.params.initialization = self.params.initialization
         #self.L2reg = self.params.L2reg
         #self.conv2d_kernel_shape = self.params.conv_kernel
         #self.depth_separable_kernel_shape = self.params.depth_kernel
@@ -475,7 +473,7 @@ class UnetV4_CXN(object):
         inputs = Input((input_rows, input_cols, num_of_channels))
         conv1 = Conv2D(16, conv2d_kernel_shape, activation=self.params.activation_func, padding='same',
                         kernel_regularizer=regularizers.l2(self.params.L2reg),
-                        kernel_initializer=self.initialization)(inputs)
+                        kernel_initializer=self.params.initialization)(inputs)
 
         conv1 = self.contr_arm(conv1, 32, conv2d_kernel_shape)
         pool1 = MaxPooling2D(pool_size=(2, 2))(conv1)

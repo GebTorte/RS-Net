@@ -53,7 +53,7 @@ new_params = HParams(activation_func="leaky_relu", # or elu or leaky relu?
                 depth_kernel=7,
                 learning_rate=1e-5,# 1e-6, 1e-4 # 1e-3??
                 base_lr=1e-7,
-                cyclical_lr_step_size=2*3349, # 2*3349# 2*165 for full? # number iterations per epoch = number batches in epoch ? # for training on full dataset, double?
+                cyclical_lr_step_size=3349, # 2*3349# 2*165 for full? # number iterations per epoch = number batches in epoch ? # for training on full dataset, double?
                 cyclical_lr_mode="exp_range", 
                 cyclical_lr_gamma = 0.99994,
                 batch_size=20,
@@ -70,7 +70,7 @@ new_params = HParams(activation_func="leaky_relu", # or elu or leaky relu?
                 affine_transformation = True,
                 dropout_on_last_layer_only=True, # if using dropout, definitely test both
                 decay=0.99, # 1e-3 # initial lr / nr epochs?
-                L2reg=0,
+                L2reg=1e-3,
                 dropout=0.15, # 0.15
                 batch_norm_momentum=0,
                 bands=[1, 2, 3, 4, 5, 6, 7],
