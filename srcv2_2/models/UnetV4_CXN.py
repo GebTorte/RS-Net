@@ -441,7 +441,7 @@ class UnetV4_CXN(object):
 
         conv4 = self.bridge(pool3, 256, depth_separable_kernel_shape, dropout=self.params.dropout)
         
-        conv6  = self.aspp(conv4,input_rows/32, kernel_shape=conv2d_kernel_shape, kernel_shape2=depth_separable_kernel_shape)
+        conv6  = self.aspp(conv4,input_rows/32, kernel_shape=conv2d_kernel_shape, depth_kernel_shape=depth_separable_kernel_shape)
 
         convT9 = Conv2DTranspose(128, (2, 2), strides=(2, 2), padding='same', kernel_regularizer=regularizers.l2(self.params.l2_reg), kernel_initializer=self.params.initialization)(conv6)
         prevup9 = self.improve_ff_block2(input_tensor1=conv2, input_tensor2=conv1, pure_ff=conv3)
@@ -491,7 +491,7 @@ class UnetV4_CXN(object):
 
         conv5 = self.bridge(pool4, 512, depth_separable_kernel_shape, self.params.dropout)
         
-        conv6  = self.aspp(conv5,input_rows/32, kernel_shape=conv2d_kernel_shape, kernel_shape2=depth_separable_kernel_shape)
+        conv6  = self.aspp(conv5,input_rows/32, kernel_shape=conv2d_kernel_shape, depth_kernel_shape=depth_separable_kernel_shape)
 
         convT8 = Conv2DTranspose(256, (2, 2), strides=(2, 2), padding='same', kernel_regularizer=regularizers.l2(self.params.l2_reg),
                         kernel_initializer=self.params.initialization)(conv6)
@@ -554,7 +554,7 @@ class UnetV4_CXN(object):
 
         conv6 = self.bridge(pool5, 1024, depth_separable_kernel_shape, dropout=self.params.dropout)
         
-        conv6  = self.aspp(conv6,input_rows/32, kernel_shape=conv2d_kernel_shape, kernel_shape2=depth_separable_kernel_shape)
+        conv6  = self.aspp(conv6,input_rows/32, kernel_shape=conv2d_kernel_shape, depth_kernel_shape=depth_separable_kernel_shape)
 
         convT7 = Conv2DTranspose(512, (2, 2), strides=(2, 2), padding='same', kernel_regularizer=regularizers.l2(self.params.l2_reg), kernel_initializer=self.params.initialization)(conv6)
         prevup7 = self.improve_ff_block4(input_tensor1=conv4, input_tensor2=conv3, input_tensor3=conv2, input_tensor4=conv1, pure_ff=conv5)
