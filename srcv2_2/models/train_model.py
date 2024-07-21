@@ -33,7 +33,7 @@ train_set_overlap: 120px -> give 60px to patch_v2 as it cuts from both sides
 
 # define additional parameters
 params = HParams(activation_func="relu",
-                modelID="binary_M1",
+                modelID="binary_M1.3",
                 random=False, # False -> reproducible
                 shuffle=False,
                 split_dataset=False,

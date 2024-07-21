@@ -151,7 +151,11 @@ if __name__ == '__main__':
 
     loaded_model = None
     if args.load_model:
-        loaded_model = tf.keras.saving.load_model(params.project_path +f"models/Unet/{params.modelID}.keras")
+        try:
+            loaded_model = tf.keras.saving.load_model(params.project_path +f"models/Unet/{params.modelID}.keras")
+        except OSError as e:
+            print(f"Model with ID {params.modelID} not found.")
+            raise e
 
     # Check to see if a model should be trained
     if args.train:
