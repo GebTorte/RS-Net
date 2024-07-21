@@ -44,7 +44,7 @@ class UnetV4_CXN(object):
 
         #self.activation_func = "relu"
         #self.params.initialization = "glorot_uniform"
-        #self.L2reg = 1e-3
+        #self.params.L2reg = 1e-3
 
         self.params = params
         self.model = model
@@ -125,11 +125,11 @@ class UnetV4_CXN(object):
         # set params (redundant)
         #self.activation_func = self.params.activation_func
         #self.params.initialization = self.params.initialization
-        #self.L2reg = self.params.L2reg
+        #self.params.L2reg = self.params.L2reg
         #self.conv2d_kernel_shape = self.params.conv_kernel
         #self.depth_separable_kernel_shape = self.params.depth_kernel
 
-        model = self.model_arch_256(input_rows=self.params.patch_size,
+        model = self.model_arch_128(input_rows=self.params.patch_size,
                                 input_cols=self.params.patch_size, 
                                 num_of_channels=self.n_bands, 
                                 num_of_classes=self.n_cls, 
@@ -453,7 +453,7 @@ class UnetV4_CXN(object):
         conv10 = self.conv_block_exp_path(input_tensor=up10, filters=64, kernel_shape=conv2d_kernel_shape)
         conv10 = self.add_block_exp_path(input_tensor1=conv10, input_tensor2=conv2, input_tensor3=convT10)
 
-        convT11 = Conv2DTranspose(32, (2, 2), strides=(2, 2), padding='same', kernel_regularizer=regularizers.l2(self.L2reg), kernel_initializer=self.params.initialization)(conv10)
+        convT11 = Conv2DTranspose(32, (2, 2), strides=(2, 2), padding='same', kernel_regularizer=regularizers.l2(self.params.L2reg), kernel_initializer=self.params.initialization)(conv10)
         up11 = concatenate([convT11, conv1], axis=3)
         conv11 = self.conv_block_exp_path(input_tensor=up11, filters=32, kernel_shape=conv2d_kernel_shape)
         conv11 = self.add_block_exp_path(input_tensor1=conv11, input_tensor2=conv1, input_tensor3=convT11)
