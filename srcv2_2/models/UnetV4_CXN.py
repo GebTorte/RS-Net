@@ -643,9 +643,9 @@ class UnetV4_CXN(object):
 
         # Configure optimizer (use Nadam or Adam and 'binary_crossentropy' or jaccard_coef_loss)
         if self.params.optimizer == 'Adam':
-            optimizer = Adam(learning_rate=self.params.learning_rate, decay=self.params.decay, amsgrad=True)
+            optimizer = Adam(learning_rate=self.params.learning_rate, decay=self.params.decay, amsgrad=self.params.amsgrad)
         elif self.params.optimizer == 'AdamW':
-            optimizer = AdamW(learning_rate=self.params.learning_rate, weight_decay=self.params.decay, amsgrad=True)
+            optimizer = AdamW(learning_rate=self.params.learning_rate, weight_decay=self.params.decay, amsgrad=self.params.amsgrad)
         
         if self.params.loss_func == 'binary_crossentropy':
             self.model.compile(optimizer=optimizer,
